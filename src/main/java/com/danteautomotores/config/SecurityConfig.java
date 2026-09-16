@@ -1,10 +1,11 @@
 package com.danteautomotores.config;
 
 import com.danteautomotores.security.JwtAuthenticationFilter;
-import org.springframework.beans.factory.annotation.Value;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -41,8 +42,12 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/consultas/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/publicaciones/**", "/api/agencias/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/consultas/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/publicaciones/**", "/api/agencias/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/agencias/**", "/api/publicaciones/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/agencias/**", "/api/publicaciones/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/agencias/**", "/api/publicaciones/**").hasRole("ADMIN")
+                        .requestMatchers("/api/consultas/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
