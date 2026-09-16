@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: dante
       POSTGRES_PASSWORD: dante_dev_password
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - danteautomotores_pgdata:/var/lib/postgresql/data
 

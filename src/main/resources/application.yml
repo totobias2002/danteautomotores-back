@@ -5,7 +5,7 @@ spring:
   application:
     name: danteautomotores-back
   datasource:
-    url: jdbc:postgresql://localhost:5432/danteautomotores
+    url: jdbc:postgresql://localhost:5433/danteautomotores
     username: dante
     password: dante_dev_password
   jpa:
