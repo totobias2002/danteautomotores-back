@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: danteautomotores-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: danteautomotores
+      POSTGRES_USER: dante
+      POSTGRES_PASSWORD: dante_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - danteautomotores_pgdata:/var/lib/postgresql/data
+
+volumes:
+  danteautomotores_pgdata:
