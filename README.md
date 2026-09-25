@@ -23,3 +23,18 @@ No hay flujo de compra/pago dentro de la plataforma: el circuito es consulta →
 ## Variables de entorno
 
 Ver `src/main/resources/application.yml`. Para producción, sobreescribir `app.jwt.secret` y las credenciales de `cloudinary` por variables de entorno reales — nunca commitear secretos.
+
+## Variables de entorno para producción (Railway, Render, etc.)
+
+| Variable | Descripción |
+|---|---|
+| `PORT` | Puerto HTTP (Railway/Render la inyectan solos). |
+| `SPRING_DATASOURCE_URL` | URL JDBC de la base Postgres, ej: `jdbc:postgresql://host:5432/db`. |
+| `SPRING_DATASOURCE_USERNAME` | Usuario de la base. |
+| `SPRING_DATASOURCE_PASSWORD` | Contraseña de la base. |
+| `APP_JWT_SECRET` | Secreto para firmar JWT — al menos 32 caracteres, distinto al de desarrollo. |
+| `APP_JWT_EXPIRATION_MS` | Duración del token en ms (opcional, default 24hs). |
+| `APP_CORS_ALLOWED_ORIGINS` | Orígenes permitidos separados por coma, ej: `https://mi-app.vercel.app`. |
+| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Credenciales de Cloudinary para las fotos. |
+
+El repo incluye un `Dockerfile` (build multi-stage con Maven + JDK 25) listo para deployar en Railway, Render o cualquier hosting que soporte contenedores.
