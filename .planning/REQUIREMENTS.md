@@ -102,12 +102,52 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| CAT-01 | Phase 2 | Pending |
+| CAT-02 | Phase 2 | Pending |
+| CAT-03 | Phase 2 | Pending |
+| CAT-04 | Phase 2 | Pending |
+| ADM-01 | Phase 1 | Pending |
+| ADM-02 | Phase 1 | Pending |
+| ADM-03 | Phase 1 | Pending |
+| ADM-04 | Phase 1 | Pending |
+| ADM-05 | Phase 1 | Pending |
+| ADM-06 | Phase 5 | Pending |
+| AUTH-01 | Phase 3 | Pending |
+| AUTH-02 | Phase 3 | Pending |
+| AUTH-03 | Phase 3 | Pending |
+| AUTH-04 | Phase 3 | Pending |
+| AUTH-05 | Phase 3 | Pending |
+| AUTH-06 | Phase 3 | Pending |
+| MSG-01 | Phase 4 | Pending |
+| MSG-02 | Phase 5 | Pending |
+| MSG-03 | Phase 4 | Pending |
+| MSG-04 | Phase 4 | Pending |
+| MSG-05 | Phase 4 | Pending |
+| MSG-06 | Phase 4 | Pending |
+| MSG-07 | Phase 4 | Pending |
+| MSG-08 | Phase 4 | Pending |
+| MSG-09 | Phase 4 | Pending |
+| COT-01 | Phase 5 | Pending |
+| COT-02 | Phase 5 | Pending |
+| COT-03 | Phase 5 | Pending |
+| COT-04 | Phase 5 | Pending |
+| COT-05 | Phase 5 | Pending |
+| COT-06 | Phase 5 | Pending |
+| UX-01 | Phase 6 | Pending |
+| UX-02 | Phase 6 | Pending |
+| UX-03 | Phase 6 | Pending |
+| UX-04 | Phase 6 | Pending |
+| UX-05 | Phase 6 | Pending |
+| PROD-01 | Phase 1 | Pending |
+| PROD-02 | Phase 2 | Pending |
+| PROD-03 | Phase 3 | Pending |
+| PROD-04 | Phase 2 | Pending |
 
 **Coverage:**
 - v1 requirements: 40 total
-- Mapped to phases: 0 (pendiente de roadmap)
-- Unmapped: 40 ⚠️
+- Mapped to phases: 40
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-10-02*
-*Last updated: 2026-10-02 after initial definition*
+*Last updated: 2026-10-02 after roadmap creation (traceability mapped)*
