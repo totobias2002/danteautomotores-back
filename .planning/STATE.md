@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Catálogo público real en producción
 status: executing
-stopped_at: Completed 02-06-PLAN.md
-last_updated: "2026-10-03T21:31:45.991Z"
+stopped_at: Completed 02-07-PLAN.md
+last_updated: "2026-10-03T21:39:00.578Z"
 last_activity: 2026-10-03
 last_activity_desc: Phase 02 execution started
-state_head: f06ecfa6f3a125f36cbb933f6c5cf92eafaaba46
+state_head: d083e0ee2c57f4be8dc6ba53cddded9fdf8cff27
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 14
   percent: 17
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-03)
 ## Current Position
 
 Phase: 02 (Catálogo público real en producción) — EXECUTING
-Plan: 7 of 8
+Plan: 8 of 8
 Status: Ready to execute
 Last activity: 2026-10-03 — Phase 02 execution started
 
@@ -69,6 +69,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 02 P04 | 40 min | 2 tasks | 15 files |
 | Phase 02 P05 | 20min | 3 tasks | 8 files |
 | Phase 02 P06 | 35min | 3 tasks | 6 files |
+| Phase 02 P07 | 28 min | 3 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,9 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-05: etiquetas.js es la unica fuente de etiquetas en espanol; la card decide la oferta solo con oferta===true del servidor
 - [Phase 02]: 02-06: la URL es la unica fuente de verdad del listado /autos; filtro/orden escriben con replace y vuelven a pagina 1, la pagina hace push; texto y rangos con debounce 350 ms y AbortController por cambio de URL
 - [Phase 02]: 02-06: las facetas de /autos y la Home se piden una vez por visita sin recalcular con los filtros; si fallan, 'Sin opciones por ahora' (Autos) o se omiten en silencio (Home y carrusel de agencia)
+- [Phase 02]: 02-07: similares = DISPONIBLES de la misma moneda, 70-130 % del precio, mismo tipo o marca (solo marca sin tipo), por cercania de precio; 4 por defecto, 1..8
+- [Phase 02]: 02-07: ConsultaService rechaza con 400 las consultas sobre VENDIDO (defensa en profundidad); RESERVADO se consulta
+- [Phase 02]: 02-07: solo el detalle de un VENDIDO pide y muestra Autos parecidos
 
 ### Pending Todos
 
@@ -126,6 +130,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-03T21:31:45.943Z
-Stopped at: Completed 02-06-PLAN.md
+Last session: 2026-10-03T21:39:00.530Z
+Stopped at: Completed 02-07-PLAN.md
 Resume file: None
