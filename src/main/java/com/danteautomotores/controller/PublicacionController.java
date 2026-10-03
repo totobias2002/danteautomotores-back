@@ -4,8 +4,10 @@ import com.danteautomotores.dto.publicacion.CambiarDestacadoRequest;
 import com.danteautomotores.dto.publicacion.CambiarEstadoRequest;
 import com.danteautomotores.dto.publicacion.PublicacionRequest;
 import com.danteautomotores.dto.publicacion.PublicacionResponse;
+import com.danteautomotores.dto.publicacion.PublicacionResumenResponse;
 import com.danteautomotores.dto.publicacion.ReordenarFotosRequest;
 import com.danteautomotores.enums.EstadoPublicacion;
+import com.danteautomotores.service.CatalogoService;
 import com.danteautomotores.service.PublicacionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ import java.util.List;
 public class PublicacionController {
 
     private final PublicacionService publicacionService;
+    private final CatalogoService catalogoService;
 
     @GetMapping
     public ResponseEntity<List<PublicacionResponse>> buscar(
@@ -35,6 +38,12 @@ public class PublicacionController {
             @RequestParam(required = false) Long agenciaId
     ) {
         return ResponseEntity.ok(publicacionService.buscar(marca, modelo, anioMin, anioMax, precioMin, precioMax, estado, agenciaId));
+    }
+
+    // Público (sin token). La ruta literal gana a /{id} por especificidad.
+    @GetMapping("/destacados")
+    public ResponseEntity<List<PublicacionResumenResponse>> destacados(@RequestParam(required = false) Integer limite) {
+        return ResponseEntity.ok(catalogoService.destacados(limite));
     }
 
     @GetMapping("/{id}")

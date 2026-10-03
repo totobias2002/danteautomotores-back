@@ -17,18 +17,41 @@ spring:
     # durante toda la request.
     open-in-view: false
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      # El esquema vive en db/migration (Flyway); Hibernate solo lo valida. Un cambio de entidad sin su migracion
+      # aborta el arranque a proposito: es mejor que fallar en produccion con una columna que no existe.
+      ddl-auto: validate
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
+        # Carga en lote la agencia y las fotos al mapear listas (evita el N+1 en el catalogo).
+        default_batch_fetch_size: 50
+  flyway:
+    enabled: true
+    # baseline-on-migrate solo actua sobre un esquema no vacio sin flyway_schema_history (la base de produccion creada
+    # por Hibernate): la marca como V1 (el esquema previo a la Fase 1) sin ejecutarla y aplica solo V2 en adelante.
+    # Despues del primer deploy se puede apagar con SPRING_FLYWAY_BASELINE_ON_MIGRATE=false.
+    baseline-on-migrate: true
+    baseline-version: 1
   servlet:
     multipart:
       # Una foto pesa hasta 10 MB; max-request-size deja un margen para el resto de las partes del multipart.
       max-file-size: 10MB
       max-request-size: 12MB
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
 app:
+  catalogo:
+    # Cuantos dias sigue visible en el catalogo un auto despues de pasar a VENDIDO.
+    dias-vendido-visible: ${APP_CATALOGO_DIAS_VENDIDO_VISIBLE:30}
   jwt:
     secret: ${APP_JWT_SECRET:CAMBIAR_ESTE_SECRETO_POR_UNO_PROPIO_DE_AL_MENOS_32_CARACTERES}
     expiration-ms: ${APP_JWT_EXPIRATION_MS:86400000} # 24hs

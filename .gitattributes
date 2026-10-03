@@ -1,0 +1,4 @@
+# Fin de linea LF fijo: el checksum de Flyway de las migraciones tiene que ser el mismo en Windows y en Railway,
+# y un script de bash con CRLF no corre.
+*.sql text eol=lf
+*.sh text eol=lf

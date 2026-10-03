@@ -3,6 +3,7 @@ package com.danteautomotores.repository;
 import com.danteautomotores.entity.Publicacion;
 import com.danteautomotores.enums.EstadoPublicacion;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
@@ -27,6 +28,12 @@ public interface PublicacionRepository extends JpaRepository<Publicacion, Long>,
     // traduce a PessimisticLockingFailureException (ver GlobalExceptionHandler, responde 409).
     @Query(value = "select set_config('lock_timeout', '5000', true)", nativeQuery = true)
     String fijarTimeoutDeLock();
+
+    // Destacados de la Home: la Home nunca muestra autos vendidos (decisión de la Fase 1, D-04 de la Fase 2). El estado
+    // es nullable en la base, así que NULL cuenta como visible. Desempate por id para que el orden sea estable.
+    @Query("select p from Publicacion p where p.destacado = true and (p.estado is null or p.estado <> :vendido) "
+            + "order by p.fechaPublicacion desc, p.id desc")
+    List<Publicacion> findDestacadosVisibles(@Param("vendido") EstadoPublicacion vendido, Pageable pageable);
 
     List<Publicacion> findByAgenciaIdAndEstado(Long agenciaId, EstadoPublicacion estado);
     List<Publicacion> findByEstado(EstadoPublicacion estado);

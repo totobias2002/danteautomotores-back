@@ -5,6 +5,7 @@ import com.danteautomotores.security.JwtAuthenticationFilter;
 import com.danteautomotores.security.JwtService;
 import com.danteautomotores.security.RestAccessDeniedHandler;
 import com.danteautomotores.security.RestAuthenticationEntryPoint;
+import com.danteautomotores.service.CatalogoService;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +45,10 @@ public abstract class SeguridadWebMvcTestBase {
     // CustomUserDetailsService no entra en el slice @WebMvcTest, así que se reemplaza por un mock.
     @MockBean
     protected UserDetailsService userDetailsService;
+
+    // PublicacionController depende de CatalogoService; las clases de test que levantan ese controller lo necesitan.
+    @MockBean
+    protected CatalogoService catalogoService;
 
     /** Token válido para un usuario existente con el rol dado ("ADMIN" o "COMPRADOR"). */
     protected String bearerPara(String email, String rol) {
