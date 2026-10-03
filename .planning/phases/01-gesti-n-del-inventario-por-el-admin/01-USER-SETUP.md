@@ -14,6 +14,18 @@ Para que exista la cuenta admin, el dueño de la agencia tiene que elegir y sete
 | [ ] | `ADMIN_PASSWORD` | La elige el dueño; al menos 8 caracteres | Mismo lugar que `ADMIN_EMAIL` |
 | [ ] | `ADMIN_NOMBRE` | Nombre visible del admin (por ejemplo, Dante) | Mismo lugar que `ADMIN_EMAIL` |
 
+## Cloudinary (plan 01-06)
+
+Los tests automatizados mockean Cloudinary; para la verificacion manual de subida y borrado real de fotos hacen falta credenciales reales.
+
+| Status | Variable | Source | Add to |
+|--------|----------|--------|--------|
+| [ ] | `CLOUDINARY_CLOUD_NAME` | Cloudinary Console -> Dashboard -> Product Environment Credentials | Mismo lugar que `ADMIN_EMAIL` |
+| [ ] | `CLOUDINARY_API_KEY` | Cloudinary Console -> Dashboard -> Product Environment Credentials | Mismo lugar que `ADMIN_EMAIL` |
+| [ ] | `CLOUDINARY_API_SECRET` | Cloudinary Console -> Dashboard -> Product Environment Credentials | Mismo lugar que `ADMIN_EMAIL` |
+
+Verificacion: en la edicion de un auto, subir una JPG valida (aparece en la grilla), un PDF (rechazado con "formato no permitido"), una imagen de 12-15 MB (rechazada con "pesa mas de 10 MB") y un .exe renombrado a .jpg (rechazado por el backend); reordenar con las flechas y "Hacer portada" y recargar para comprobar que el orden persiste; llegar a 10 fotos y comprobar que no se puede subir la undecima.
+
 ## Verification
 
 Con Postgres arriba y una base sin usuarios ADMIN, arrancar el back con las tres variables y hacer `POST /api/auth/login` con esas credenciales.
