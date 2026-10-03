@@ -1,9 +1,13 @@
 package com.danteautomotores.service;
 
+import com.danteautomotores.dto.publicacion.CambiarDestacadoRequest;
+import com.danteautomotores.dto.publicacion.CambiarEstadoRequest;
 import com.danteautomotores.dto.publicacion.PublicacionRequest;
+import com.danteautomotores.dto.publicacion.PublicacionResponse;
 import com.danteautomotores.entity.Agencia;
 import com.danteautomotores.entity.Publicacion;
 import com.danteautomotores.entity.Usuario;
+import com.danteautomotores.enums.EstadoPublicacion;
 import com.danteautomotores.enums.Rol;
 import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.repository.AgenciaRepository;
@@ -121,5 +125,86 @@ class PublicacionServiceTest {
                 .hasMessage("No existe una agencia con id: 99");
 
         verify(publicacionRepository, never()).save(any());
+    }
+
+    private static CambiarDestacadoRequest destacadoRequest(boolean valor) {
+        CambiarDestacadoRequest request = new CambiarDestacadoRequest();
+        request.setDestacado(valor);
+        return request;
+    }
+
+    private static Publicacion publicacionExistente(boolean destacado) {
+        return Publicacion.builder().id(10L).agencia(agencia(1L, "Dante"))
+                .marca("Toyota").modelo("Corolla").destacado(destacado).build();
+    }
+
+    @Test
+    void cambiarDestacadoAVerdaderoGuardaYDevuelveElFlag() {
+        Publicacion existente = publicacionExistente(false);
+        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(existente));
+
+        PublicacionResponse respuesta = publicacionService.cambiarDestacado(10L, destacadoRequest(true));
+
+        ArgumentCaptor<Publicacion> guardada = ArgumentCaptor.forClass(Publicacion.class);
+        verify(publicacionRepository).save(guardada.capture());
+        assertThat(guardada.getValue().isDestacado()).isTrue();
+        assertThat(respuesta.isDestacado()).isTrue();
+    }
+
+    @Test
+    void cambiarDestacadoAFalsoLoDesmarca() {
+        Publicacion existente = publicacionExistente(true);
+        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(existente));
+
+        PublicacionResponse respuesta = publicacionService.cambiarDestacado(10L, destacadoRequest(false));
+
+        ArgumentCaptor<Publicacion> guardada = ArgumentCaptor.forClass(Publicacion.class);
+        verify(publicacionRepository).save(guardada.capture());
+        assertThat(guardada.getValue().isDestacado()).isFalse();
+        assertThat(respuesta.isDestacado()).isFalse();
+    }
+
+    @Test
+    void cambiarDestacadoDeUnIdInexistenteLanzaNotFound() {
+        when(publicacionRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> publicacionService.cambiarDestacado(99L, destacadoRequest(true)))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(publicacionRepository, never()).save(any());
+    }
+
+    @Test
+    void pasarUnAutoDestacadoAVendidoNoLoDesmarca() {
+        Publicacion existente = publicacionExistente(true);
+        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(existente));
+        CambiarEstadoRequest request = new CambiarEstadoRequest();
+        request.setEstado(EstadoPublicacion.VENDIDO);
+
+        PublicacionResponse respuesta = publicacionService.cambiarEstado(10L, request);
+
+        ArgumentCaptor<Publicacion> guardada = ArgumentCaptor.forClass(Publicacion.class);
+        verify(publicacionRepository).save(guardada.capture());
+        assertThat(guardada.getValue().getEstado()).isEqualTo(EstadoPublicacion.VENDIDO);
+        assertThat(guardada.getValue().isDestacado()).isTrue();
+        assertThat(respuesta.isDestacado()).isTrue();
+    }
+
+    @Test
+    void actualizarUnaPublicacionDestacadaNoCambiaElDestacado() {
+        Publicacion existente = publicacionExistente(true);
+        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(existente));
+        when(agenciaRepository.findById(1L)).thenReturn(Optional.of(existente.getAgencia()));
+
+        publicacionService.actualizar(10L, requestValido(1L));
+
+        ArgumentCaptor<Publicacion> guardada = ArgumentCaptor.forClass(Publicacion.class);
+        verify(publicacionRepository).save(guardada.capture());
+        assertThat(guardada.getValue().isDestacado()).isTrue();
+    }
+
+    @Test
+    void unaPublicacionNuevaNaceSinDestacar() {
+        assertThat(Publicacion.builder().build().isDestacado()).isFalse();
     }
 }
