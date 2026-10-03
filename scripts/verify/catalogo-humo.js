@@ -206,6 +206,69 @@ async function get(ruta) {
     exigir(cuerpo.marcas.length === 0 && cuerpo.precio === null, "una agencia inexistente trae datos");
   });
 
+  // Plan 02-07: detalle, autos parecidos, vendido por link directo, 404 y healthcheck.
+  const idDelPrimero = pagina && pagina.contenido.length > 0 ? pagina.contenido[0].id : null;
+
+  await revisar("GET /publicaciones/{id} del primer auto del listado trae descripcion y fotos", async () => {
+    if (idDelPrimero === null) saltear("el catalogo esta vacio");
+    const { estado, cuerpo } = await get(`/publicaciones/${idDelPrimero}`);
+    exigir(estado === 200, `estado ${estado}`);
+    exigir("descripcion" in cuerpo, "falta la clave descripcion");
+    exigir(Array.isArray(cuerpo.fotos), "fotos no es un array");
+    exigir(cuerpo.id === idDelPrimero, `devolvio el auto ${cuerpo.id}`);
+  });
+
+  await revisar("GET /publicaciones/{id}/similares trae hasta 4 autos disponibles y distintos del auto", async () => {
+    if (idDelPrimero === null) saltear("el catalogo esta vacio");
+    const { estado, cuerpo } = await get(`/publicaciones/${idDelPrimero}/similares`);
+    exigir(estado === 200, `estado ${estado}`);
+    exigir(Array.isArray(cuerpo), "la respuesta no es un array");
+    exigir(cuerpo.length <= 4, `trae ${cuerpo.length} autos (maximo 4)`);
+    for (const p of cuerpo) {
+      exigir(p.id !== idDelPrimero, `el auto ${p.id} se sugiere a si mismo`);
+      exigir(p.estado === "DISPONIBLE", `el auto ${p.id} esta ${p.estado}`);
+    }
+  });
+
+  await revisar("GET /publicaciones/{id}/similares?limite=50 trae como mucho 8", async () => {
+    if (idDelPrimero === null) saltear("el catalogo esta vacio");
+    const { estado, cuerpo } = await get(`/publicaciones/${idDelPrimero}/similares?limite=50`);
+    exigir(estado === 200, `estado ${estado}`);
+    exigir(Array.isArray(cuerpo) && cuerpo.length <= 8, "trae mas de 8 autos");
+  });
+
+  await revisar("el detalle de un auto VENDIDO del listado abre con estado VENDIDO", async () => {
+    const vendido = pagina && pagina.contenido.find((p) => p.estado === "VENDIDO");
+    if (!vendido) saltear("el listado no trae autos vendidos");
+    const { estado, cuerpo } = await get(`/publicaciones/${vendido.id}`);
+    exigir(estado === 200, `estado ${estado}`);
+    exigir(cuerpo.estado === "VENDIDO", `el detalle dice ${cuerpo.estado}`);
+    const similares = await get(`/publicaciones/${vendido.id}/similares`);
+    exigir(similares.estado === 200 && Array.isArray(similares.cuerpo), "los similares de un vendido no responden 200 con un array");
+  });
+
+  await revisar("GET /publicaciones/999999999 responde 404 con error", async () => {
+    const { estado, cuerpo } = await get("/publicaciones/999999999");
+    exigir(estado === 404, `estado ${estado}`);
+    exigir(cuerpo && typeof cuerpo.error === "string", "la respuesta no trae error");
+  });
+
+  await revisar("GET /publicaciones/999999999/similares responde 404 con error", async () => {
+    const { estado, cuerpo } = await get("/publicaciones/999999999/similares");
+    exigir(estado === 404, `estado ${estado}`);
+    exigir(cuerpo && typeof cuerpo.error === "string", "la respuesta no trae error");
+  });
+
+  await revisar("GET /actuator/health es publico, dice UP y no expone components", async () => {
+    // El healthcheck cuelga de la raiz del back: es la API sin el /api final.
+    const raiz = API.replace(/\/api\/?$/, "");
+    const r = await fetch(`${raiz}/actuator/health`);
+    const texto = await r.text();
+    exigir(r.status === 200, `estado ${r.status}`);
+    exigir(/"status"\s*:\s*"UP"/.test(texto), `el cuerpo no dice UP: ${texto.slice(0, 120)}`);
+    exigir(!texto.includes("components"), "el healthcheck expone components");
+  });
+
   console.log(`humo: ${ok} ok, ${fallas} fallas, ${skip} skip`);
   // exitCode en vez de process.exit: en Windows, salir con fetch pendiente puede abortar Node con un assert de libuv.
   process.exitCode = fallas > 0 ? 1 : 0;
