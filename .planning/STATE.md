@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Gestión del inventario por el admin
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-10-03T02:06:01.416Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-10-03T02:21:00.156Z"
 last_activity: 2026-10-02
 last_activity_desc: Phase 1 execution started
-state_head: d5be501d5ccabd6c6c3753f362754c6adcf90ce4
+state_head: 719d545331f50fabbcd1d81c70d7f56a5962577c
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 7
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 1 P01 | 5 min | 3 tasks | 15 files |
+| Phase 1 P02 | 3 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Recent decisions affecting current work:
 - [Phase 1]: [01-01] listarParaAdmin() es un metodo aparte; buscar() conserva el default DISPONIBLE (lo cambia la Fase 2)
 - [Phase 1]: [01-01] Filtro JWT: try/catch solo sobre la autenticacion; 401/403 JSON los emiten RestAuthenticationEntryPoint/RestAccessDeniedHandler con cuerpo fijo
 - [Phase 1]: [01-01] Front: sin Bearer hacia /auth/*; el interceptor 401 ignora /auth/* y solo actua si hay token (una sola redireccion)
+- [Phase 1]: [01-02] El seed no sincroniza ni promueve: con ADMIN existente no toca nada y un ADMIN_EMAIL ya registrado falla (prod) o avisa
+- [Phase 1]: [01-02] DataSeeder siembra la agencia inicial solo si no hay ninguna (multiples agencias soportadas); Rol.ADMIN solo aparece en DataSeeder
 
 ### Pending Todos
 
@@ -93,6 +96,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-03T02:06:01.399Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-10-03T02:21:00.138Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None

@@ -14,7 +14,7 @@
 
 ### Admin – Publicaciones
 
-- [ ] **ADM-01**: Existe una única cuenta admin, creada por config o seed, y no se puede registrar otra desde la web
+- [x] **ADM-01**: Existe una única cuenta admin, creada por config o seed, y no se puede registrar otra desde la web
 - [ ] **ADM-02**: El admin puede crear, editar y eliminar publicaciones desde el panel, contra la API real
 - [ ] **ADM-03**: El admin puede subir, reordenar y eliminar fotos (solo imágenes válidas, con límite de tamaño)
 - [ ] **ADM-04**: El admin puede cambiar el estado de un auto (disponible / reservado / vendido)
@@ -106,7 +106,7 @@
 | CAT-02 | Phase 2 | Pending |
 | CAT-03 | Phase 2 | Pending |
 | CAT-04 | Phase 2 | Pending |
-| ADM-01 | Phase 1 | Pending |
+| ADM-01 | Phase 1 | Complete |
 | ADM-02 | Phase 1 | Pending |
 | ADM-03 | Phase 1 | Pending |
 | ADM-04 | Phase 1 | Pending |
