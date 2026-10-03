@@ -1,5 +1,6 @@
 package com.danteautomotores.controller;
 
+import com.danteautomotores.dto.publicacion.FacetasResponse;
 import com.danteautomotores.dto.publicacion.FiltrosCatalogo;
 import com.danteautomotores.dto.publicacion.PaginaResponse;
 import com.danteautomotores.dto.publicacion.PublicacionResponse;
@@ -16,6 +17,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -104,5 +107,27 @@ class PublicacionControllerCatalogoTest extends SeguridadWebMvcTestBase {
 
         verify(catalogoService).destacados(any());
         verify(publicacionService).obtenerPorId(7L);
+    }
+
+    @Test
+    void facetasSinTokenLlegaAlServicioSinAgencia() throws Exception {
+        when(catalogoService.facetas(any())).thenReturn(FacetasResponse.builder()
+                .marcas(List.of(FacetasResponse.Conteo.builder().valor("Toyota").cantidad(2).build())).build());
+
+        mvc.perform(get("/api/publicaciones/facetas"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.marcas[0].valor").value("Toyota"))
+                .andExpect(jsonPath("$.marcas[0].cantidad").value(2));
+
+        verify(catalogoService).facetas(isNull());
+    }
+
+    @Test
+    void facetasConAgenciaIdSeLaPasaAlServicio() throws Exception {
+        when(catalogoService.facetas(any())).thenReturn(FacetasResponse.builder().build());
+
+        mvc.perform(get("/api/publicaciones/facetas?agenciaId=3")).andExpect(status().isOk());
+
+        verify(catalogoService).facetas(eq(3L));
     }
 }

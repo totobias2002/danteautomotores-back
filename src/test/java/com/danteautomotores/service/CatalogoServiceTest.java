@@ -1,5 +1,6 @@
 package com.danteautomotores.service;
 
+import com.danteautomotores.dto.publicacion.FacetasResponse.TramoPrecio;
 import com.danteautomotores.dto.publicacion.FiltrosCatalogo;
 import com.danteautomotores.entity.Publicacion;
 import com.danteautomotores.enums.OrdenCatalogo;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -144,5 +146,63 @@ class CatalogoServiceTest {
         assertThat(respuesta.tamanio()).isEqualTo(24);
         assertThat(respuesta.totalElementos()).isEqualTo(30);
         assertThat(respuesta.totalPaginas()).isEqualTo(2);
+    }
+
+    // ---- Histograma de precios ----
+
+    private static List<BigDecimal> precios(String... valores) {
+        return java.util.Arrays.stream(valores).map(BigDecimal::new).toList();
+    }
+
+    @Test
+    void elHistogramaTiene16TramosDeIgualAnchoYElUltimoIncluyeElMaximo() {
+        List<TramoPrecio> tramos = CatalogoService.histograma(precios("10", "20", "30", "40"));
+
+        assertThat(tramos).hasSize(16);
+        assertThat(tramos.get(0).getDesde()).isEqualByComparingTo("10");
+        assertThat(tramos.get(1).getDesde()).isEqualByComparingTo("11.88"); // 10 + 30/16 = 11,875 a 2 decimales
+        assertThat(tramos.get(15).getHasta()).isEqualByComparingTo("40");
+        assertThat(tramos.stream().mapToLong(TramoPrecio::getCantidad).sum()).isEqualTo(4);
+        assertThat(tramos.get(0).getCantidad()).isEqualTo(1);   // el 10 en el primer tramo
+        assertThat(tramos.get(15).getCantidad()).isEqualTo(1);  // el 40 (el máximo) en el último
+    }
+
+    @Test
+    void conTodosLosPreciosIgualesHayUnSoloTramoConTodos() {
+        List<TramoPrecio> tramos = CatalogoService.histograma(precios("500", "500", "500"));
+
+        assertThat(tramos).hasSize(1);
+        assertThat(tramos.get(0).getCantidad()).isEqualTo(3);
+        assertThat(tramos.get(0).getDesde()).isEqualByComparingTo("500");
+        assertThat(tramos.get(0).getHasta()).isEqualByComparingTo("500");
+    }
+
+    @Test
+    void sinPreciosElHistogramaEstaVacio() {
+        assertThat(CatalogoService.histograma(List.of())).isEmpty();
+    }
+
+    @Test
+    void laSumaDelHistogramaEsElTotalDePreciosAunConValoresEnLosBordes() {
+        List<BigDecimal> muchos = new ArrayList<>();
+        for (int i = 0; i <= 100; i++) {
+            muchos.add(new BigDecimal(1000 + i * 37));
+        }
+
+        List<TramoPrecio> tramos = CatalogoService.histograma(muchos);
+
+        assertThat(tramos).hasSize(16);
+        assertThat(tramos.stream().mapToLong(TramoPrecio::getCantidad).sum()).isEqualTo(101);
+    }
+
+    @Test
+    void sinAutosLasFacetasVienenVaciasYSinPrecio() {
+        when(repositorio.findAll(any(Specification.class), any(org.springframework.data.domain.Sort.class))).thenReturn(List.of());
+
+        var facetas = servicio.facetas(null);
+
+        assertThat(facetas.getPrecio()).isNull();
+        assertThat(facetas.getMarcas()).isEmpty();
+        assertThat(facetas.getAnio().getMin()).isNull();
     }
 }

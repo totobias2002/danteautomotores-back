@@ -6,6 +6,7 @@ import com.danteautomotores.dto.publicacion.PublicacionRequest;
 import com.danteautomotores.dto.publicacion.PublicacionResponse;
 import com.danteautomotores.dto.publicacion.PublicacionResumenResponse;
 import com.danteautomotores.dto.publicacion.ReordenarFotosRequest;
+import com.danteautomotores.dto.publicacion.FacetasResponse;
 import com.danteautomotores.dto.publicacion.FiltrosCatalogo;
 import com.danteautomotores.dto.publicacion.PaginaResponse;
 import com.danteautomotores.service.CatalogoService;
@@ -47,6 +48,12 @@ public class PublicacionController {
                 }
             }
         });
+    }
+
+    // Opciones y rangos de los filtros del catálogo (sin token). La ruta literal gana a /{id} por especificidad.
+    @GetMapping("/facetas")
+    public ResponseEntity<FacetasResponse> facetas(@RequestParam(required = false) Long agenciaId) {
+        return ResponseEntity.ok(catalogoService.facetas(agenciaId));
     }
 
     // Público (sin token). La ruta literal gana a /{id} por especificidad.

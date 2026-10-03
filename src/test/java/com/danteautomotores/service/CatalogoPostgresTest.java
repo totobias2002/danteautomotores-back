@@ -1,5 +1,6 @@
 package com.danteautomotores.service;
 
+import com.danteautomotores.dto.publicacion.FacetasResponse;
 import com.danteautomotores.dto.publicacion.FiltrosCatalogo;
 import com.danteautomotores.dto.publicacion.PaginaResponse;
 import com.danteautomotores.dto.publicacion.PublicacionResumenResponse;
@@ -38,6 +39,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 /**
  * El catálogo público contra un PostgreSQL real, con el esquema creado por Flyway y validado por Hibernate
@@ -420,5 +422,88 @@ class CatalogoPostgresTest extends PostgresLocalTestBase {
         f.setTransmision(List.of(Transmision.AUTOMATICA));
 
         assertThat(ids(catalogoService.buscar(f))).containsExactly(ok);
+    }
+
+    // ---- Facetas (plan 02-04) ----
+
+    @Test
+    void lasFacetasCuentanSoloLosVisiblesYOrdenanLasMarcas() {
+        disponible(base("Toyota", "Corolla").precio(new BigDecimal("1000")));
+        disponible(base("Toyota", "Yaris").precio(new BigDecimal("2000")));
+        disponible(base("Ford", "Focus").precio(new BigDecimal("3000")));
+        guardar(base("Honda", "Civic").precio(new BigDecimal("999999")), "VENDIDO", AHORA.minusDays(60), AHORA.minusDays(31));
+
+        FacetasResponse f = catalogoService.facetas(null);
+
+        assertThat(f.getMarcas()).extracting(FacetasResponse.Conteo::getValor, FacetasResponse.Conteo::getCantidad)
+                .containsExactly(tuple("Ford", 1L), tuple("Toyota", 2L)); // Honda vendido hace 31 días no suma
+        assertThat(f.getModelos()).extracting(FacetasResponse.ConteoModelo::getMarca, FacetasResponse.ConteoModelo::getValor,
+                        FacetasResponse.ConteoModelo::getCantidad)
+                .containsExactly(tuple("Ford", "Focus", 1L), tuple("Toyota", "Corolla", 1L), tuple("Toyota", "Yaris", 1L));
+        assertThat(f.getPrecio().getMin()).isEqualByComparingTo("1000");
+        assertThat(f.getPrecio().getMax()).isEqualByComparingTo("3000"); // el vendido oculto no estira el rango
+        assertThat(f.getPrecio().getHistograma()).hasSize(16);
+        assertThat(f.getPrecio().getHistograma().stream().mapToLong(FacetasResponse.TramoPrecio::getCantidad).sum()).isEqualTo(3);
+    }
+
+    @Test
+    void lasFacetasDeEnumsIgnoranElNullYUsanElNombreDelEnum() {
+        Agencia sur = agenciaRepository.save(Agencia.builder().nombre("Sur").slug("sur").zona(ZonaAgencia.ZONA_SUR).build());
+        disponible(base("M", "a").tipoCarroceria(TipoCarroceria.SUV).transmision(Transmision.AUTOMATICA).agencia(sur));
+        disponible(base("M", "b").tipoCarroceria(TipoCarroceria.SUV).transmision(Transmision.MANUAL).agencia(sur));
+        disponible(base("M", "c").tipoCarroceria(TipoCarroceria.SEDAN)); // sin transmisión ni zona
+        guardar(base("M", "d"), "RESERVADO", AHORA.minusDays(2), null);
+        guardar(base("M", "e"), null, AHORA.minusDays(2), null); // estado null: visible pero sin conteo de estado
+
+        FacetasResponse f = catalogoService.facetas(null);
+
+        assertThat(f.getTipos()).extracting(FacetasResponse.Conteo::getValor, FacetasResponse.Conteo::getCantidad)
+                .containsExactly(tuple("SEDAN", 1L), tuple("SUV", 2L));
+        assertThat(f.getZonas()).extracting(FacetasResponse.Conteo::getValor, FacetasResponse.Conteo::getCantidad)
+                .containsExactly(tuple("ZONA_SUR", 2L));
+        assertThat(f.getTransmisiones()).extracting(FacetasResponse.Conteo::getValor).containsExactly("MANUAL", "AUTOMATICA");
+        assertThat(f.getEstados()).extracting(FacetasResponse.Conteo::getValor, FacetasResponse.Conteo::getCantidad)
+                .containsExactly(tuple("DISPONIBLE", 3L), tuple("RESERVADO", 1L));
+    }
+
+    @Test
+    void losColoresSeAgrupanSinDistinguirMayusculasYLosRangosIgnoranLosNull() {
+        disponible(base("M", "a").color("Blanco").anio(2019).kilometraje(50000));
+        disponible(base("M", "b").color("blanco").anio(2024).kilometraje(10000));
+        disponible(base("M", "c").color("Negro").anio(2021)); // sin km
+        disponible(base("M", "d")); // sin color
+
+        FacetasResponse f = catalogoService.facetas(null);
+
+        assertThat(f.getColores()).extracting(FacetasResponse.Conteo::getCantidad).containsExactly(2L, 1L);
+        assertThat(f.getColores().get(0).getValor()).isEqualToIgnoringCase("blanco");
+        assertThat(f.getColores().get(1).getValor()).isEqualTo("Negro");
+        assertThat(f.getAnio().getMin()).isEqualTo(2019);
+        assertThat(f.getAnio().getMax()).isEqualTo(2024);
+        assertThat(f.getKilometraje().getMin()).isEqualTo(10000);
+        assertThat(f.getKilometraje().getMax()).isEqualTo(50000);
+    }
+
+    @Test
+    void lasFacetasPorAgenciaCuentanSoloLosAutosDeEsaAgencia() {
+        Agencia otra = agenciaRepository.save(Agencia.builder().nombre("Otra").slug("otra").build());
+        disponible(base("Toyota", "a"));
+        disponible(base("Toyota", "b"));
+        disponible(base("Ford", "c").agencia(otra));
+
+        FacetasResponse deOtra = catalogoService.facetas(otra.getId());
+        FacetasResponse todas = catalogoService.facetas(null);
+
+        assertThat(deOtra.getMarcas()).extracting(FacetasResponse.Conteo::getValor).containsExactly("Ford");
+        assertThat(todas.getMarcas()).extracting(FacetasResponse.Conteo::getCantidad).containsExactly(1L, 2L);
+    }
+
+    @Test
+    void sinAutosVisiblesLasFacetasNoTienenPrecio() {
+        FacetasResponse f = catalogoService.facetas(null);
+
+        assertThat(f.getPrecio()).isNull();
+        assertThat(f.getMarcas()).isEmpty();
+        assertThat(f.getAnio().getMin()).isNull();
     }
 }
