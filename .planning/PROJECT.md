@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Marketplace web de autos usados de la agencia Dante Automotores. Un único usuario administrador publica y gestiona los autos. Los usuarios registrados pueden comprar un auto (abrir una conversación de compra con el admin desde la propia web) y cotizar su propio auto, que reciben con un precio estimado al instante, para vendérselo a la agencia o entregarlo como parte de pago. Son dos repos: backend Spring Boot (`danteautomotores-back`) y frontend React (`danteautomotores-front`).
+Marketplace web de autos usados (Dante Automotores, con soporte para varias agencias). Un único usuario administrador gestiona las agencias y publica sus autos. Los usuarios registrados pueden comprar un auto (abrir una conversación de compra con el admin desde la propia web) y cotizar su propio auto, que reciben con un precio estimado al instante, para vendérselo a la agencia o entregarlo como parte de pago. Son dos repos: backend Spring Boot (`danteautomotores-back`) y frontend React (`danteautomotores-front`).
 
 ## Core Value
 
@@ -45,7 +45,7 @@ Un usuario registrado y verificado puede encontrar un auto y hablar con la agenc
 ### Out of Scope
 
 - Pago o checkout online (seña o compra completa) — la operación se cierra hablando con el admin; puede evaluarse más adelante
-- Múltiples vendedores, agencias o admins publicando — por ahora una sola cuenta admin vende
+- Múltiples vendedores o admins publicando (agencias con admin propio) — por ahora una sola cuenta admin gestiona todas las agencias y sus autos
 - Chat en tiempo real (WebSockets) — se eligió bandeja de mensajes, que es más simple; tiempo real puede llegar después
 - Usuarios particulares publicando sus autos en el marketplace — el usuario cotiza y le vende a la agencia; no publica
 - App mobile nativa — web responsive alcanza

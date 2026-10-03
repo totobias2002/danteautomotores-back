@@ -49,8 +49,8 @@ Plans:
 - [x] 01-01-PLAN.md — Tracer: listado admin con todos los estados (GET /api/admin/publicaciones) + 401/403 JSON y sesión vencida en el front (ola 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-02-PLAN.md — Cuenta admin y agencia sembradas al arrancar desde ADMIN_* (falla en perfil prod) (ola 2)
-- [ ] 01-03-PLAN.md — Agencia única: el backend la asigna, sin alta ni baja de agencias, panel y form sin selector (ola 2)
+- [ ] 01-02-PLAN.md — Cuenta admin y agencia inicial sembradas al arrancar desde ADMIN_* (falla en perfil prod) (ola 2)
+- [ ] 01-03-PLAN.md — Varias agencias: ABM completo con baja segura (400 si tiene autos), selector en el form y errores del backend visibles (ola 2)
 - [ ] 01-04-PLAN.md — TDD: formato uniforme de errores con un único advice (+ ServicioExternoException → 502) (ola 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*

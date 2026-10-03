@@ -47,7 +47,7 @@ Note: machine has JDK 17 only; `-Djava.version=17` overrides the pom for local t
 | ADM-01 | Seeder creates ADMIN only if none; never modifies existing; prod w/o vars fails; dev warns; seeds agency | unit (Mockito) | `mvn -B -o -Djava.version=17 test -Dtest=DataSeederTest` | ❌ W0 | ⬜ pending |
 | ADM-01 | Registro with `"rol":"ADMIN"` still yields COMPRADOR | unit | `mvn -B -o -Djava.version=17 test -Dtest=AuthServiceTest` | ❌ W0 | ⬜ pending |
 | ADM-02 | crear/actualizar assign single agency; eliminar removes favoritos/consultas first | unit | `mvn -B -o -Djava.version=17 test -Dtest=PublicacionServiceTest` | ❌ W0 | ⬜ pending |
-| ADM-02 / D-07 | POST/DELETE /api/agencias gone; PUT/GET remain | slice | `mvn -B -o -Djava.version=17 test -Dtest=AgenciaControllerTest` | ❌ W0 | ⬜ pending |
+| ADM-02 / D-07 (rev.) | Agency CRUD ADMIN-only; DELETE with autos → 400 | slice + unit | `mvn -B -o -Djava.version=17 test -Dtest=AgenciaControllerTest,AgenciaServiceTest` | ❌ W0 | ⬜ pending |
 | ADM-03 | Image validator: real JPEG/PNG/WebP ok; spoofed content-type, >10MB, empty rejected | unit | `mvn -B -o -Djava.version=17 test -Dtest=ImagenValidatorTest` | ❌ W0 | ⬜ pending |
 | ADM-03 | 10-photo cap, reorder validation, resequence on delete, public_id destroy best-effort | unit | `mvn -B -o -Djava.version=17 test -Dtest=PublicacionServiceTest` | ❌ W0 | ⬜ pending |
 | ADM-04 | Admin listing returns all states, ADMIN-only | slice | `mvn -B -o -Djava.version=17 test -Dtest=AdminPublicacionControllerTest` | ❌ W0 | ⬜ pending |
@@ -76,7 +76,7 @@ Note: machine has JDK 17 only; `-Djava.version=17` overrides the pom for local t
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Panel CRUD with in-UI confirm, state select, destacado toggle, photo reorder arrows, backend error messages, no agency selector / no "Nueva agencia"/"Eliminar" | ADM-02/03/04/05 | No front test framework (QA-V2-01 deferred) | Run back + front, exercise each action, reload to confirm persistence |
+| Panel CRUD with in-UI confirm, state select, destacado toggle, photo reorder arrows, backend error messages, multi-agency CRUD with inline delete confirm and agency selector | ADM-02/03/04/05 | No front test framework (QA-V2-01 deferred) | Run back + front, exercise each action, reload to confirm persistence |
 | Expired token → `/login` with "sesión vencida" notice, returns to origin page; bad login does NOT redirect | PROD-01 | No front test framework | Set `localStorage.token` to garbage or `APP_JWT_EXPIRATION_MS=60000` |
 | 12–15 MB upload shows clear message (no connection reset) | ADM-03 | MockMvc doesn't apply Tomcat limits | Upload large file against running app |
 | App boots with ADMIN_* vars and admin can log in; `prod` profile without vars fails | ADM-01 | Needs real Postgres | `mvn spring-boot:run` + `curl -X POST localhost:8080/api/auth/login` |

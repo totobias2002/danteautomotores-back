@@ -8,7 +8,7 @@
 
 La única cuenta admin gestiona el inventario completo de autos (datos, fotos, estado y destacados) desde el panel del front, contra la API real, con errores manejados de forma uniforme. Cubre ADM-01..ADM-05 y PROD-01.
 
-Incluye: seed de la cuenta admin, consolidación a una sola agencia, validación y reorden de fotos, flag de destacado, listado del panel con todos los estados, manejo global de errores (`@RestControllerAdvice` + filtro JWT que devuelve 401) y manejo del 401 en el front.
+Incluye: seed de la cuenta admin, ABM de varias agencias con baja segura, validación y reorden de fotos, flag de destacado, listado del panel con todos los estados, manejo global de errores (`@RestControllerAdvice` + filtro JWT que devuelve 401) y manejo del 401 en el front.
 
 No incluye: catálogo público sin mocks, paginación pública, deploy a producción y Flyway (Fase 2), recuperación de contraseña (Fase 3), métricas del admin (Fase 5).
 
@@ -23,10 +23,10 @@ No incluye: catálogo público sin mocks, paginación pública, deploy a producc
 - **D-03:** Si faltan las variables del admin y no hay ningún ADMIN en la base, el planner decide entre avisar en el log y fallar al arrancar. Se prefiere fallar en prod y avisar en dev.
 - **D-04:** No existe ningún endpoint que cree o promueva admins. `AuthService.registrar` sigue forzando `Rol.COMPRADOR`. Los usuarios ADMIN que ya estén en la base de dev se dejan como están, sin chequeo de unicidad al arrancar. El modelo `Rol` sigue admitiendo varios admins a futuro (ADM-V2-01).
 
-### Agencia única
-- **D-05:** Hay una **sola agencia fija (Dante Automotores)**, sembrada al arrancar si no existe ninguna. La tabla y la entidad `Agencia` se mantienen, así que se puede volver a varias más adelante. — **Reversibility:** reversible — la FK `publicaciones.agencia_id` se conserva.
-- **D-06:** Los autos se asocian automáticamente a esa agencia: el backend la asigna en `crear`/`actualizar` y deja de exigir `agenciaId` en `PublicacionRequest`. El form de publicación del front deja de mostrar el selector de agencia.
-- **D-07:** En el panel, el admin **edita** los datos de la agencia (nombre, contacto, dirección, logo, descripción) pero **no crea ni borra** agencias. Se quitan del panel las acciones "Nueva agencia" y "Eliminar", y el backend deja de exponer la creación y la eliminación (las quita o las bloquea). Los GET públicos de agencia siguen como están, porque la página "Agencia" los usa en la Fase 2.
+### Agencias (revisado 2026-10-02)
+- **D-05 (revisado 2026-10-02):** El marketplace **soporta varias agencias**, todas gestionadas por la misma cuenta admin. Al arrancar se siembra "Dante Automotores" solo si no existe ninguna agencia, como agencia inicial. (Antes: agencia única fija; el usuario lo cambió después de planificar. Agencias con admins propios quedan fuera de alcance por ahora.)
+- **D-06 (revisado):** Cada auto pertenece a una agencia que el admin elige en el form (`agenciaId` sigue siendo obligatorio en `PublicacionRequest`, y el selector se mantiene). El backend valida que la agencia exista.
+- **D-07 (revisado):** El admin **crea, edita y elimina** agencias desde el panel. No se puede eliminar una agencia que tiene autos (400 con mensaje claro); primero hay que pasarlos a otra o borrarlos. Los GET públicos de agencia siguen como están.
 
 ### Claude's Discretion
 El usuario eligió no discutir estas áreas. El planner define el detalle con estos defaults razonables:
@@ -83,7 +83,7 @@ El usuario eligió no discutir estas áreas. El planner define el detalle con es
 <specifics>
 ## Specific Ideas
 
-- El negocio es una sola agencia (Dante Automotores). El panel no debe sugerir que hay varias.
+- El marketplace soporta varias agencias, todas gestionadas por el admin (D-05 revisado).
 - El admin es la única persona que carga inventario, así que la UX del panel prioriza que sea simple y no requiera configuración.
 
 </specifics>
