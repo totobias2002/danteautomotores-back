@@ -10,4 +10,5 @@ import java.util.List;
 public interface PublicacionRepository extends JpaRepository<Publicacion, Long>, JpaSpecificationExecutor<Publicacion> {
     List<Publicacion> findByAgenciaIdAndEstado(Long agenciaId, EstadoPublicacion estado);
     List<Publicacion> findByEstado(EstadoPublicacion estado);
+    boolean existsByAgenciaId(Long agenciaId);
 }
