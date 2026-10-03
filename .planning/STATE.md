@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Gestión del inventario por el admin
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-10-03T02:21:00.156Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-10-03T02:24:56.267Z"
 last_activity: 2026-10-02
 last_activity_desc: Phase 1 execution started
-state_head: 719d545331f50fabbcd1d81c70d7f56a5962577c
+state_head: c9b54ac58e40972c6948dc1811d5e694306a07c8
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 7
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-02)
 ## Current Position
 
 Phase: 1 (Gestión del inventario por el admin) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 Status: Ready to execute
 Last activity: 2026-10-02 — Phase 1 execution started
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 |------|----------|-------|-------|
 | Phase 1 P01 | 5 min | 3 tasks | 15 files |
 | Phase 1 P02 | 3 min | 2 tasks | 7 files |
+| Phase 1 P03 | 7 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,7 @@ Recent decisions affecting current work:
 - [Phase 1]: [01-01] Front: sin Bearer hacia /auth/*; el interceptor 401 ignora /auth/* y solo actua si hay token (una sola redireccion)
 - [Phase 1]: [01-02] El seed no sincroniza ni promueve: con ADMIN existente no toca nada y un ADMIN_EMAIL ya registrado falla (prod) o avisa
 - [Phase 1]: [01-02] DataSeeder siembra la agencia inicial solo si no hay ninguna (multiples agencias soportadas); Rol.ADMIN solo aparece en DataSeeder
+- [Phase 1]: 01-03: una agencia con autos no se puede eliminar (400 con mensaje accionable via existsByAgenciaId); AgenciaService.listar() ordena por id
 
 ### Pending Todos
 
@@ -96,6 +98,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-03T02:21:00.138Z
-Stopped at: Completed 01-02-PLAN.md
+Last session: 2026-10-03T02:24:56.249Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None
