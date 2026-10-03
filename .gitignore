@@ -9,6 +9,8 @@ target/
 *.log
 .env
 scripts/demo/fotos/
+# Registros locales de corridas de la demo (ids creados, para poder deshacerlas)
+scripts/demo/registros/
 
 # Los volcados de la base de produccion traen hashes de contrasenas y datos personales (Ley 25.326): nunca se commitean.
 *.dump
