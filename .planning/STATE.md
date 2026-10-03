@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Gestión del inventario por el admin
 status: executing
-stopped_at: Completed 01-06-PLAN.md
-last_updated: "2026-10-03T02:38:52.664Z"
+stopped_at: Completed 01-07-PLAN.md
+last_updated: "2026-10-03T02:44:16.544Z"
 last_activity: 2026-10-02
 last_activity_desc: Phase 1 execution started
-state_head: fffe00ed9f08767f6a5455e6a51d4f9d998ac552
+state_head: 5f038d8555d25453c723efe49a741b51cdfe78b9
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-02)
 ## Current Position
 
 Phase: 1 (Gestión del inventario por el admin) — EXECUTING
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-10-02 — Phase 1 execution started
 
@@ -62,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 1 P04 | 6 min | 2 tasks | 3 files |
 | Phase 01 P05 | 14 min | 2 tasks | 9 files |
 | Phase 1 P06 | 25 min | 3 tasks | 12 files |
+| Phase 1 P07 | 17 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,7 @@ Recent decisions affecting current work:
 - [Phase 1]: [01-04] ServicioExternoException -> 502 con su mensaje; DataIntegrityViolation -> 409 fijo; 500 generico sin detalle interno (solo en log)
 - [Phase 01]: 01-05: destacado es independiente del estado (VENDIDO no lo desmarca, editar no lo toca); Fase 2 filtra destacado && estado != VENDIDO. Sin tope de destacados.
 - [Phase 1]: 01-06: fotos validadas por magic bytes (JPEG/PNG/WebP), tope 10 MB y 10 por auto; reorden por flechas + Hacer portada (orden 0 = portada) via PUT /fotos/orden con lista completa de ids
+- [Phase 1]: [01-07] Borrado de publicacion en cascada (favoritos+consultas, una transaccion) con aviso de conteo via GET /api/admin/publicaciones/{id}/impacto-eliminacion; assets de Cloudinary solo en afterCommit; ConfirmDialog nativo
 
 ### Pending Todos
 
@@ -105,6 +107,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-03T02:38:52.642Z
-Stopped at: Completed 01-06-PLAN.md
+Last session: 2026-10-03T02:44:16.519Z
+Stopped at: Completed 01-07-PLAN.md
 Resume file: None
