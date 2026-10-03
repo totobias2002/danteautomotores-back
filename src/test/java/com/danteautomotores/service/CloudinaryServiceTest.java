@@ -77,6 +77,21 @@ class CloudinaryServiceTest {
 
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
+    void subirAcotaLosTiemposDeEsperaDelSdk() throws IOException {
+        when(uploader.upload(any(), any(Map.class))).thenReturn(Map.of("secure_url", "u", "public_id", "p"));
+
+        servicio.subir(archivo);
+
+        ArgumentCaptor<Map> opciones = ArgumentCaptor.forClass(Map.class);
+        verify(uploader).upload(any(), opciones.capture());
+        assertThat(opciones.getValue())
+                .containsEntry("connect_timeout", CloudinaryService.CONEXION_TIMEOUT_MS)
+                .containsEntry("connection_request_timeout", CloudinaryService.CONEXION_TIMEOUT_MS)
+                .containsEntry("timeout", CloudinaryService.SUBIDA_TIMEOUT_MS);
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
     void subirEnvuelveUnaIOExceptionEnServicioExterno() throws IOException {
         when(uploader.upload(any(), any(Map.class))).thenThrow(new IOException("conexión caída"));
 
@@ -115,7 +130,10 @@ class CloudinaryServiceTest {
 
         ArgumentCaptor<Map> opciones = ArgumentCaptor.forClass(Map.class);
         verify(uploader).destroy(eq("pid"), opciones.capture());
-        assertThat(opciones.getValue()).containsEntry("invalidate", true);
+        assertThat(opciones.getValue())
+                .containsEntry("invalidate", true)
+                .containsEntry("timeout", CloudinaryService.BORRADO_TIMEOUT_MS)
+                .containsEntry("connect_timeout", CloudinaryService.CONEXION_TIMEOUT_MS);
     }
 
     @Test

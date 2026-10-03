@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface FotoPublicacionRepository extends JpaRepository<FotoPublicacion, Long> {
     List<FotoPublicacion> findByPublicacionIdOrderByOrdenAsc(Long publicacionId);
+
+    long countByPublicacionId(Long publicacionId);
 }

@@ -16,6 +16,12 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CloudinaryService {
 
+    // Topes de espera del SDK (ms). Sin ellos una Cloudinary colgada deja el pedido, y el hilo de Tomcat, esperando sin límite.
+    // "timeout" es el de lectura del socket; en la subida alcanza para una foto de hasta 10 MB.
+    static final int CONEXION_TIMEOUT_MS = 10_000;
+    static final int SUBIDA_TIMEOUT_MS = 60_000;
+    static final int BORRADO_TIMEOUT_MS = 15_000;
+
     private final Cloudinary cloudinary;
 
     /** Url segura y public_id tal cual los devuelve Cloudinary (el public_id sirve después para borrar la foto). */
@@ -27,7 +33,10 @@ public class CloudinaryService {
                     ObjectUtils.asMap(
                             "folder", "danteautomotores/publicaciones",
                             "resource_type", "image",
-                            "allowed_formats", "jpg,png,webp"));
+                            "allowed_formats", "jpg,png,webp",
+                            "connect_timeout", CONEXION_TIMEOUT_MS,
+                            "connection_request_timeout", CONEXION_TIMEOUT_MS,
+                            "timeout", SUBIDA_TIMEOUT_MS));
             return new ImagenSubida((String) resultado.get("secure_url"), (String) resultado.get("public_id"));
         } catch (IOException | RuntimeException e) {
             // El detalle del SDK (por ejemplo "Must supply api_key") queda en la causa, no llega al cliente.
@@ -42,7 +51,10 @@ public class CloudinaryService {
         }
         try {
             Map<?, ?> resultado = cloudinary.uploader().destroy(publicId,
-                    ObjectUtils.asMap("invalidate", true, "resource_type", "image"));
+                    ObjectUtils.asMap("invalidate", true, "resource_type", "image",
+                            "connect_timeout", CONEXION_TIMEOUT_MS,
+                            "connection_request_timeout", CONEXION_TIMEOUT_MS,
+                            "timeout", BORRADO_TIMEOUT_MS));
             Object estado = resultado == null ? null : resultado.get("result");
             if (!"ok".equals(estado) && !"not found".equals(estado)) {
                 log.warn("Cloudinary no confirmó el borrado de {}: result={}", publicId, estado);

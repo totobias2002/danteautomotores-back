@@ -9,6 +9,7 @@ import com.danteautomotores.support.SeguridadWebMvcTestBase;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -169,6 +170,20 @@ class GlobalExceptionHandlerTest extends SeguridadWebMvcTestBase {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.error").isString())
                 .andExpect(content().string(not(containsString("fk_consulta"))));
+    }
+
+    @Test
+    void lockDeLaPublicacionNoObtenidoADevuelve409ConMensajeEnEspanolSinFiltrarElDetalle() throws Exception {
+        when(publicacionService.agregarFoto(anyLong(), any()))
+                .thenThrow(new CannotAcquireLockException("ERROR: canceling statement due to lock timeout on publicaciones"));
+
+        mvc.perform(multipart("/api/publicaciones/1/fotos")
+                        .file(new MockMultipartFile("archivo", "a.jpg", "image/jpeg", new byte[]{1, 2, 3}))
+                        .header("Authorization", admin()))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.error").value("Otra operación está modificando este auto. Intentá de nuevo en unos segundos."))
+                .andExpect(content().string(not(containsString("lock timeout"))));
     }
 
     @Test

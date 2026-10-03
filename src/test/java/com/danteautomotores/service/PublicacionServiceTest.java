@@ -14,6 +14,7 @@ import com.danteautomotores.entity.Usuario;
 import com.danteautomotores.enums.EstadoPublicacion;
 import com.danteautomotores.enums.Rol;
 import com.danteautomotores.exception.ResourceNotFoundException;
+import com.danteautomotores.exception.ServicioExternoException;
 import com.danteautomotores.repository.AgenciaRepository;
 import com.danteautomotores.repository.ConsultaRepository;
 import com.danteautomotores.repository.FavoritoRepository;
@@ -32,8 +33,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionSystemException;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
@@ -76,6 +84,9 @@ class PublicacionServiceTest {
 
     @Mock
     private ImagenValidator imagenValidator;
+
+    @Mock
+    private PlatformTransactionManager transactionManager;
 
     @InjectMocks
     private PublicacionService publicacionService;
@@ -260,13 +271,22 @@ class PublicacionServiceTest {
         return request;
     }
 
+    // Deja armado el camino feliz de agregarFoto: la publicación existe, el conteo previo lo deja pasar y el lock
+    // devuelve la entidad con sus fotos.
+    private void prepararAgregarFoto(Publicacion publicacion) {
+        when(publicacionRepository.existsById(10L)).thenReturn(true);
+        when(fotoPublicacionRepository.countByPublicacionId(10L)).thenReturn((long) publicacion.getFotos().size());
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
+    }
+
     @Test
     void agregarFotoEnUnAutoConDiezFotosFallaYNoSubeNada() {
         FotoPublicacion[] diez = new FotoPublicacion[ImagenValidator.MAX_FOTOS];
         for (int i = 0; i < diez.length; i++) {
             diez[i] = foto((long) i + 1, i);
         }
-        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos(diez)));
+        when(publicacionRepository.existsById(10L)).thenReturn(true);
+        when(fotoPublicacionRepository.countByPublicacionId(10L)).thenReturn((long) diez.length);
 
         assertThatThrownBy(() -> publicacionService.agregarFoto(10L, archivoDeFoto()))
                 .isInstanceOf(ReglaDeNegocioException.class)
@@ -274,11 +294,24 @@ class PublicacionServiceTest {
 
         verify(cloudinaryService, never()).subir(any());
         verify(fotoPublicacionRepository, never()).save(any());
+        verify(transactionManager, never()).getTransaction(any());
+        verify(publicacionRepository, never()).findByIdForUpdate(any());
+    }
+
+    @Test
+    void agregarFotoEnUnAutoInexistenteDevuelve404YNoSubeNada() {
+        when(publicacionRepository.existsById(10L)).thenReturn(false);
+
+        assertThatThrownBy(() -> publicacionService.agregarFoto(10L, archivoDeFoto()))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(cloudinaryService, never()).subir(any());
+        verify(transactionManager, never()).getTransaction(any());
     }
 
     @Test
     void agregarFotoNoSubeNiGuardaSiElValidadorRechazaElArchivo() {
-        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos()));
+        when(publicacionRepository.existsById(10L)).thenReturn(true);
         doThrow(new ReglaDeNegocioException("Formato no permitido. Usá JPG, PNG o WebP"))
                 .when(imagenValidator).validar(any());
 
@@ -292,7 +325,7 @@ class PublicacionServiceTest {
 
     @Test
     void agregarFotoTomaElMaximoOrdenMasUnoAunqueSeHayaBorradoUnaDelMedio() {
-        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos(foto(1L, 0), foto(3L, 2))));
+        prepararAgregarFoto(publicacionConFotos(foto(1L, 0), foto(3L, 2)));
         when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
 
         publicacionService.agregarFoto(10L, archivoDeFoto());
@@ -304,7 +337,7 @@ class PublicacionServiceTest {
 
     @Test
     void agregarFotoConFotosSinOrdenDejaLaPrimeraNuevaEnCero() {
-        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos(foto(1L, null))));
+        prepararAgregarFoto(publicacionConFotos(foto(1L, null)));
         when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
 
         publicacionService.agregarFoto(10L, archivoDeFoto());
@@ -316,7 +349,7 @@ class PublicacionServiceTest {
 
     @Test
     void agregarFotoGuardaLaUrlYElPublicIdQueDevuelveCloudinary() {
-        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos()));
+        prepararAgregarFoto(publicacionConFotos());
         when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
 
         PublicacionResponse respuesta = publicacionService.agregarFoto(10L, archivoDeFoto());
@@ -328,54 +361,147 @@ class PublicacionServiceTest {
         assertThat(respuesta.getFotos()).hasSize(1);
     }
 
+    // WR-13: ni la transacción ni el lock de la fila pueden estar abiertos mientras dura la subida a Cloudinary.
     @Test
-    void agregarFotoBorraLaImagenSubidaSiLaTransaccionHaceRollback() {
-        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos()));
+    void agregarFotoSubeLaImagenAntesDeAbrirLaTransaccionYDeTomarElLock() {
+        prepararAgregarFoto(publicacionConFotos());
         when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
 
-        TransactionSynchronizationManager.initSynchronization();
-        try {
-            publicacionService.agregarFoto(10L, archivoDeFoto());
-            verify(cloudinaryService, never()).eliminar(any());
-
-            TransactionSynchronizationManager.getSynchronizations()
-                    .forEach(s -> s.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
-
-            verify(cloudinaryService).eliminar(SUBIDA.publicId());
-        } finally {
-            TransactionSynchronizationManager.clearSynchronization();
-        }
-    }
-
-    @Test
-    void agregarFotoConservaLaImagenSubidaSiLaTransaccionHaceCommit() {
-        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos()));
-        when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
-
-        TransactionSynchronizationManager.initSynchronization();
-        try {
-            publicacionService.agregarFoto(10L, archivoDeFoto());
-
-            TransactionSynchronizationManager.getSynchronizations()
-                    .forEach(s -> s.afterCompletion(TransactionSynchronization.STATUS_COMMITTED));
-
-            verify(cloudinaryService, never()).eliminar(any());
-        } finally {
-            TransactionSynchronizationManager.clearSynchronization();
-        }
-    }
-
-    @Test
-    void agregarFotoYReordenarCarganLaPublicacionConLockPesimista() {
-        Publicacion publicacion = publicacionConFotos(foto(1L, 0), foto(2L, 1));
-        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
-        when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
-
-        publicacionService.reordenarFotos(10L, orden(2L, 1L));
         publicacionService.agregarFoto(10L, archivoDeFoto());
 
-        verify(publicacionRepository, times(2)).findByIdForUpdate(10L);
+        InOrder orden = inOrder(cloudinaryService, transactionManager, publicacionRepository);
+        orden.verify(cloudinaryService).subir(any());
+        orden.verify(transactionManager).getTransaction(any());
+        orden.verify(publicacionRepository).fijarTimeoutDeLock();
+        orden.verify(publicacionRepository).findByIdForUpdate(10L);
+        orden.verify(transactionManager).commit(any());
+    }
+
+    @Test
+    void agregarFotoCorreSinTransaccionExternaYArmaUnaCortaConTimeout() throws Exception {
+        Transactional transaccional = PublicacionService.class
+                .getMethod("agregarFoto", Long.class, MultipartFile.class)
+                .getAnnotation(Transactional.class);
+        assertThat(transaccional.propagation()).isEqualTo(Propagation.NOT_SUPPORTED);
+
+        prepararAgregarFoto(publicacionConFotos());
+        when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
+
+        publicacionService.agregarFoto(10L, archivoDeFoto());
+
+        ArgumentCaptor<TransactionDefinition> definicion = ArgumentCaptor.forClass(TransactionDefinition.class);
+        verify(transactionManager).getTransaction(definicion.capture());
+        assertThat(definicion.getValue().getTimeout()).isPositive();
+        assertThat(definicion.getValue().isReadOnly()).isFalse();
+    }
+
+    @Test
+    void agregarFotoVuelveAChequearElTopeConLaPublicacionBloqueadaYBorraLaImagenSubida() {
+        // El conteo previo (sin lock) vio 9, pero otra subida llegó a 10 mientras esta subía su imagen.
+        FotoPublicacion[] diez = new FotoPublicacion[ImagenValidator.MAX_FOTOS];
+        for (int i = 0; i < diez.length; i++) {
+            diez[i] = foto((long) i + 1, i);
+        }
+        when(publicacionRepository.existsById(10L)).thenReturn(true);
+        when(fotoPublicacionRepository.countByPublicacionId(10L)).thenReturn(9L);
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos(diez)));
+        when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
+
+        assertThatThrownBy(() -> publicacionService.agregarFoto(10L, archivoDeFoto()))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("Cada auto puede tener hasta 10 fotos");
+
+        verify(fotoPublicacionRepository, never()).save(any());
+        verify(transactionManager).rollback(any());
+        verify(cloudinaryService).eliminar(SUBIDA.publicId());
+    }
+
+    @Test
+    void agregarFotoBorraLaImagenSubidaSiElGuardadoFalla() {
+        prepararAgregarFoto(publicacionConFotos());
+        when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
+        when(fotoPublicacionRepository.save(any())).thenThrow(new IllegalStateException("base caída"));
+
+        assertThatThrownBy(() -> publicacionService.agregarFoto(10L, archivoDeFoto()))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(transactionManager).rollback(any());
+        verify(cloudinaryService).eliminar(SUBIDA.publicId());
+    }
+
+    @Test
+    void agregarFotoBorraLaImagenSubidaSiFallaElCommit() {
+        prepararAgregarFoto(publicacionConFotos());
+        when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
+        doThrow(new TransactionSystemException("commit fallido")).when(transactionManager).commit(any());
+
+        assertThatThrownBy(() -> publicacionService.agregarFoto(10L, archivoDeFoto()))
+                .isInstanceOf(TransactionSystemException.class);
+
+        verify(cloudinaryService).eliminar(SUBIDA.publicId());
+    }
+
+    @Test
+    void agregarFotoSiNoConsigueElLockBorraLaImagenSubidaYPropagaLaExcepcion() {
+        when(publicacionRepository.existsById(10L)).thenReturn(true);
+        when(fotoPublicacionRepository.countByPublicacionId(10L)).thenReturn(0L);
+        when(publicacionRepository.findByIdForUpdate(10L)).thenThrow(new CannotAcquireLockException("lock timeout"));
+        when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
+
+        assertThatThrownBy(() -> publicacionService.agregarFoto(10L, archivoDeFoto()))
+                .isInstanceOf(CannotAcquireLockException.class);
+
+        verify(fotoPublicacionRepository, never()).save(any());
+        verify(cloudinaryService).eliminar(SUBIDA.publicId());
+    }
+
+    @Test
+    void agregarFotoConservaLaImagenSubidaSiTodoSale() {
+        prepararAgregarFoto(publicacionConFotos());
+        when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
+
+        publicacionService.agregarFoto(10L, archivoDeFoto());
+
+        verify(transactionManager).commit(any());
+        verify(cloudinaryService, never()).eliminar(any());
+    }
+
+    @Test
+    void agregarFotoSiFallaLaSubidaNoAbreTransaccionNiBorraNada() {
+        when(publicacionRepository.existsById(10L)).thenReturn(true);
+        when(fotoPublicacionRepository.countByPublicacionId(10L)).thenReturn(0L);
+        when(cloudinaryService.subir(any())).thenThrow(new ServicioExternoException("No se pudo subir la imagen.", null));
+
+        assertThatThrownBy(() -> publicacionService.agregarFoto(10L, archivoDeFoto()))
+                .isInstanceOf(ServicioExternoException.class);
+
+        verify(transactionManager, never()).getTransaction(any());
+        verify(cloudinaryService, never()).eliminar(any());
+    }
+
+    @Test
+    void reordenarFotosCargaLaPublicacionConLockPesimista() {
+        Publicacion publicacion = publicacionConFotos(foto(1L, 0), foto(2L, 1));
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
+
+        publicacionService.reordenarFotos(10L, orden(2L, 1L));
+
+        verify(publicacionRepository).findByIdForUpdate(10L);
         verify(publicacionRepository, never()).findById(any());
+    }
+
+    @Test
+    void lasOperacionesConLockAcotanLaEsperaAntesDeTomarlo() {
+        FotoPublicacion f0 = foto(1L, 0);
+        Publicacion publicacion = publicacionConFotos(f0);
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
+        when(fotoPublicacionRepository.findById(1L)).thenReturn(Optional.of(f0));
+
+        publicacionService.eliminarFoto(10L, 1L);
+
+        InOrder orden = inOrder(publicacionRepository);
+        orden.verify(publicacionRepository).fijarTimeoutDeLock();
+        orden.verify(publicacionRepository).findByIdForUpdate(10L);
     }
 
     @Test

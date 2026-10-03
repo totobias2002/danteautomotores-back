@@ -25,9 +25,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
@@ -52,6 +55,11 @@ public class PublicacionService {
     private final FavoritoRepository favoritoRepository;
     private final CloudinaryService cloudinaryService;
     private final ImagenValidator imagenValidator;
+    private final PlatformTransactionManager transactionManager;
+
+    private static final String MENSAJE_TOPE_FOTOS = "Cada auto puede tener hasta 10 fotos";
+    // Tope de la transacción corta de agregarFoto (lock + insert): si tarda más, algo anda mal y se corta.
+    private static final int SEGUNDOS_TOPE_TRANSACCION_FOTO = 15;
 
     @Transactional(readOnly = true)
     public List<PublicacionResponse> buscar(String marca, String modelo, Integer anioMin, Integer anioMax,
@@ -177,19 +185,46 @@ public class PublicacionService {
                 .build();
     }
 
-    @Transactional
+    // La subida a Cloudinary (red, hasta 10 MB) NO puede ocurrir con el lock de la fila ni con una conexión de la base
+    // tomados, así que el método corre sin transacción y la arma por tramos:
+    //   1. sin lock: valida el archivo y chequea el tope de 10 fotos (rechaza rápido sin tocar Cloudinary),
+    //   2. sin transacción: sube la imagen,
+    //   3. transacción corta: toma el lock, vuelve a chequear el tope (otra subida pudo llenarlo mientras tanto),
+    //      calcula el orden y guarda.
+    // Si el tramo 3 falla (lock no obtenido, tope alcanzado, error de base o de commit), la imagen ya subida se borra
+    // (best-effort: CloudinaryService.eliminar nunca lanza).
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public PublicacionResponse agregarFoto(Long id, MultipartFile archivo) {
-        Publicacion publicacion = buscarEntidadParaEscritura(id);
-
+        if (!publicacionRepository.existsById(id)) {
+            throw new ResourceNotFoundException("No existe una publicación con id: " + id);
+        }
         // Las dos validaciones van antes de subir: una foto rechazada nunca llega a Cloudinary.
         imagenValidator.validar(archivo);
-        if (publicacion.getFotos().size() >= ImagenValidator.MAX_FOTOS) {
-            throw new ReglaDeNegocioException("Cada auto puede tener hasta 10 fotos");
+        if (fotoPublicacionRepository.countByPublicacionId(id) >= ImagenValidator.MAX_FOTOS) {
+            throw new ReglaDeNegocioException(MENSAJE_TOPE_FOTOS);
         }
 
         CloudinaryService.ImagenSubida subida = cloudinaryService.subir(archivo);
-        // Desde acá la imagen ya está en Cloudinary: si la transacción no termina en commit, se borra.
-        eliminarImagenSiNoHayCommit(subida.publicId());
+
+        TransactionTemplate transaccion = new TransactionTemplate(transactionManager);
+        transaccion.setTimeout(SEGUNDOS_TOPE_TRANSACCION_FOTO);
+        try {
+            return transaccion.execute(status -> guardarFotoSubida(id, subida));
+        } catch (RuntimeException e) {
+            // Ninguna fila apunta a la imagen: se borra para no dejarla huérfana. Si el commit falló con resultado
+            // incierto (muy raro) la foto publicada quedaría sin imagen; se prefirió ese riesgo a acumular huérfanas.
+            cloudinaryService.eliminar(subida.publicId());
+            throw e;
+        }
+    }
+
+    // Tramo 3 de agregarFoto: corre dentro de la transacción corta, con la publicación bloqueada.
+    private PublicacionResponse guardarFotoSubida(Long id, CloudinaryService.ImagenSubida subida) {
+        Publicacion publicacion = buscarEntidadParaEscritura(id);
+
+        if (publicacion.getFotos().size() >= ImagenValidator.MAX_FOTOS) {
+            throw new ReglaDeNegocioException(MENSAJE_TOPE_FOTOS);
+        }
 
         // Máximo orden actual + 1 (y no size()): si se borró una foto del medio, size() repetiría un orden.
         int siguienteOrden = publicacion.getFotos().stream()
@@ -290,29 +325,15 @@ public class PublicacionService {
         }
     }
 
-    // Compensación de la subida: si el guardado o el commit fallan, ninguna fila apunta a la imagen recién subida y
-    // quedaría huérfana en Cloudinary. CloudinaryService.eliminar nunca lanza.
-    private void eliminarImagenSiNoHayCommit(String publicId) {
-        if (publicId == null || publicId.isBlank() || !TransactionSynchronizationManager.isSynchronizationActive()) {
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCompletion(int status) {
-                if (status != STATUS_COMMITTED) {
-                    cloudinaryService.eliminar(publicId);
-                }
-            }
-        });
-    }
-
     private Publicacion buscarEntidad(Long id) {
         return publicacionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe una publicación con id: " + id));
     }
 
-    // Carga la publicación con lock pesimista (ver PublicacionRepository.findByIdForUpdate); solo dentro de @Transactional.
+    // Carga la publicación con lock pesimista y espera acotada (ver PublicacionRepository.findByIdForUpdate); solo dentro
+    // de @Transactional.
     private Publicacion buscarEntidadParaEscritura(Long id) {
+        publicacionRepository.fijarTimeoutDeLock();
         return publicacionRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe una publicación con id: " + id));
     }

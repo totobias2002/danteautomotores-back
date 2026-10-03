@@ -2,6 +2,7 @@ package com.danteautomotores.exception;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -61,6 +62,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
         log.warn("Violación de integridad de datos: {}", ex.getMostSpecificCause().getMessage());
         return error(HttpStatus.CONFLICT, "No se pudo completar la operación porque hay datos relacionados.");
+    }
+
+    // La fila de la publicación está bloqueada por otra operación sobre sus fotos y se agotó la espera (ver
+    // PublicacionRepository.findByIdForUpdate). Es transitorio: el cliente puede reintentar.
+    @ExceptionHandler(PessimisticLockingFailureException.class)
+    public ResponseEntity<Map<String, Object>> handleBloqueo(PessimisticLockingFailureException ex) {
+        log.warn("No se obtuvo el lock de la fila a tiempo: {}", ex.getMessage());
+        return error(HttpStatus.CONFLICT, "Otra operación está modificando este auto. Intentá de nuevo en unos segundos.");
     }
 
     @ExceptionHandler(ServicioExternoException.class)
