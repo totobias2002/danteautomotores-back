@@ -3,22 +3,23 @@ status: testing
 phase: 01-gesti-n-del-inventario-por-el-admin
 source: [01-VERIFICATION.md]
 started: 2026-10-03T03:20:00Z
-updated: 2026-10-03T03:20:00Z
+updated: 2026-10-03T03:05:00Z
 ---
 
 ## Current Test
 
-number: 1
-name: Arranque real con Postgres y ADMIN_*; login del admin
+number: 2
+name: ddl-auto update sobre base con datos (columnas destacado y public_id)
 expected: |
-  200 con rol ADMIN; la tabla agencias tiene 'Dante Automotores'/'dante-automotores'; reiniciar con otra ADMIN_PASSWORD no cambia la clave; con SPRING_PROFILES_ACTIVE=prod, sin ADMIN_* y sin admin, el arranque aborta con IllegalStateException
+  Se agregan sin error la columna destacado (default false) y public_id; los autos viejos quedan destacado=false
 awaiting: user response
 
 ## Tests
 
 ### 1. Arranque real con Postgres (docker-compose) y ADMIN_EMAIL/ADMIN_PASSWORD/ADMIN_NOMBRE; POST /api/auth/login con esas credenciales
 expected: 200 con rol ADMIN; la tabla agencias tiene 'Dante Automotores'/'dante-automotores'; reiniciar con otra ADMIN_PASSWORD no cambia la clave; con SPRING_PROFILES_ACTIVE=prod, sin ADMIN_* y sin admin, el arranque aborta con IllegalStateException
-result: [pending]
+result: pass
+note: "Corrido por Claude contra Postgres real (base descartable dante_uat): seed crea agencia y admin, login 200 ADMIN; reinicio con otra clave no la cambia (vieja 200, nueva 401); perfil prod sin ADMIN_* aborta con IllegalStateException (exit 1)"
 
 ### 2. Con ddl-auto: update sobre una base que ya tiene filas en publicaciones/fotos_publicacion, arrancar el back
 expected: Se agregan sin error la columna destacado (boolean default false not null) y public_id; los autos viejos quedan destacado=false
@@ -47,9 +48,9 @@ result: [pending]
 ## Summary
 
 total: 7
-passed: 0
+passed: 1
 issues: 0
-pending: 7
+pending: 6
 skipped: 0
 blocked: 0
 
