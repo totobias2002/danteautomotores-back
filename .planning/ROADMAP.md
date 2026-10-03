@@ -78,7 +78,7 @@ Plans:
   4. El back (Railway/Render) y el front (Vercel) están desplegados con perfil de producción (sin `ddl-auto: update` ni `show-sql`), y el sitio público funciona contra la API productiva
   5. El backend no arranca si falta el secret JWT o las credenciales de Cloudinary, y CORS acepta la lista de orígenes aunque tenga espacios
 
-**Plans**: 2/8 plans executed
+**Plans**: 3/8 plans executed
 
 Plans:
 **Wave 1**
@@ -86,7 +86,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [x] 02-02-PLAN.md — Producción lista en código: Cloudinary obligatorio, healthcheck público, admin normalizado, README y demo segura con datos nuevos (ola 2)
-- [ ] 02-03-PLAN.md — Datos nuevos en la API: tipo de carrocería, precio anterior/oferta, zona de la agencia y fecha de venta (ola 2)
+- [x] 02-03-PLAN.md — Datos nuevos en la API: tipo de carrocería, precio anterior/oferta, zona de la agencia y fecha de venta (ola 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 02-04-PLAN.md — API del catálogo: listado paginado de a 24 con filtros, orden y vendidos al final + facetas (ola 3)
@@ -180,7 +180,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Gestión del inventario por el admin | 7/7 | Complete    | 2026-10-03 |
-| 2. Catálogo público real en producción | 2/8 | In Progress|  |
+| 2. Catálogo público real en producción | 3/8 | In Progress|  |
 | 3. Cuentas verificadas | 0/TBD | Not started | - |
 | 4. Compra por conversación con la agencia | 0/TBD | Not started | - |
 | 5. Cotizador de usados | 0/TBD | Not started | - |

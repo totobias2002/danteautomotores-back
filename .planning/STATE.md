@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Catálogo público real en producción
 status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-10-03T17:41:24.776Z"
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-10-03T17:47:31.147Z"
 last_activity: 2026-10-03
 last_activity_desc: Phase 02 execution started
-state_head: 13fdb591687ffd0080866332b630f33a7db82465
+state_head: 249c398ae4467a22b66b9c83115033e40885c097
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 15
-  completed_plans: 9
+  completed_plans: 10
   percent: 17
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-03)
 ## Current Position
 
 Phase: 02 (Catálogo público real en producción) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-10-03 — Phase 02 execution started
 
@@ -65,6 +65,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 1 P07 | 17 min | 3 tasks | 10 files |
 | Phase 02 P01 | 9 min | 2 tasks | 21 files |
 | Phase 02 P02 | 21 min | 3 tasks | 9 files |
+| Phase 02 P03 | 25min | 3 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,8 @@ Recent decisions affecting current work:
 - [Phase 02]: [02-01] PostgresLocalTestBase usa una base test_* por JVM (shutdown hook) y los tests de Postgres exigen -Ddante.pg.required=true; el humo local corre contra copias descartables via con-back-local.sh
 - [Phase 02]: 02-02: credenciales de Cloudinary validas = presentes y no vacias; SecretosGuard no llama a Cloudinary al arrancar
 - [Phase 02]: 02-02: solo GET /actuator/health y /actuator/health/** son publicos; el demo aborta si ya hay autos (marca+modelo+anio) salvo FORZAR=1 y LIMPIAR remoto exige CONFIRMAR_BORRADO_EN_PRODUCCION=SI
+- [Phase 02]: 02-03: precio anterior <= precio se acepta pero no es oferta; PublicacionMapper.esOferta es la unica regla de oferta
+- [Phase 02]: 02-03: el campo se llama agenciaZona en los DTOs de publicacion; fechaVendido solo la fija cambiarEstado con Clock inyectable
 
 ### Pending Todos
 
@@ -115,6 +118,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-03T17:41:24.729Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-10-03T17:47:31.101Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None
