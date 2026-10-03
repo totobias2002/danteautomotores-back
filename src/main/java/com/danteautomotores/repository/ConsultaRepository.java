@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface ConsultaRepository extends JpaRepository<Consulta, Long> {
     List<Consulta> findByPublicacionIdOrderByFechaDesc(Long publicacionId);
+    void deleteByPublicacionId(Long publicacionId);
+    long countByPublicacionId(Long publicacionId);
 }

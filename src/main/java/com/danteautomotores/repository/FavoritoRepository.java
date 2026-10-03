@@ -10,4 +10,6 @@ public interface FavoritoRepository extends JpaRepository<Favorito, Long> {
     List<Favorito> findByUsuarioId(Long usuarioId);
     Optional<Favorito> findByUsuarioIdAndPublicacionId(Long usuarioId, Long publicacionId);
     boolean existsByUsuarioIdAndPublicacionId(Long usuarioId, Long publicacionId);
+    void deleteByPublicacionId(Long publicacionId);
+    long countByPublicacionId(Long publicacionId);
 }

@@ -2,6 +2,7 @@ package com.danteautomotores.service;
 
 import com.danteautomotores.dto.publicacion.CambiarDestacadoRequest;
 import com.danteautomotores.dto.publicacion.CambiarEstadoRequest;
+import com.danteautomotores.dto.publicacion.ImpactoEliminacionResponse;
 import com.danteautomotores.dto.publicacion.PublicacionRequest;
 import com.danteautomotores.dto.publicacion.PublicacionResponse;
 import com.danteautomotores.dto.publicacion.ReordenarFotosRequest;
@@ -13,6 +14,8 @@ import com.danteautomotores.enums.EstadoPublicacion;
 import com.danteautomotores.enums.Rol;
 import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.repository.AgenciaRepository;
+import com.danteautomotores.repository.ConsultaRepository;
+import com.danteautomotores.repository.FavoritoRepository;
 import com.danteautomotores.repository.FotoPublicacionRepository;
 import com.danteautomotores.repository.PublicacionRepository;
 import com.danteautomotores.repository.UsuarioRepository;
@@ -21,13 +24,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -36,7 +43,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -54,6 +63,12 @@ class PublicacionServiceTest {
 
     @Mock
     private FotoPublicacionRepository fotoPublicacionRepository;
+
+    @Mock
+    private ConsultaRepository consultaRepository;
+
+    @Mock
+    private FavoritoRepository favoritoRepository;
 
     @Mock
     private CloudinaryService cloudinaryService;
@@ -360,5 +375,114 @@ class PublicacionServiceTest {
 
         assertThatThrownBy(() -> publicacionService.reordenarFotos(99L, orden(1L)))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    // ---- eliminar publicación en cascada ----
+
+    private static FotoPublicacion fotoConPublicId(Long id, Integer orden, String publicId) {
+        FotoPublicacion f = foto(id, orden);
+        f.setPublicId(publicId);
+        return f;
+    }
+
+    @Test
+    void eliminarBorraFavoritosYConsultasAntesQueLaPublicacion() {
+        Publicacion publicacion = publicacionConFotos();
+        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(publicacion));
+
+        publicacionService.eliminar(10L);
+
+        InOrder orden = inOrder(favoritoRepository, consultaRepository, publicacionRepository);
+        orden.verify(favoritoRepository).deleteByPublicacionId(10L);
+        orden.verify(consultaRepository).deleteByPublicacionId(10L);
+        orden.verify(publicacionRepository).delete(publicacion);
+    }
+
+    @Test
+    void eliminarUnaPublicacionInexistenteLanzaNotFoundYNoBorraNada() {
+        when(publicacionRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> publicacionService.eliminar(99L))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(favoritoRepository, never()).deleteByPublicacionId(any());
+        verify(consultaRepository, never()).deleteByPublicacionId(any());
+        verify(publicacionRepository, never()).delete(any(Publicacion.class));
+        verify(cloudinaryService, never()).eliminar(any());
+    }
+
+    @Test
+    void eliminarBorraLosAssetsDeCloudinarySoloDespuesDelCommitYOmiteLasFotosSinPublicId() {
+        Publicacion publicacion = publicacionConFotos(
+                fotoConPublicId(1L, 0, "pid-1"), fotoConPublicId(2L, 1, null), fotoConPublicId(3L, 2, "pid-3"));
+        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(publicacion));
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            publicacionService.eliminar(10L);
+
+            verify(cloudinaryService, never()).eliminar(any());
+
+            TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(TransactionSynchronization::afterCommit);
+
+            verify(cloudinaryService).eliminar("pid-1");
+            verify(cloudinaryService).eliminar("pid-3");
+            verify(cloudinaryService, times(2)).eliminar(any());
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
+    void siLaTransaccionNoHaceCommitCloudinaryNoSeToca() {
+        Publicacion publicacion = publicacionConFotos(fotoConPublicId(1L, 0, "pid-1"));
+        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(publicacion));
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            publicacionService.eliminar(10L);
+            // rollback: nunca se ejecuta afterCommit
+            verify(cloudinaryService, never()).eliminar(any());
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
+    void sinTransaccionActivaLosAssetsSeBorranEnElMomento() {
+        Publicacion publicacion = publicacionConFotos(fotoConPublicId(1L, 0, "pid-1"));
+        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(publicacion));
+
+        publicacionService.eliminar(10L);
+
+        verify(cloudinaryService).eliminar("pid-1");
+    }
+
+    @Test
+    void obtenerImpactoEliminacionDevuelveLosConteos() {
+        when(publicacionRepository.existsById(10L)).thenReturn(true);
+        when(consultaRepository.countByPublicacionId(10L)).thenReturn(3L);
+        when(favoritoRepository.countByPublicacionId(10L)).thenReturn(5L);
+
+        ImpactoEliminacionResponse impacto = publicacionService.obtenerImpactoEliminacion(10L);
+
+        assertThat(impacto.getCantidadConsultas()).isEqualTo(3L);
+        assertThat(impacto.getCantidadFavoritos()).isEqualTo(5L);
+    }
+
+    @Test
+    void obtenerImpactoEliminacionDeUnIdInexistenteLanzaNotFound() {
+        when(publicacionRepository.existsById(99L)).thenReturn(false);
+
+        assertThatThrownBy(() -> publicacionService.obtenerImpactoEliminacion(99L))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void elImpactoDeEliminacionSoloTieneDosConteosSinDatosPersonales() {
+        assertThat(ImpactoEliminacionResponse.class.getDeclaredFields())
+                .extracting(Field::getName)
+                .containsExactlyInAnyOrder("cantidadConsultas", "cantidadFavoritos");
     }
 }

@@ -1,7 +1,9 @@
 package com.danteautomotores.controller;
 
+import com.danteautomotores.dto.publicacion.ImpactoEliminacionResponse;
 import com.danteautomotores.dto.publicacion.PublicacionResponse;
 import com.danteautomotores.enums.EstadoPublicacion;
+import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.service.PublicacionService;
 import com.danteautomotores.support.SeguridadWebMvcTestBase;
 import org.junit.jupiter.api.Test;
@@ -44,6 +46,42 @@ class AdminPublicacionControllerTest extends SeguridadWebMvcTestBase {
         mvc.perform(get("/api/admin/publicaciones"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").isString());
+    }
+
+    @Test
+    void adminConsultaElImpactoDeEliminarUnAuto() throws Exception {
+        when(publicacionService.obtenerImpactoEliminacion(5L))
+                .thenReturn(ImpactoEliminacionResponse.builder().cantidadConsultas(3).cantidadFavoritos(2).build());
+
+        mvc.perform(get("/api/admin/publicaciones/5/impacto-eliminacion")
+                        .header("Authorization", bearerPara("admin@dante.com", "ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cantidadConsultas").value(3))
+                .andExpect(jsonPath("$.cantidadFavoritos").value(2));
+    }
+
+    @Test
+    void compradorNoPuedeVerElImpactoDeEliminacion() throws Exception {
+        mvc.perform(get("/api/admin/publicaciones/5/impacto-eliminacion")
+                        .header("Authorization", bearerPara("comprador@x.com", "COMPRADOR")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void sinTokenElImpactoDeEliminacionDa401() throws Exception {
+        mvc.perform(get("/api/admin/publicaciones/5/impacto-eliminacion"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void elImpactoDeUnAutoInexistenteDa404ConError() throws Exception {
+        when(publicacionService.obtenerImpactoEliminacion(99L))
+                .thenThrow(new ResourceNotFoundException("No existe una publicación con id: 99"));
+
+        mvc.perform(get("/api/admin/publicaciones/99/impacto-eliminacion")
+                        .header("Authorization", bearerPara("admin@dante.com", "ADMIN")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("No existe una publicación con id: 99"));
     }
 
     @Test

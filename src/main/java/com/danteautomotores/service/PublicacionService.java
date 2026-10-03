@@ -2,6 +2,7 @@ package com.danteautomotores.service;
 
 import com.danteautomotores.dto.publicacion.CambiarDestacadoRequest;
 import com.danteautomotores.dto.publicacion.CambiarEstadoRequest;
+import com.danteautomotores.dto.publicacion.ImpactoEliminacionResponse;
 import com.danteautomotores.dto.publicacion.PublicacionRequest;
 import com.danteautomotores.dto.publicacion.PublicacionResponse;
 import com.danteautomotores.dto.publicacion.ReordenarFotosRequest;
@@ -13,6 +14,8 @@ import com.danteautomotores.enums.EstadoPublicacion;
 import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.mapper.PublicacionMapper;
 import com.danteautomotores.repository.AgenciaRepository;
+import com.danteautomotores.repository.ConsultaRepository;
+import com.danteautomotores.repository.FavoritoRepository;
 import com.danteautomotores.repository.FotoPublicacionRepository;
 import com.danteautomotores.repository.PublicacionRepository;
 import com.danteautomotores.repository.UsuarioRepository;
@@ -22,6 +25,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
@@ -39,6 +44,8 @@ public class PublicacionService {
     private final AgenciaRepository agenciaRepository;
     private final UsuarioRepository usuarioRepository;
     private final FotoPublicacionRepository fotoPublicacionRepository;
+    private final ConsultaRepository consultaRepository;
+    private final FavoritoRepository favoritoRepository;
     private final CloudinaryService cloudinaryService;
     private final ImagenValidator imagenValidator;
 
@@ -135,11 +142,33 @@ public class PublicacionService {
         return PublicacionMapper.toResponse(publicacion);
     }
 
+    // Decisión del usuario (cascada + aviso): los favoritos y las consultas de la publicación se borran en la
+    // misma transacción, y el panel avisa antes cuántos son (obtenerImpactoEliminacion). Las fotos caen por
+    // cascade/orphanRemoval. Si algo falla no queda nada borrado a medias.
+    @Transactional
     public void eliminar(Long id) {
+        Publicacion publicacion = buscarEntidad(id);
+
+        List<String> publicIds = publicacion.getFotos().stream()
+                .map(FotoPublicacion::getPublicId)
+                .toList();
+
+        favoritoRepository.deleteByPublicacionId(id);
+        consultaRepository.deleteByPublicacionId(id);
+        publicacionRepository.delete(publicacion);
+
+        eliminarImagenesDespuesDelCommit(publicIds);
+    }
+
+    @Transactional(readOnly = true)
+    public ImpactoEliminacionResponse obtenerImpactoEliminacion(Long id) {
         if (!publicacionRepository.existsById(id)) {
             throw new ResourceNotFoundException("No existe una publicación con id: " + id);
         }
-        publicacionRepository.deleteById(id);
+        return ImpactoEliminacionResponse.builder()
+                .cantidadConsultas(consultaRepository.countByPublicacionId(id))
+                .cantidadFavoritos(favoritoRepository.countByPublicacionId(id))
+                .build();
     }
 
     @Transactional
@@ -206,6 +235,28 @@ public class PublicacionService {
         }
 
         fotoPublicacionRepository.delete(foto);
+    }
+
+    // El borrado en Cloudinary va después del commit: si la transacción hace rollback, las filas siguen
+    // apuntando a imágenes que existen (RESEARCH Pitfall 8). CloudinaryService.eliminar nunca lanza, así que un
+    // fallo ahí no deshace un borrado ya confirmado. Las fotos viejas sin public_id se omiten.
+    private void eliminarImagenesDespuesDelCommit(List<String> publicIds) {
+        List<String> aBorrar = publicIds.stream()
+                .filter(publicId -> publicId != null && !publicId.isBlank())
+                .toList();
+        if (aBorrar.isEmpty()) {
+            return;
+        }
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    aBorrar.forEach(cloudinaryService::eliminar);
+                }
+            });
+        } else {
+            aBorrar.forEach(cloudinaryService::eliminar);
+        }
     }
 
     private Publicacion buscarEntidad(Long id) {
