@@ -20,7 +20,7 @@ Cada fase es un corte vertical (back en `danteautomotores-back` + front en `dant
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Gestión del inventario por el admin** - La única cuenta admin gestiona autos, fotos, estados y destacados desde el panel contra la API real
+- [x] **Phase 1: Gestión del inventario por el admin** - La única cuenta admin gestiona autos, fotos, estados y destacados desde el panel contra la API real (completed 2026-10-03)
 - [ ] **Phase 2: Catálogo público real en producción** - El visitante navega el catálogo real (paginado, filtrado, con destacados y estados) en el sitio desplegado
 - [ ] **Phase 3: Cuentas verificadas** - Registro con teléfono y DNI, login con Google con perfil completo, recuperación de contraseña y acciones protegidas
 - [ ] **Phase 4: Compra por conversación con la agencia** - "Lo quiero" abre una conversación de compra; usuario y admin conversan en bandejas con no leídos y avisos por mail
@@ -42,7 +42,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. El admin cambia el estado de un auto (disponible / reservado / vendido) y lo marca o desmarca como destacado desde el panel
   5. Con un token vencido o malformado, la API responde 401 (no 500) con un error de formato uniforme, y el panel lleva al admin al login en vez de romperse
 
-**Plans**: 7/7 plans executed
+**Plans**: 7/7 plans complete
 
 Plans:
 **Wave 1**
@@ -157,7 +157,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Gestión del inventario por el admin | 7/7 | In Progress|  |
+| 1. Gestión del inventario por el admin | 7/7 | Complete    | 2026-10-03 |
 | 2. Catálogo público real en producción | 0/TBD | Not started | - |
 | 3. Cuentas verificadas | 0/TBD | Not started | - |
 | 4. Compra por conversación con la agencia | 0/TBD | Not started | - |
