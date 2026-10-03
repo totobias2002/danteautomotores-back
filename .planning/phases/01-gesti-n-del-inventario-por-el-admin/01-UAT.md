@@ -3,15 +3,15 @@ status: testing
 phase: 01-gesti-n-del-inventario-por-el-admin
 source: [01-VERIFICATION.md]
 started: 2026-10-03T03:20:00Z
-updated: 2026-10-03T03:05:00Z
+updated: 2026-10-03T03:40:00Z
 ---
 
 ## Current Test
 
-number: 2
-name: ddl-auto update sobre base con datos (columnas destacado y public_id)
+number: 3
+name: Panel completo contra la API real (navegador)
 expected: |
-  Se agregan sin error la columna destacado (default false) y public_id; los autos viejos quedan destacado=false
+  Todo persiste al recargar; un auto reservado/vendido sigue visible con su estado; el destacado no cambia al cambiar de estado ni al editar
 awaiting: user response
 
 ## Tests
@@ -48,9 +48,9 @@ result: [pending]
 ## Summary
 
 total: 7
-passed: 1
+passed: 2
 issues: 0
-pending: 6
+pending: 5
 skipped: 0
 blocked: 0
 
