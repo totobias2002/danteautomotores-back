@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Catálogo público real en producción
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-10-03T17:56:56.607Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-10-03T21:25:06.244Z"
 last_activity: 2026-10-03
 last_activity_desc: Phase 02 execution started
-state_head: e8c3937c83d7d96aa2acda8709064c65d4b52ae4
+state_head: 75423d86857e41d1951670f10bf8875a518ba3ee
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 15
-  completed_plans: 11
+  completed_plans: 12
   percent: 17
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-03)
 ## Current Position
 
 Phase: 02 (Catálogo público real en producción) — EXECUTING
-Plan: 5 of 8
+Plan: 6 of 8
 Status: Ready to execute
 Last activity: 2026-10-03 — Phase 02 execution started
 
@@ -67,6 +67,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 02 P02 | 21 min | 3 tasks | 9 files |
 | Phase 02 P03 | 25min | 3 tasks | 20 files |
 | Phase 02 P04 | 40 min | 2 tasks | 15 files |
+| Phase 02 P05 | 20min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -98,6 +99,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-03: el campo se llama agenciaZona en los DTOs de publicacion; fechaVendido solo la fija cambiarEstado con Clock inyectable
 - [Phase 02]: 02-04: un numero de pagina ilegible (pagina=abc) cae a 1 con un @InitBinder en PublicacionController; el resto de los parametros numericos o enum invalidos dan 400 uniforme
 - [Phase 02]: 02-04: facetas agrupadas en Java sobre el conjunto visible (no dependen de los filtros activos); histograma de 16 tramos con piso exacto en BigDecimal para que la suma sea el total
+- [Phase 02]: 02-05: etiquetas.js es la unica fuente de etiquetas en espanol; la card decide la oferta solo con oferta===true del servidor
 
 ### Pending Todos
 
@@ -121,6 +123,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-03T17:56:56.559Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-10-03T21:25:06.197Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None
