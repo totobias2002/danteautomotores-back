@@ -7,6 +7,8 @@ import com.danteautomotores.repository.AgenciaRepository;
 import com.danteautomotores.repository.UsuarioRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -39,9 +41,18 @@ class DataSeederTest {
     private PasswordEncoder passwordEncoder;
 
     private DataSeeder seeder(boolean prod, String email, String password, String nombre) {
+        return seederConPerfiles(prod ? new String[]{"prod"} : new String[0], null, email, password, nombre);
+    }
+
+    // porDefecto null deja el perfil por defecto implícito de Spring ("default").
+    private DataSeeder seederConPerfiles(String[] activos, String[] porDefecto, String email, String password,
+                                         String nombre) {
         MockEnvironment environment = new MockEnvironment();
-        if (prod) {
-            environment.setActiveProfiles("prod");
+        if (activos.length > 0) {
+            environment.setActiveProfiles(activos);
+        }
+        if (porDefecto != null) {
+            environment.setDefaultProfiles(porDefecto);
         }
         DataSeeder seeder = new DataSeeder(usuarioRepository, agenciaRepository, passwordEncoder, environment);
         ReflectionTestUtils.setField(seeder, "adminEmail", email);
@@ -227,6 +238,55 @@ class DataSeederTest {
         assertThatThrownBy(() -> seeder(true, "    ", PASSWORD, "Dante").run(null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("ADMIN_EMAIL");
+
+        verify(usuarioRepository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"production", "railway", "staging", "qa", "prod,dev"})
+    void sinAdminYVariablesFaltantesConPerfilQueNoEsDeDesarrollo_lanzaYNoGuarda(String perfiles) {
+        when(agenciaRepository.count()).thenReturn(1L);
+        when(usuarioRepository.existsByRol(Rol.ADMIN)).thenReturn(false);
+
+        assertThatThrownBy(() -> seederConPerfiles(perfiles.split(","), null, "", "", "").run(null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ADMIN_EMAIL");
+
+        verify(usuarioRepository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"dev", "local", "test"})
+    void sinAdminYVariablesFaltantesConPerfilDeDesarrollo_soloAvisaYNoGuarda(String perfil, CapturedOutput output) {
+        when(agenciaRepository.count()).thenReturn(1L);
+        when(usuarioRepository.existsByRol(Rol.ADMIN)).thenReturn(false);
+
+        assertThatCode(() -> seederConPerfiles(new String[]{perfil}, null, "", "", "").run(null))
+                .doesNotThrowAnyException();
+
+        verify(usuarioRepository, never()).save(any());
+        assertThat(output.getAll()).contains("ADMIN_EMAIL");
+    }
+
+    @Test
+    void sinPerfilActivoPeroConPerfilPorDefectoProd_lanza() {
+        when(agenciaRepository.count()).thenReturn(1L);
+        when(usuarioRepository.existsByRol(Rol.ADMIN)).thenReturn(false);
+
+        assertThatThrownBy(() -> seederConPerfiles(new String[0], new String[]{"prod"}, "", "", "").run(null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ADMIN_EMAIL");
+
+        verify(usuarioRepository, never()).save(any());
+    }
+
+    @Test
+    void conAdminExistenteYPerfilStaging_noLanzaAunqueFaltenLasVariablesNiGuarda() {
+        when(agenciaRepository.count()).thenReturn(1L);
+        when(usuarioRepository.existsByRol(Rol.ADMIN)).thenReturn(true);
+
+        assertThatCode(() -> seederConPerfiles(new String[]{"staging"}, null, "", "", "").run(null))
+                .doesNotThrowAnyException();
 
         verify(usuarioRepository, never()).save(any());
     }
