@@ -6,7 +6,9 @@ import com.danteautomotores.entity.Agencia;
 import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.mapper.AgenciaMapper;
 import com.danteautomotores.repository.AgenciaRepository;
+import com.danteautomotores.repository.PublicacionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
@@ -17,9 +19,11 @@ import java.util.List;
 public class AgenciaService {
 
     private final AgenciaRepository agenciaRepository;
+    private final PublicacionRepository publicacionRepository;
 
+    // Ordenadas por id para que el panel y el selector del form de publicaciones muestren siempre el mismo orden.
     public List<AgenciaResponse> listar() {
-        return agenciaRepository.findAll().stream()
+        return agenciaRepository.findAll(Sort.by("id")).stream()
                 .map(AgenciaMapper::toResponse)
                 .toList();
     }
@@ -63,6 +67,11 @@ public class AgenciaService {
     public void eliminar(Long id) {
         if (!agenciaRepository.existsById(id)) {
             throw new ResourceNotFoundException("No existe una agencia con id: " + id);
+        }
+        // Evita el 500 por la FK publicaciones.agencia_id: una agencia con autos no se puede borrar.
+        if (publicacionRepository.existsByAgenciaId(id)) {
+            throw new IllegalArgumentException(
+                    "No se puede eliminar la agencia porque tiene autos publicados. Pasalos a otra agencia o eliminalos primero.");
         }
         agenciaRepository.deleteById(id);
     }
