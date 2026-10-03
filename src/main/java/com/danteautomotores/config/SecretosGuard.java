@@ -8,8 +8,6 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Set;
 
 /**
  * Impide arrancar en producción con los valores por defecto del repo (públicos) para el secreto JWT
@@ -17,12 +15,12 @@ import java.util.Set;
  * (sin ellas no se pueden subir ni borrar fotos). Las credenciales de Cloudinary se interpretan como válidas si están
  * presentes y no vacías: no se consulta a Cloudinary al arrancar, para no acoplar el deploy a un tercero.
  * <p>
- * El modo permisivo (solo avisa en el log) es el que hay que pedir explícitamente: aplica cuando NO hay ningún perfil
- * activo (desarrollo local sin configuración: {@code mvn spring-boot:run} o el IDE) o cuando todos los perfiles
+ * El modo permisivo (solo avisa en el log) aplica cuando NO hay ningún perfil activo y rige el perfil por defecto de
+ * Spring (desarrollo local sin configuración: {@code mvn spring-boot:run} o el IDE) o cuando todos los perfiles
  * activos son de desarrollo ({@code dev}, {@code local}, {@code test}). Cualquier otro perfil ({@code prod},
  * {@code production}, {@code railway}, {@code staging}...) o una mezcla como {@code prod,dev} aborta el arranque.
  * Un deploy que no use el Dockerfile (que ya fija {@code SPRING_PROFILES_ACTIVE=prod}) debe definir un perfil.
- * Mismo criterio de fondo que {@link DataSeeder}.
+ * El criterio es el mismo que el de {@link DataSeeder} porque ambos usan {@link EntornoDeDesarrollo}.
  */
 @Component
 @RequiredArgsConstructor
@@ -33,8 +31,6 @@ public class SecretosGuard implements InitializingBean {
     static final String DB_PASSWORD_POR_DEFECTO = "dante_dev_password";
     /** Lo mínimo que exige JJWT para firmar con HS256 (256 bits). */
     static final int JWT_SECRET_MIN_BYTES = 32;
-
-    private static final Set<String> PERFILES_DE_DESARROLLO = Set.of("dev", "local", "test");
 
     private final Environment environment;
 
@@ -77,15 +73,10 @@ public class SecretosGuard implements InitializingBean {
     }
 
     private void fallarOAvisar(String mensaje) {
-        if (!esEntornoDeDesarrollo()) {
+        if (!EntornoDeDesarrollo.esDesarrollo(environment)) {
             throw new IllegalStateException(mensaje);
         }
         log.warn("{} (fuera del modo desarrollo, es decir con cualquier perfil que no sea dev/local/test, el arranque se aborta)",
                 mensaje);
-    }
-
-    // Sin perfiles activos cuenta como desarrollo (arranque local sin configuración); con perfiles, todos deben serlo.
-    private boolean esEntornoDeDesarrollo() {
-        return Arrays.stream(environment.getActiveProfiles()).allMatch(PERFILES_DE_DESARROLLO::contains);
     }
 }

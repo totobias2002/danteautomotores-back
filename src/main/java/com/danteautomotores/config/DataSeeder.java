@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.env.Environment;
-import org.springframework.core.env.Profiles;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -98,12 +97,14 @@ public class DataSeeder implements ApplicationRunner {
         log.info("Cuenta admin creada para {} (ingresá con ese email)", email);
     }
 
-    // En prod abortar el arranque es mejor que dejar la app sin admin.
+    // Fuera del modo desarrollo (cualquier perfil que no sea dev/local/test) abortar el arranque es mejor que dejar
+    // la app sin admin; el criterio es el mismo que el de SecretosGuard.
     private void fallarOAvisar(String mensaje) {
-        if (environment.acceptsProfiles(Profiles.of("prod"))) {
+        if (!EntornoDeDesarrollo.esDesarrollo(environment)) {
             throw new IllegalStateException(mensaje);
         }
-        log.warn(mensaje);
+        log.warn("{} (fuera del modo desarrollo, es decir con cualquier perfil que no sea dev/local/test, el arranque se aborta)",
+                mensaje);
     }
 
     private boolean estaEnBlanco(String valor) {
