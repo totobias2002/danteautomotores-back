@@ -3,6 +3,7 @@ package com.danteautomotores.service;
 import com.danteautomotores.dto.agencia.AgenciaRequest;
 import com.danteautomotores.dto.agencia.AgenciaResponse;
 import com.danteautomotores.entity.Agencia;
+import com.danteautomotores.exception.ReglaDeNegocioException;
 import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.mapper.AgenciaMapper;
 import com.danteautomotores.repository.AgenciaRepository;
@@ -70,7 +71,7 @@ public class AgenciaService {
         }
         // Evita el 500 por la FK publicaciones.agencia_id: una agencia con autos no se puede borrar.
         if (publicacionRepository.existsByAgenciaId(id)) {
-            throw new IllegalArgumentException(
+            throw new ReglaDeNegocioException(
                     "No se puede eliminar la agencia porque tiene autos publicados. Pasalos a otra agencia o eliminalos primero.");
         }
         agenciaRepository.deleteById(id);

@@ -1,5 +1,6 @@
 package com.danteautomotores.service;
 
+import com.danteautomotores.exception.ReglaDeNegocioException;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 
@@ -56,14 +57,14 @@ class ImagenValidatorTest {
     @Test
     void rechazaUnArchivoVacio() {
         assertThatThrownBy(() -> validador.validar(archivo("image/jpeg", new byte[0])))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("Elegí una imagen para subir");
     }
 
     @Test
     void rechazaUnArchivoNulo() {
         assertThatThrownBy(() -> validador.validar(null))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("Elegí una imagen para subir");
     }
 
@@ -73,7 +74,7 @@ class ImagenValidatorTest {
         System.arraycopy(JPEG, 0, enorme, 0, JPEG.length);
 
         assertThatThrownBy(() -> validador.validar(archivo("image/jpeg", enorme)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("La imagen supera el máximo de 10 MB");
     }
 
@@ -88,35 +89,35 @@ class ImagenValidatorTest {
     @Test
     void rechazaUnGifPorContentType() {
         assertThatThrownBy(() -> validador.validar(archivo("image/gif", JPEG)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("Formato no permitido. Usá JPG, PNG o WebP");
     }
 
     @Test
     void rechazaUnHeicPorContentType() {
         assertThatThrownBy(() -> validador.validar(archivo("image/heic", JPEG)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("Formato no permitido. Usá JPG, PNG o WebP");
     }
 
     @Test
     void rechazaUnPdfPorContentType() {
         assertThatThrownBy(() -> validador.validar(archivo("application/pdf", JPEG)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("Formato no permitido. Usá JPG, PNG o WebP");
     }
 
     @Test
     void rechazaUnArchivoSinContentType() {
         assertThatThrownBy(() -> validador.validar(archivo(null, JPEG)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("Formato no permitido. Usá JPG, PNG o WebP");
     }
 
     @Test
     void rechazaUnEjecutableQueDeclaraSerJpeg() {
         assertThatThrownBy(() -> validador.validar(archivo("image/jpeg", EJECUTABLE)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("El archivo no es una imagen válida (JPG, PNG o WebP)");
     }
 
@@ -125,14 +126,14 @@ class ImagenValidatorTest {
         byte[] wav = {'R', 'I', 'F', 'F', 0x24, 0x00, 0x00, 0x00, 'W', 'A', 'V', 'E', 'f', 'm', 't', ' '};
 
         assertThatThrownBy(() -> validador.validar(archivo("image/webp", wav)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("El archivo no es una imagen válida (JPG, PNG o WebP)");
     }
 
     @Test
     void rechazaUnArchivoMasCortoQueLaFirma() {
         assertThatThrownBy(() -> validador.validar(archivo("image/png", new byte[]{(byte) 0x89, 'P'})))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("El archivo no es una imagen válida (JPG, PNG o WebP)");
     }
 }

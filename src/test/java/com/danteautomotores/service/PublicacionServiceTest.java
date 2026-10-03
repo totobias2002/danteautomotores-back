@@ -1,5 +1,6 @@
 package com.danteautomotores.service;
 
+import com.danteautomotores.exception.ReglaDeNegocioException;
 import com.danteautomotores.dto.publicacion.CambiarDestacadoRequest;
 import com.danteautomotores.dto.publicacion.CambiarEstadoRequest;
 import com.danteautomotores.dto.publicacion.ImpactoEliminacionResponse;
@@ -268,7 +269,7 @@ class PublicacionServiceTest {
         when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos(diez)));
 
         assertThatThrownBy(() -> publicacionService.agregarFoto(10L, archivoDeFoto()))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("Cada auto puede tener hasta 10 fotos");
 
         verify(cloudinaryService, never()).subir(any());
@@ -278,11 +279,11 @@ class PublicacionServiceTest {
     @Test
     void agregarFotoNoSubeNiGuardaSiElValidadorRechazaElArchivo() {
         when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos()));
-        doThrow(new IllegalArgumentException("Formato no permitido. Usá JPG, PNG o WebP"))
+        doThrow(new ReglaDeNegocioException("Formato no permitido. Usá JPG, PNG o WebP"))
                 .when(imagenValidator).validar(any());
 
         assertThatThrownBy(() -> publicacionService.agregarFoto(10L, archivoDeFoto()))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("Formato no permitido. Usá JPG, PNG o WebP");
 
         verify(cloudinaryService, never()).subir(any());
@@ -407,7 +408,7 @@ class PublicacionServiceTest {
         when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
 
         assertThatThrownBy(() -> publicacionService.reordenarFotos(10L, orden(3L, 1L)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("El orden debe incluir todas las fotos del auto, una sola vez cada una");
         assertThat(publicacion.getFotos()).extracting(FotoPublicacion::getOrden).containsExactly(0, 1, 2);
     }
@@ -418,7 +419,7 @@ class PublicacionServiceTest {
         when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
 
         assertThatThrownBy(() -> publicacionService.reordenarFotos(10L, orden(1L, 1L, 2L)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("El orden debe incluir todas las fotos del auto, una sola vez cada una");
     }
 
@@ -428,7 +429,7 @@ class PublicacionServiceTest {
         when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
 
         assertThatThrownBy(() -> publicacionService.reordenarFotos(10L, orden(1L, 2L, 99L)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("El orden debe incluir todas las fotos del auto, una sola vez cada una");
     }
 
@@ -586,7 +587,7 @@ class PublicacionServiceTest {
         when(fotoPublicacionRepository.findById(7L)).thenReturn(Optional.of(ajena));
 
         assertThatThrownBy(() -> publicacionService.eliminarFoto(99L, 7L))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("La foto no pertenece a esta publicación");
 
         verify(fotoPublicacionRepository, never()).delete(any());

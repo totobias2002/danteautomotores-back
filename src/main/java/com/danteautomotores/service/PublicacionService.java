@@ -11,6 +11,7 @@ import com.danteautomotores.entity.FotoPublicacion;
 import com.danteautomotores.entity.Publicacion;
 import com.danteautomotores.entity.Usuario;
 import com.danteautomotores.enums.EstadoPublicacion;
+import com.danteautomotores.exception.ReglaDeNegocioException;
 import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.mapper.PublicacionMapper;
 import com.danteautomotores.repository.AgenciaRepository;
@@ -180,7 +181,7 @@ public class PublicacionService {
         // Las dos validaciones van antes de subir: una foto rechazada nunca llega a Cloudinary.
         imagenValidator.validar(archivo);
         if (publicacion.getFotos().size() >= ImagenValidator.MAX_FOTOS) {
-            throw new IllegalArgumentException("Cada auto puede tener hasta 10 fotos");
+            throw new ReglaDeNegocioException("Cada auto puede tener hasta 10 fotos");
         }
 
         CloudinaryService.ImagenSubida subida = cloudinaryService.subir(archivo);
@@ -219,7 +220,7 @@ public class PublicacionService {
         if (fotoIds.size() != fotosPorId.size()
                 || new HashSet<>(fotoIds).size() != fotoIds.size()
                 || !fotosPorId.keySet().containsAll(fotoIds)) {
-            throw new IllegalArgumentException("El orden debe incluir todas las fotos del auto, una sola vez cada una");
+            throw new ReglaDeNegocioException("El orden debe incluir todas las fotos del auto, una sola vez cada una");
         }
 
         // orden 0 = portada
@@ -239,7 +240,7 @@ public class PublicacionService {
                 .orElseThrow(() -> new ResourceNotFoundException("No existe la foto con id: " + fotoId));
 
         if (!foto.getPublicacion().getId().equals(publicacionId)) {
-            throw new IllegalArgumentException("La foto no pertenece a esta publicación");
+            throw new ReglaDeNegocioException("La foto no pertenece a esta publicación");
         }
 
         publicacion.getFotos().remove(foto);

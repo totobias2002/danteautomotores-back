@@ -4,6 +4,7 @@ import com.danteautomotores.dto.auth.AuthResponse;
 import com.danteautomotores.dto.auth.LoginRequest;
 import com.danteautomotores.dto.auth.RegistroRequest;
 import com.danteautomotores.entity.Usuario;
+import com.danteautomotores.exception.ReglaDeNegocioException;
 import com.danteautomotores.enums.Rol;
 import com.danteautomotores.repository.UsuarioRepository;
 import com.danteautomotores.security.JwtService;
@@ -24,7 +25,7 @@ public class AuthService {
 
     public AuthResponse registrar(RegistroRequest request) {
         if (usuarioRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Ya existe una cuenta con ese email");
+            throw new ReglaDeNegocioException("Ya existe una cuenta con ese email");
         }
 
         Usuario usuario = Usuario.builder()
@@ -46,7 +47,7 @@ public class AuthService {
         );
 
         Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("Credenciales inválidas"));
+                .orElseThrow(() -> new ReglaDeNegocioException("Credenciales inválidas"));
 
         return construirRespuesta(usuario);
     }

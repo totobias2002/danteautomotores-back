@@ -1,5 +1,6 @@
 package com.danteautomotores.service;
 
+import com.danteautomotores.exception.ReglaDeNegocioException;
 import com.danteautomotores.dto.auth.AuthResponse;
 import com.danteautomotores.dto.auth.RegistroRequest;
 import com.danteautomotores.entity.Usuario;
@@ -82,7 +83,7 @@ class AuthServiceTest {
         when(usuarioRepository.existsByEmail("ana@x.com")).thenReturn(true);
 
         assertThatThrownBy(() -> authService.registrar(request))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessage("Ya existe una cuenta con ese email");
 
         verify(usuarioRepository, never()).save(any());

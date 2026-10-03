@@ -1,5 +1,6 @@
 package com.danteautomotores.controller;
 
+import com.danteautomotores.exception.ReglaDeNegocioException;
 import com.danteautomotores.dto.agencia.AgenciaResponse;
 import com.danteautomotores.service.AgenciaService;
 import com.danteautomotores.support.SeguridadWebMvcTestBase;
@@ -82,7 +83,7 @@ class AgenciaControllerTest extends SeguridadWebMvcTestBase {
 
     @Test
     void eliminarUnaAgenciaConAutosDa400() throws Exception {
-        doThrow(new IllegalArgumentException("No se puede eliminar la agencia porque tiene autos publicados."))
+        doThrow(new ReglaDeNegocioException("No se puede eliminar la agencia porque tiene autos publicados."))
                 .when(agenciaService).eliminar(1L);
 
         mvc.perform(delete("/api/agencias/1")

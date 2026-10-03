@@ -196,7 +196,7 @@ class GlobalExceptionHandlerTest extends SeguridadWebMvcTestBase {
 
     @Test
     void reglaDeNegocioDevuelve400ConElMensajeDelService() throws Exception {
-        doThrow(new IllegalArgumentException("La foto no pertenece a esta publicación"))
+        doThrow(new ReglaDeNegocioException("La foto no pertenece a esta publicación"))
                 .when(publicacionService).eliminarFoto(1L, 2L);
 
         mvc.perform(delete("/api/publicaciones/1/fotos/2")
@@ -204,6 +204,18 @@ class GlobalExceptionHandlerTest extends SeguridadWebMvcTestBase {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.error").value("La foto no pertenece a esta publicación"));
+    }
+
+    @Test
+    void illegalArgumentExceptionAjenoALasReglasDeNegocioDevuelve500GenericoSinSuMensaje() throws Exception {
+        doThrow(new IllegalArgumentException("Property 'foo' of class com.x.Y is invalid"))
+                .when(publicacionService).eliminarFoto(1L, 2L);
+
+        mvc.perform(delete("/api/publicaciones/1/fotos/2")
+                        .header("Authorization", admin()))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.error").value(MENSAJE_500))
+                .andExpect(content().string(not(containsString("Property"))));
     }
 
     @Test

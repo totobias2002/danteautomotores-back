@@ -4,6 +4,7 @@ import com.danteautomotores.dto.favorito.FavoritoResponse;
 import com.danteautomotores.entity.Favorito;
 import com.danteautomotores.entity.Publicacion;
 import com.danteautomotores.entity.Usuario;
+import com.danteautomotores.exception.ReglaDeNegocioException;
 import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.mapper.FavoritoMapper;
 import com.danteautomotores.repository.FavoritoRepository;
@@ -34,7 +35,7 @@ public class FavoritoService {
         Usuario usuario = obtenerUsuarioAutenticado();
 
         if (favoritoRepository.existsByUsuarioIdAndPublicacionId(usuario.getId(), publicacionId)) {
-            throw new IllegalArgumentException("Esta publicación ya está en tus favoritos");
+            throw new ReglaDeNegocioException("Esta publicación ya está en tus favoritos");
         }
 
         Publicacion publicacion = publicacionRepository.findById(publicacionId)

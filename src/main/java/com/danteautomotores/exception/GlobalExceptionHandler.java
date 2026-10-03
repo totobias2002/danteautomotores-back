@@ -38,8 +38,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return error(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
+    // Solo las reglas de negocio lanzadas a propósito llegan al cliente con su mensaje. Un IllegalArgumentException
+    // cualquiera (Spring, Hibernate, JDK) cae en handleUnexpected: se loguea y responde un 500 genérico.
+    @ExceptionHandler(ReglaDeNegocioException.class)
+    public ResponseEntity<Map<String, Object>> handleReglaDeNegocio(ReglaDeNegocioException ex) {
         return error(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 

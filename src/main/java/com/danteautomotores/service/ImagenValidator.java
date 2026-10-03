@@ -1,5 +1,6 @@
 package com.danteautomotores.service;
 
+import com.danteautomotores.exception.ReglaDeNegocioException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,20 +24,20 @@ public class ImagenValidator {
 
     public void validar(MultipartFile archivo) {
         if (archivo == null || archivo.isEmpty()) {
-            throw new IllegalArgumentException("Elegí una imagen para subir");
+            throw new ReglaDeNegocioException("Elegí una imagen para subir");
         }
         if (archivo.getSize() > MAX_BYTES) {
-            throw new IllegalArgumentException("La imagen supera el máximo de 10 MB");
+            throw new ReglaDeNegocioException("La imagen supera el máximo de 10 MB");
         }
 
         String tipo = archivo.getContentType() == null ? "" : archivo.getContentType().toLowerCase(Locale.ROOT);
         if (!TIPOS_PERMITIDOS.contains(tipo)) {
-            throw new IllegalArgumentException("Formato no permitido. Usá JPG, PNG o WebP");
+            throw new ReglaDeNegocioException("Formato no permitido. Usá JPG, PNG o WebP");
         }
 
         byte[] cabecera = leerCabecera(archivo);
         if (!esJpeg(cabecera) && !esPng(cabecera) && !esWebp(cabecera)) {
-            throw new IllegalArgumentException("El archivo no es una imagen válida (JPG, PNG o WebP)");
+            throw new ReglaDeNegocioException("El archivo no es una imagen válida (JPG, PNG o WebP)");
         }
     }
 
@@ -44,7 +45,7 @@ public class ImagenValidator {
         try (InputStream entrada = archivo.getInputStream()) {
             return entrada.readNBytes(12); // alcanza para las firmas de JPEG, PNG y WebP
         } catch (IOException e) {
-            throw new IllegalArgumentException("No se pudo leer el archivo");
+            throw new ReglaDeNegocioException("No se pudo leer el archivo");
         }
     }
 

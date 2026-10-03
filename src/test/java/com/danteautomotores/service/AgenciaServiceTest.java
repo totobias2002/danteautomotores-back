@@ -1,5 +1,6 @@
 package com.danteautomotores.service;
 
+import com.danteautomotores.exception.ReglaDeNegocioException;
 import com.danteautomotores.entity.Agencia;
 import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.repository.AgenciaRepository;
@@ -39,7 +40,7 @@ class AgenciaServiceTest {
         when(publicacionRepository.existsByAgenciaId(1L)).thenReturn(true);
 
         assertThatThrownBy(() -> agenciaService.eliminar(1L))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ReglaDeNegocioException.class)
                 .hasMessageContaining("tiene autos publicados");
 
         verify(agenciaRepository, never()).deleteById(any());
