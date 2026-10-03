@@ -3,14 +3,15 @@
 #
 # Uso: bash scripts/verify/con-back-local.sh [--copia-de <origen> | --vacia] <base> <comando...>
 #
-#   --copia-de <origen>  crea <base> como copia de <origen> y la borra al terminar
-#   --vacia              crea <base> vacia y la borra al terminar
+#   --copia-de <origen>  crea <base> como copia de <origen> y la borra al terminar (aborta si <base> ya existe)
+#   --vacia              crea <base> vacia y la borra al terminar (aborta si <base> ya existe)
 #   (sin flag)           usa la base <base> que ya existe y NUNCA la borra
 #
 # Al comando se le exporta API=http://localhost:$PUERTO_BACK/api para que apunte al back recien levantado.
 # Variables: PUERTO_BACK (8080), PG_CONTENEDOR (danteautomotores-db), PG_PUERTO (5433), PG_USUARIO (dante),
 #            PG_CLAVE (dante_dev_password), SALTAR_BUILD (1 = no recompila el jar).
 # La base siempre es de localhost: el script no acepta otro host. Nunca crea ni borra la base "danteautomotores".
+# Solo borra una base que creo en esta misma corrida: si la base pedida ya existe, se niega y no la toca.
 
 set -u
 
@@ -76,6 +77,10 @@ psql_admin() {
   docker exec "$PG_CONTENEDOR" psql -U "$PG_USUARIO" -d postgres -v ON_ERROR_STOP=1 -q -c "$1"
 }
 
+psql_admin_valor() {
+  docker exec "$PG_CONTENEDOR" psql -U "$PG_USUARIO" -d postgres -v ON_ERROR_STOP=1 -q -t -A -c "$1"
+}
+
 BASE_CREADA=0
 PID_BACK=""
 
@@ -104,21 +109,31 @@ trap 'exit 130' INT TERM
 
 # ---- Base de datos ----
 case "$MODO" in
+  copia|vacia)
+    # Nunca se borra una base que este script no creo en esta corrida: si ya existe (de otra persona, de otro uso o de una
+    # corrida anterior cortada) se aborta antes de tocar nada. Para reutilizarla, borrarla a mano o usar otro nombre.
+    EXISTE="$(psql_admin_valor "SELECT 1 FROM pg_database WHERE datname = '$BASE'")" \
+      || fallar "no pude consultar si la base $BASE existe (contenedor $PG_CONTENEDOR arriba?)"
+    [ -z "$EXISTE" ] \
+      || fallar "la base $BASE ya existe y no la cree yo: no la borro. Usa otro nombre, o borrala a mano si es descartable (docker exec $PG_CONTENEDOR psql -U $PG_USUARIO -d postgres -c 'DROP DATABASE $BASE')"
+    ;;
+esac
+case "$MODO" in
   copia)
-    psql_admin "DROP DATABASE IF EXISTS $BASE WITH (FORCE)" || fallar "no pude limpiar la base $BASE"
-    BASE_CREADA=1
-    if ! psql_admin "CREATE DATABASE $BASE TEMPLATE $ORIGEN" 2>/dev/null; then
+    if psql_admin "CREATE DATABASE $BASE TEMPLATE $ORIGEN" 2>/dev/null; then
+      BASE_CREADA=1
+    else
       # TEMPLATE falla si hay conexiones abiertas al origen (por ejemplo, el back de desarrollo corriendo).
       echo "con-back-local: TEMPLATE no disponible (conexiones abiertas a $ORIGEN); copio con pg_dump | pg_restore"
       psql_admin "CREATE DATABASE $BASE" || fallar "no pude crear la base $BASE"
+      BASE_CREADA=1
       docker exec "$PG_CONTENEDOR" sh -c "pg_dump -Fc -U '$PG_USUARIO' '$ORIGEN' | pg_restore -U '$PG_USUARIO' -d '$BASE' --no-owner" \
         || fallar "no pude copiar $ORIGEN a $BASE"
     fi
     ;;
   vacia)
-    psql_admin "DROP DATABASE IF EXISTS $BASE WITH (FORCE)" || fallar "no pude limpiar la base $BASE"
-    BASE_CREADA=1
     psql_admin "CREATE DATABASE $BASE" || fallar "no pude crear la base $BASE"
+    BASE_CREADA=1
     ;;
 esac
 
