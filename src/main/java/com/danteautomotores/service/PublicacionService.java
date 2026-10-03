@@ -175,7 +175,7 @@ public class PublicacionService {
 
     @Transactional
     public PublicacionResponse agregarFoto(Long id, MultipartFile archivo) {
-        Publicacion publicacion = buscarEntidad(id);
+        Publicacion publicacion = buscarEntidadParaEscritura(id);
 
         // Las dos validaciones van antes de subir: una foto rechazada nunca llega a Cloudinary.
         imagenValidator.validar(archivo);
@@ -208,7 +208,7 @@ public class PublicacionService {
     // así un reorden que se cruza con otra subida o borrado falla en vez de dejar un orden corrupto.
     @Transactional
     public PublicacionResponse reordenarFotos(Long id, ReordenarFotosRequest request) {
-        Publicacion publicacion = buscarEntidad(id);
+        Publicacion publicacion = buscarEntidadParaEscritura(id);
 
         Map<Long, FotoPublicacion> fotosPorId = publicacion.getFotos().stream()
                 .collect(Collectors.toMap(FotoPublicacion::getId, Function.identity()));
@@ -230,6 +230,9 @@ public class PublicacionService {
 
     @Transactional
     public void eliminarFoto(Long publicacionId, Long fotoId) {
+        // El lock va primero: las fotos se leen después de tomarlo, así el resecuenciado parte del estado vigente.
+        Publicacion publicacion = buscarEntidadParaEscritura(publicacionId);
+
         FotoPublicacion foto = fotoPublicacionRepository.findById(fotoId)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe la foto con id: " + fotoId));
 
@@ -237,7 +240,6 @@ public class PublicacionService {
             throw new IllegalArgumentException("La foto no pertenece a esta publicación");
         }
 
-        Publicacion publicacion = foto.getPublicacion();
         publicacion.getFotos().remove(foto);
         fotoPublicacionRepository.delete(foto);
         resecuenciarFotos(publicacion);
@@ -284,6 +286,12 @@ public class PublicacionService {
 
     private Publicacion buscarEntidad(Long id) {
         return publicacionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("No existe una publicación con id: " + id));
+    }
+
+    // Carga la publicación con lock pesimista (ver PublicacionRepository.findByIdForUpdate); solo dentro de @Transactional.
+    private Publicacion buscarEntidadParaEscritura(Long id) {
+        return publicacionRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe una publicación con id: " + id));
     }
 

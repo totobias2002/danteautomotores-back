@@ -265,7 +265,7 @@ class PublicacionServiceTest {
         for (int i = 0; i < diez.length; i++) {
             diez[i] = foto((long) i + 1, i);
         }
-        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(publicacionConFotos(diez)));
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos(diez)));
 
         assertThatThrownBy(() -> publicacionService.agregarFoto(10L, archivoDeFoto()))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -277,7 +277,7 @@ class PublicacionServiceTest {
 
     @Test
     void agregarFotoNoSubeNiGuardaSiElValidadorRechazaElArchivo() {
-        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(publicacionConFotos()));
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos()));
         doThrow(new IllegalArgumentException("Formato no permitido. Usá JPG, PNG o WebP"))
                 .when(imagenValidator).validar(any());
 
@@ -291,7 +291,7 @@ class PublicacionServiceTest {
 
     @Test
     void agregarFotoTomaElMaximoOrdenMasUnoAunqueSeHayaBorradoUnaDelMedio() {
-        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(publicacionConFotos(foto(1L, 0), foto(3L, 2))));
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos(foto(1L, 0), foto(3L, 2))));
         when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
 
         publicacionService.agregarFoto(10L, archivoDeFoto());
@@ -303,7 +303,7 @@ class PublicacionServiceTest {
 
     @Test
     void agregarFotoConFotosSinOrdenDejaLaPrimeraNuevaEnCero() {
-        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(publicacionConFotos(foto(1L, null))));
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos(foto(1L, null))));
         when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
 
         publicacionService.agregarFoto(10L, archivoDeFoto());
@@ -315,7 +315,7 @@ class PublicacionServiceTest {
 
     @Test
     void agregarFotoGuardaLaUrlYElPublicIdQueDevuelveCloudinary() {
-        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(publicacionConFotos()));
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos()));
         when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
 
         PublicacionResponse respuesta = publicacionService.agregarFoto(10L, archivoDeFoto());
@@ -328,9 +328,35 @@ class PublicacionServiceTest {
     }
 
     @Test
+    void agregarFotoYReordenarCarganLaPublicacionConLockPesimista() {
+        Publicacion publicacion = publicacionConFotos(foto(1L, 0), foto(2L, 1));
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
+        when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
+
+        publicacionService.reordenarFotos(10L, orden(2L, 1L));
+        publicacionService.agregarFoto(10L, archivoDeFoto());
+
+        verify(publicacionRepository, times(2)).findByIdForUpdate(10L);
+        verify(publicacionRepository, never()).findById(any());
+    }
+
+    @Test
+    void eliminarFotoCargaLaPublicacionConLockPesimista() {
+        FotoPublicacion f0 = foto(1L, 0);
+        Publicacion publicacion = publicacionConFotos(f0);
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
+        when(fotoPublicacionRepository.findById(1L)).thenReturn(Optional.of(f0));
+
+        publicacionService.eliminarFoto(10L, 1L);
+
+        verify(publicacionRepository).findByIdForUpdate(10L);
+        verify(publicacionRepository, never()).findById(any());
+    }
+
+    @Test
     void reordenarFotosAsignaElOrdenSegunLaPosicionYLaPrimeraEsLaPortada() {
         Publicacion publicacion = publicacionConFotos(foto(1L, 0), foto(2L, 1), foto(3L, 2));
-        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(publicacion));
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
 
         PublicacionResponse respuesta = publicacionService.reordenarFotos(10L, orden(3L, 1L, 2L));
 
@@ -341,7 +367,7 @@ class PublicacionServiceTest {
     @Test
     void reordenarFotosConUnIdFaltanteFalla() {
         Publicacion publicacion = publicacionConFotos(foto(1L, 0), foto(2L, 1), foto(3L, 2));
-        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(publicacion));
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
 
         assertThatThrownBy(() -> publicacionService.reordenarFotos(10L, orden(3L, 1L)))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -352,7 +378,7 @@ class PublicacionServiceTest {
     @Test
     void reordenarFotosConUnDuplicadoFalla() {
         Publicacion publicacion = publicacionConFotos(foto(1L, 0), foto(2L, 1), foto(3L, 2));
-        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(publicacion));
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
 
         assertThatThrownBy(() -> publicacionService.reordenarFotos(10L, orden(1L, 1L, 2L)))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -362,7 +388,7 @@ class PublicacionServiceTest {
     @Test
     void reordenarFotosConUnIdDeOtraPublicacionFalla() {
         Publicacion publicacion = publicacionConFotos(foto(1L, 0), foto(2L, 1), foto(3L, 2));
-        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(publicacion));
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
 
         assertThatThrownBy(() -> publicacionService.reordenarFotos(10L, orden(1L, 2L, 99L)))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -371,7 +397,7 @@ class PublicacionServiceTest {
 
     @Test
     void reordenarFotosDeUnaPublicacionInexistenteLanzaNotFound() {
-        when(publicacionRepository.findById(99L)).thenReturn(Optional.empty());
+        when(publicacionRepository.findByIdForUpdate(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> publicacionService.reordenarFotos(99L, orden(1L)))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -487,6 +513,7 @@ class PublicacionServiceTest {
         FotoPublicacion f1 = foto(2L, 1);
         FotoPublicacion f2 = foto(3L, 2);
         Publicacion publicacion = publicacionConFotos(f0, f1, f2);
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
         when(fotoPublicacionRepository.findById(2L)).thenReturn(Optional.of(f1));
 
         publicacionService.eliminarFoto(10L, 2L);
@@ -503,6 +530,7 @@ class PublicacionServiceTest {
         FotoPublicacion f1 = foto(2L, 1);
         FotoPublicacion f2 = foto(3L, 2);
         Publicacion publicacion = publicacionConFotos(f0, f1, f2);
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
         when(fotoPublicacionRepository.findById(1L)).thenReturn(Optional.of(f0));
 
         publicacionService.eliminarFoto(10L, 1L);
@@ -516,6 +544,8 @@ class PublicacionServiceTest {
     void eliminarUnaFotoDeOtraPublicacionFallaYNoBorraNada() {
         FotoPublicacion ajena = foto(7L, 0);
         publicacionConFotos(ajena);
+        Publicacion otra = Publicacion.builder().id(99L).build();
+        when(publicacionRepository.findByIdForUpdate(99L)).thenReturn(Optional.of(otra));
         when(fotoPublicacionRepository.findById(7L)).thenReturn(Optional.of(ajena));
 
         assertThatThrownBy(() -> publicacionService.eliminarFoto(99L, 7L))
@@ -528,6 +558,7 @@ class PublicacionServiceTest {
 
     @Test
     void eliminarUnaFotoInexistenteLanzaNotFound() {
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos()));
         when(fotoPublicacionRepository.findById(404L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> publicacionService.eliminarFoto(10L, 404L))
@@ -540,7 +571,8 @@ class PublicacionServiceTest {
     void eliminarUnaFotoConPublicIdBorraElAssetYSinPublicIdNoLlamaACloudinary() {
         FotoPublicacion conId = fotoConPublicId(1L, 0, "pid-x");
         FotoPublicacion sinId = fotoConPublicId(2L, 1, null);
-        publicacionConFotos(conId, sinId);
+        Publicacion publicacion = publicacionConFotos(conId, sinId);
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
         when(fotoPublicacionRepository.findById(1L)).thenReturn(Optional.of(conId));
         when(fotoPublicacionRepository.findById(2L)).thenReturn(Optional.of(sinId));
 
