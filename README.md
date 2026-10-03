@@ -53,7 +53,7 @@ El esquema lo crea y versiona Flyway desde `src/main/resources/db/migration`:
 - **Nunca se edita una migración ya aplicada.** Todo cambio de entidad va en una migración nueva (`V4__...`, `V5__...`).
 - Hibernate está en `ddl-auto: validate`: si una entidad y el esquema no coinciden, el arranque se frena con el error. No crea ni modifica tablas.
 - El SQL se puede loguear en local con `SPRING_JPA_SHOW_SQL=true` (por defecto está apagado).
-- Los tests contra Postgres usan bases descartables `test_*` en localhost:5433 y se saltean si no hay Postgres; para que fallen en vez de saltearse se corre con `-Ddante.pg.required=true`.
+- Las migraciones y las consultas del catálogo se prueban contra un Postgres real. La sección "Tests" explica cuándo esos tests se saltean y cuándo son obligatorios.
 
 ## Probar el catálogo en local
 
@@ -82,16 +82,37 @@ Con `prod`, el backend no arranca si falta o es inválido el secreto JWT, la con
 - **Healthcheck de Railway:** `/actuator/health`. Responde 200 `{"status":"UP"}` sin token y sin detalles; el resto de `/actuator` está cerrado.
 - **Front en Vercel:** `VITE_API_URL` es una variable de build; al cambiarla hay que redeployar.
 - Los volcados de base (`*.dump`) nunca se commitean.
+- **Antes de cada deploy:** con `docker compose up -d`, correr `mvn -B test -Ddante.pg.required=true` y exigir verde. Sin el flag, los tests de migraciones pueden saltearse en silencio.
 - El paso a paso del primer deploy está en `.planning/phases/02-cat-logo-p-blico-real-en-producci-n/02-08-PLAN.md`.
 
 ## Tests
 
-Los tests no necesitan Docker ni Postgres. Setup local en Windows (Git Bash):
+Hay dos grupos de tests:
+
+- La mayoría (unitarios y de controladores) corren sin Docker ni base de datos.
+- `MigracionesPostgresTest` (V1 a V3 contra `ddl-auto: validate`, incluida una base creada por Hibernate sin historial) y `CatalogoPostgresTest` (consultas reales del catálogo) usan el Postgres del `docker-compose.yml` en localhost:5433, en bases descartables `test_xxxxxxxx` que crean y borran solas. Nunca tocan la base `danteautomotores`.
+
+Sin Postgres, esos dos tests se saltean: Maven los informa como "Skipped" y el build queda verde igual, así que un verde sin Postgres no prueba las migraciones.
+
+Con `-Ddante.pg.required=true` no se saltean: sin Postgres fallan con un mensaje que explica cómo levantarlo. Es obligatorio correrlos así (con `docker compose up -d` antes) antes de cada deploy y cada vez que se agrega una migración o se cambia una entidad.
+
+La conexión se puede cambiar con `-Ddante.pg.host`, `-Ddante.pg.port`, `-Ddante.pg.user` y `-Ddante.pg.password` (por defecto localhost, 5433 y el usuario y la contraseña de desarrollo del `docker-compose.yml`).
+
+```bash
+# Rápido: los tests de Postgres pueden saltearse
+mvn -B test
+
+# Obligatorio antes de cada deploy
+docker compose up -d
+mvn -B test -Ddante.pg.required=true
+```
+
+Setup local en Windows (Git Bash) con solo JDK 17; `MAVEN_HOME` es la carpeta donde está instalado Maven 3.9+:
 
 ```bash
 export JAVA_HOME="/c/Program Files/Java/jdk-17"
-export PATH="/c/Users/toto/.maven/maven-3.9.16/bin:$PATH"
-mvn -B -o -Djava.version=17 test
+export PATH="$MAVEN_HOME/bin:$PATH"
+mvn -B -Djava.version=17 test -Ddante.pg.required=true
 ```
 
-`-Djava.version=17` es solo para equipos sin JDK 21; no se cambia el `pom.xml`.
+`-Djava.version=17` es solo para equipos sin JDK 21; no se cambia el `pom.xml`. No se usa `-o` porque el modo offline solo anda con las dependencias ya descargadas.
