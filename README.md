@@ -36,5 +36,23 @@ Ver `src/main/resources/application.yml`. Para producción, sobreescribir `app.j
 | `APP_JWT_EXPIRATION_MS` | Duración del token en ms (opcional, default 24hs). |
 | `APP_CORS_ALLOWED_ORIGINS` | Orígenes permitidos separados por coma, ej: `https://mi-app.vercel.app`. |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Credenciales de Cloudinary para las fotos. |
+| `ADMIN_EMAIL` | Email de la cuenta admin. Solo se usa para crear la cuenta si no existe ningún admin; no puede ser el de una cuenta ya registrada. |
+| `ADMIN_PASSWORD` | Contraseña de la cuenta admin (mínimo 8 caracteres). Solo se usa para crear la cuenta si no existe ningún admin; cambiarla después no modifica la cuenta. |
+| `ADMIN_NOMBRE` | Nombre visible del admin (por ejemplo, Dante). Mismo uso que `ADMIN_EMAIL`. |
+| `SPRING_PROFILES_ACTIVE` | Perfil de Spring. Con `prod`, el backend no arranca si faltan (o son inválidas) las variables del admin y todavía no existe ninguno. Sin `prod`, solo avisa en el log y arranca igual. |
 
 El repo incluye un `Dockerfile` (build multi-stage con Maven + JDK 25) listo para deployar en Railway, Render o cualquier hosting que soporte contenedores.
+
+Al arrancar, si no hay ninguna agencia se crea "Dante Automotores" (el resto de sus datos se completa desde el panel). Las cuentas admin no se pueden crear desde la web: el registro público siempre crea compradores.
+
+## Tests
+
+Los tests no necesitan Docker ni Postgres. Setup local en Windows (Git Bash):
+
+```bash
+export JAVA_HOME="/c/Program Files/Java/jdk-17"
+export PATH="/c/Users/toto/.maven/maven-3.9.16/bin:$PATH"
+mvn -B -o -Djava.version=17 test
+```
+
+`-Djava.version=17` es solo para equipos sin JDK 21; no se cambia el `pom.xml`.
