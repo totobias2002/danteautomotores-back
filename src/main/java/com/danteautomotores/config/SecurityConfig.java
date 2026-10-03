@@ -49,6 +49,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/agencias/**", "/api/publicaciones/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/agencias/**", "/api/publicaciones/**").hasRole("ADMIN")
                         .requestMatchers("/api/consultas/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

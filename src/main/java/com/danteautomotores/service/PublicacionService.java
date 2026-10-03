@@ -16,8 +16,10 @@ import com.danteautomotores.repository.PublicacionRepository;
 import com.danteautomotores.repository.UsuarioRepository;
 import com.danteautomotores.repository.spec.PublicacionSpecification;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
@@ -42,6 +44,17 @@ public class PublicacionService {
 
         return publicacionRepository
                 .findAll(PublicacionSpecification.conFiltros(marca, modelo, anioMin, anioMax, precioMin, precioMax, estadoFiltro, agenciaId))
+                .stream()
+                .map(PublicacionMapper::toResponse)
+                .toList();
+    }
+
+    // Listado del panel admin: todos los estados (el catálogo público sigue filtrando DISPONIBLE en buscar()),
+    // los más recientes primero.
+    @Transactional(readOnly = true)
+    public List<PublicacionResponse> listarParaAdmin() {
+        return publicacionRepository
+                .findAll(Sort.by(Sort.Direction.DESC, "fechaPublicacion"))
                 .stream()
                 .map(PublicacionMapper::toResponse)
                 .toList();
