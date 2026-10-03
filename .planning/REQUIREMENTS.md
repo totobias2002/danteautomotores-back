@@ -8,7 +8,7 @@
 ### Catálogo
 
 - [ ] **CAT-01**: El visitante ve el catálogo con datos reales del backend (sin mocks) en Home, Autos, Agencia y Detalle
-- [ ] **CAT-02**: El visitante puede filtrar y ordenar el catálogo, que se carga paginado
+- [x] **CAT-02**: El visitante puede filtrar y ordenar el catálogo, que se carga paginado
 - [ ] **CAT-03**: El visitante ve en la Home los autos que el admin marcó como destacados
 - [ ] **CAT-04**: El visitante ve el estado de cada auto (disponible / reservado / vendido) en card y detalle
 
@@ -103,7 +103,7 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | CAT-01 | Phase 2 | Pending |
-| CAT-02 | Phase 2 | Pending |
+| CAT-02 | Phase 2 | Complete |
 | CAT-03 | Phase 2 | Pending |
 | CAT-04 | Phase 2 | Pending |
 | ADM-01 | Phase 1 | Complete |
