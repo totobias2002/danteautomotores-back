@@ -92,7 +92,10 @@ public class Publicacion {
     @Column(name = "fecha_vendido")
     private LocalDateTime fechaVendido;
 
+    // Hace determinista el orden de carga para cualquier código que recorra la colección sin ordenar. PostgreSQL pone
+    // los orden null al final; la regla que decide la portada es PublicacionMapper.ORDEN_DE_FOTOS.
     @OneToMany(mappedBy = "publicacion", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("orden ASC, id ASC")
     @Builder.Default
     private List<FotoPublicacion> fotos = new ArrayList<>();
 

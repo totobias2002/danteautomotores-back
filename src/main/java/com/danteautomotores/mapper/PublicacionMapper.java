@@ -13,6 +13,14 @@ public class PublicacionMapper {
     private PublicacionMapper() {
     }
 
+    // Única regla de orden de las fotos y, por lo tanto, de la portada (IN-04): la card, el detalle y el resecuenciado
+    // al borrar usan este comparador. Orden ascendente con null contado como 0 (fotos viejas) y desempate por id, con
+    // los ids null (todavía sin persistir) al final. Sin el desempate, dos fotos empatadas se resolvían según el orden
+    // en que la base devolvía las filas y la card podía mostrar una portada distinta de la primera foto del detalle.
+    public static final Comparator<FotoPublicacion> ORDEN_DE_FOTOS = Comparator
+            .comparing((FotoPublicacion f) -> f.getOrden() == null ? 0 : f.getOrden())
+            .thenComparing(FotoPublicacion::getId, Comparator.nullsLast(Comparator.naturalOrder()));
+
     // Única regla de oferta (D-03), de la que dependen la card, el detalle y el filtro: hay oferta solo si el precio
     // anterior es mayor que el actual. compareTo y no equals: 120.00 y 120 son el mismo precio.
     public static boolean esOferta(Publicacion publicacion) {
@@ -47,14 +55,14 @@ public class PublicacionMapper {
                 .fechaPublicacion(publicacion.getFechaPublicacion())
                 .fechaVendido(publicacion.getFechaVendido())
                 .fotos(publicacion.getFotos().stream()
-                        .sorted(Comparator.comparing(f -> f.getOrden() == null ? 0 : f.getOrden()))
+                        .sorted(ORDEN_DE_FOTOS)
                         .map(f -> FotoResponse.builder().id(f.getId()).url(f.getUrl()).orden(f.getOrden()).build())
                         .toList())
                 .build();
     }
 
-    // Versión liviana para los listados públicos. La portada es la foto de menor orden (mismo criterio que toResponse:
-    // orden null cuenta como 0) o null si el auto no tiene fotos.
+    // Versión liviana para los listados públicos. La portada es la primera foto según ORDEN_DE_FOTOS, la misma que
+    // encabeza fotos en el detalle (toResponse), o null si el auto no tiene fotos.
     public static PublicacionResumenResponse toResumen(Publicacion publicacion) {
         return PublicacionResumenResponse.builder()
                 .id(publicacion.getId())
@@ -76,7 +84,7 @@ public class PublicacionMapper {
                 .oferta(esOferta(publicacion))
                 .agenciaZona(publicacion.getAgencia().getZona())
                 .fotoPortada(publicacion.getFotos().stream()
-                        .min(Comparator.comparing((FotoPublicacion f) -> f.getOrden() == null ? 0 : f.getOrden()))
+                        .min(ORDEN_DE_FOTOS)
                         .map(FotoPublicacion::getUrl)
                         .orElse(null))
                 .fechaPublicacion(publicacion.getFechaPublicacion())

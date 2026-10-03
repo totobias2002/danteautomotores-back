@@ -146,6 +146,26 @@ class CatalogoPostgresTest extends PostgresLocalTestBase {
     }
 
     @Test
+    void laPortadaDelListadoEsLaPrimeraFotoDelDetalleAunqueEmpatenEnOrden() {
+        Long id = auto("Empate", true, "DISPONIBLE", BASE);
+        Publicacion p = publicacionRepository.findById(id).orElseThrow();
+        fotoPublicacionRepository.save(FotoPublicacion.builder().publicacion(p).url("https://fotos.test/uno.jpg").orden(1).build());
+        fotoPublicacionRepository.save(FotoPublicacion.builder().publicacion(p).url("https://fotos.test/nula.jpg").orden(null).build());
+        fotoPublicacionRepository.save(FotoPublicacion.builder().publicacion(p).url("https://fotos.test/cero.jpg").orden(0).build());
+        em.flush();
+        em.clear();
+
+        String portadaDelListado = catalogoService.destacados(6).get(0).getFotoPortada();
+        em.clear();
+        Publicacion releida = publicacionRepository.findById(id).orElseThrow();
+        String primeraDelDetalle = PublicacionMapper.toResponse(releida).getFotos().get(0).getUrl();
+
+        // orden null cuenta como 0 y empata con "cero": gana la de menor id, que es la que se guardó primero entre ellas.
+        assertThat(portadaDelListado).isEqualTo("https://fotos.test/nula.jpg");
+        assertThat(portadaDelListado).isEqualTo(primeraDelDetalle);
+    }
+
+    @Test
     void elResumenTraeLosDatosDelAutoYDeSuAgencia() {
         auto("Corolla", true, "DISPONIBLE", BASE);
 

@@ -1,8 +1,10 @@
 package com.danteautomotores.mapper;
 
+import com.danteautomotores.dto.publicacion.FotoResponse;
 import com.danteautomotores.dto.publicacion.PublicacionResponse;
 import com.danteautomotores.dto.publicacion.PublicacionResumenResponse;
 import com.danteautomotores.entity.Agencia;
+import com.danteautomotores.entity.FotoPublicacion;
 import com.danteautomotores.entity.Publicacion;
 import com.danteautomotores.enums.TipoCarroceria;
 import com.danteautomotores.enums.ZonaAgencia;
@@ -10,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -88,6 +91,49 @@ class PublicacionMapperTest {
 
         assertThat(PublicacionMapper.toResponse(publicacion).getFechaVendido()).isEqualTo(fecha);
         assertThat(PublicacionMapper.toResumen(publicacion).getFechaVendido()).isEqualTo(fecha);
+    }
+
+    private static FotoPublicacion foto(Long id, String url, Integer orden) {
+        return FotoPublicacion.builder().id(id).url(url).orden(orden).build();
+    }
+
+    @Test
+    void laPortadaDelResumenEsLaPrimeraFotoDelDetalleAunqueEmpatenEnOrden() {
+        List<List<FotoPublicacion>> ordenesFisicos = List.of(
+                List.of(foto(7L, "siete", 0), foto(3L, "tres", null), foto(9L, "nueve", 1)),
+                List.of(foto(9L, "nueve", 1), foto(3L, "tres", null), foto(7L, "siete", 0)));
+
+        for (List<FotoPublicacion> fotos : ordenesFisicos) {
+            Publicacion publicacion = auto("100", null, null);
+            publicacion.getFotos().addAll(fotos);
+
+            PublicacionResponse detalle = PublicacionMapper.toResponse(publicacion);
+            PublicacionResumenResponse resumen = PublicacionMapper.toResumen(publicacion);
+
+            assertThat(detalle.getFotos()).extracting(FotoResponse::getId).containsExactly(3L, 7L, 9L);
+            assertThat(resumen.getFotoPortada()).isEqualTo("tres");
+            assertThat(resumen.getFotoPortada()).isEqualTo(detalle.getFotos().get(0).getUrl());
+        }
+    }
+
+    @Test
+    void elOrdenExplicitoGanaAlId() {
+        Publicacion publicacion = auto("100", null, null);
+        publicacion.getFotos().addAll(List.of(foto(1L, "uno", 2), foto(2L, "dos", 0)));
+
+        assertThat(PublicacionMapper.toResumen(publicacion).getFotoPortada()).isEqualTo("dos");
+        assertThat(PublicacionMapper.toResponse(publicacion).getFotos())
+                .extracting(FotoResponse::getId).containsExactly(2L, 1L);
+    }
+
+    @Test
+    void unaFotoSinIdQuedaDespuesDeLasQueTienenId() {
+        Publicacion publicacion = auto("100", null, null);
+        publicacion.getFotos().addAll(List.of(foto(null, "nueva", 0), foto(4L, "cuatro", 0)));
+
+        assertThat(PublicacionMapper.toResumen(publicacion).getFotoPortada()).isEqualTo("cuatro");
+        assertThat(PublicacionMapper.toResponse(publicacion).getFotos())
+                .extracting(FotoResponse::getId).containsExactly(4L, null);
     }
 
     @Test

@@ -35,7 +35,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -289,14 +288,12 @@ public class PublicacionService {
         eliminarImagenesDespuesDelCommit(Collections.singletonList(foto.getPublicId()));
     }
 
-    // Deja las fotos que quedan en 0..n-1 sin huecos ni repetidos, con el mismo criterio de orden que
-    // PublicacionMapper (null cuenta como 0, desempate por id): evita órdenes duplicados y una portada
+    // Deja las fotos que quedan en 0..n-1 sin huecos ni repetidos, con la misma regla de orden que
+    // PublicacionMapper (ORDEN_DE_FOTOS: null cuenta como 0, desempate por id): evita órdenes duplicados y una portada
     // indefinida después de borrar (RESEARCH Pitfall 3).
     private void resecuenciarFotos(Publicacion publicacion) {
         List<FotoPublicacion> ordenadas = publicacion.getFotos().stream()
-                .sorted(Comparator
-                        .comparing((FotoPublicacion f) -> f.getOrden() == null ? 0 : f.getOrden())
-                        .thenComparing(FotoPublicacion::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+                .sorted(PublicacionMapper.ORDEN_DE_FOTOS)
                 .toList();
         for (int i = 0; i < ordenadas.size(); i++) {
             ordenadas.get(i).setOrden(i);
