@@ -4,6 +4,7 @@ import com.danteautomotores.dto.publicacion.CambiarDestacadoRequest;
 import com.danteautomotores.dto.publicacion.CambiarEstadoRequest;
 import com.danteautomotores.dto.publicacion.PublicacionRequest;
 import com.danteautomotores.dto.publicacion.PublicacionResponse;
+import com.danteautomotores.dto.publicacion.ReordenarFotosRequest;
 import com.danteautomotores.enums.EstadoPublicacion;
 import com.danteautomotores.service.PublicacionService;
 import jakarta.validation.Valid;
@@ -70,6 +71,11 @@ public class PublicacionController {
     @PostMapping("/{id}/fotos")
     public ResponseEntity<PublicacionResponse> agregarFoto(@PathVariable Long id, @RequestParam("archivo") MultipartFile archivo) {
         return ResponseEntity.ok(publicacionService.agregarFoto(id, archivo));
+    }
+
+    @PutMapping("/{id}/fotos/orden")
+    public ResponseEntity<PublicacionResponse> reordenarFotos(@PathVariable Long id, @Valid @RequestBody ReordenarFotosRequest request) {
+        return ResponseEntity.ok(publicacionService.reordenarFotos(id, request));
     }
 
     @DeleteMapping("/{id}/fotos/{fotoId}")

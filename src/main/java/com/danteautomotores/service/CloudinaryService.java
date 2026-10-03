@@ -35,11 +35,6 @@ public class CloudinaryService {
         }
     }
 
-    // Temporal: PublicacionService todavía lo usa; la tarea siguiente lo reemplaza por subir() y lo elimina.
-    public String subirImagen(MultipartFile archivo) {
-        return subir(archivo).url();
-    }
-
     /** Borrado best-effort: si Cloudinary falla no se bloquea la operación del admin, solo se deja un aviso en el log. */
     public void eliminar(String publicId) {
         if (publicId == null || publicId.isBlank()) {

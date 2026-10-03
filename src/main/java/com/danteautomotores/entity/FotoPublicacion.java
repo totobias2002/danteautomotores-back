@@ -24,4 +24,8 @@ public class FotoPublicacion {
     private String url;
 
     private Integer orden;
+
+    // public_id que asigna Cloudinary; permite borrar la imagen de Cloudinary. Null en las fotos viejas.
+    @Column(name = "public_id")
+    private String publicId;
 }

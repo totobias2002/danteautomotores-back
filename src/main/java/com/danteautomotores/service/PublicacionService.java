@@ -4,6 +4,7 @@ import com.danteautomotores.dto.publicacion.CambiarDestacadoRequest;
 import com.danteautomotores.dto.publicacion.CambiarEstadoRequest;
 import com.danteautomotores.dto.publicacion.PublicacionRequest;
 import com.danteautomotores.dto.publicacion.PublicacionResponse;
+import com.danteautomotores.dto.publicacion.ReordenarFotosRequest;
 import com.danteautomotores.entity.Agencia;
 import com.danteautomotores.entity.FotoPublicacion;
 import com.danteautomotores.entity.Publicacion;
@@ -24,7 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +40,7 @@ public class PublicacionService {
     private final UsuarioRepository usuarioRepository;
     private final FotoPublicacionRepository fotoPublicacionRepository;
     private final CloudinaryService cloudinaryService;
+    private final ImagenValidator imagenValidator;
 
     public List<PublicacionResponse> buscar(String marca, String modelo, Integer anioMin, Integer anioMax,
                                              BigDecimal precioMin, BigDecimal precioMax,
@@ -136,20 +142,57 @@ public class PublicacionService {
         publicacionRepository.deleteById(id);
     }
 
+    @Transactional
     public PublicacionResponse agregarFoto(Long id, MultipartFile archivo) {
         Publicacion publicacion = buscarEntidad(id);
 
-        String url = cloudinaryService.subirImagen(archivo);
-        int siguienteOrden = publicacion.getFotos().size();
+        // Las dos validaciones van antes de subir: una foto rechazada nunca llega a Cloudinary.
+        imagenValidator.validar(archivo);
+        if (publicacion.getFotos().size() >= ImagenValidator.MAX_FOTOS) {
+            throw new IllegalArgumentException("Cada auto puede tener hasta 10 fotos");
+        }
+
+        CloudinaryService.ImagenSubida subida = cloudinaryService.subir(archivo);
+
+        // Máximo orden actual + 1 (y no size()): si se borró una foto del medio, size() repetiría un orden.
+        int siguienteOrden = publicacion.getFotos().stream()
+                .mapToInt(f -> f.getOrden() == null ? -1 : f.getOrden())
+                .max()
+                .orElse(-1) + 1;
 
         FotoPublicacion foto = FotoPublicacion.builder()
                 .publicacion(publicacion)
-                .url(url)
+                .url(subida.url())
+                .publicId(subida.publicId())
                 .orden(siguienteOrden)
                 .build();
 
         fotoPublicacionRepository.save(foto);
         publicacion.getFotos().add(foto);
+
+        return PublicacionMapper.toResponse(publicacion);
+    }
+
+    // La lista debe ser exactamente el conjunto de fotos de la publicación (sin faltantes, repetidas ni ajenas),
+    // así un reorden que se cruza con otra subida o borrado falla en vez de dejar un orden corrupto.
+    @Transactional
+    public PublicacionResponse reordenarFotos(Long id, ReordenarFotosRequest request) {
+        Publicacion publicacion = buscarEntidad(id);
+
+        Map<Long, FotoPublicacion> fotosPorId = publicacion.getFotos().stream()
+                .collect(Collectors.toMap(FotoPublicacion::getId, Function.identity()));
+        List<Long> fotoIds = request.getFotoIds();
+
+        if (fotoIds.size() != fotosPorId.size()
+                || new HashSet<>(fotoIds).size() != fotoIds.size()
+                || !fotosPorId.keySet().containsAll(fotoIds)) {
+            throw new IllegalArgumentException("El orden debe incluir todas las fotos del auto, una sola vez cada una");
+        }
+
+        // orden 0 = portada
+        for (int i = 0; i < fotoIds.size(); i++) {
+            fotosPorId.get(fotoIds.get(i)).setOrden(i);
+        }
 
         return PublicacionMapper.toResponse(publicacion);
     }
