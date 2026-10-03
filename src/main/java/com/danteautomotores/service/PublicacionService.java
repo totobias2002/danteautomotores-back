@@ -184,6 +184,8 @@ public class PublicacionService {
         }
 
         CloudinaryService.ImagenSubida subida = cloudinaryService.subir(archivo);
+        // Desde acá la imagen ya está en Cloudinary: si la transacción no termina en commit, se borra.
+        eliminarImagenSiNoHayCommit(subida.publicId());
 
         // Máximo orden actual + 1 (y no size()): si se borró una foto del medio, size() repetiría un orden.
         int siguienteOrden = publicacion.getFotos().stream()
@@ -282,6 +284,22 @@ public class PublicacionService {
         } else {
             aBorrar.forEach(cloudinaryService::eliminar);
         }
+    }
+
+    // Compensación de la subida: si el guardado o el commit fallan, ninguna fila apunta a la imagen recién subida y
+    // quedaría huérfana en Cloudinary. CloudinaryService.eliminar nunca lanza.
+    private void eliminarImagenSiNoHayCommit(String publicId) {
+        if (publicId == null || publicId.isBlank() || !TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status != STATUS_COMMITTED) {
+                    cloudinaryService.eliminar(publicId);
+                }
+            }
+        });
     }
 
     private Publicacion buscarEntidad(Long id) {

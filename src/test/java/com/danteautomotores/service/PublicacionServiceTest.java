@@ -328,6 +328,43 @@ class PublicacionServiceTest {
     }
 
     @Test
+    void agregarFotoBorraLaImagenSubidaSiLaTransaccionHaceRollback() {
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos()));
+        when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            publicacionService.agregarFoto(10L, archivoDeFoto());
+            verify(cloudinaryService, never()).eliminar(any());
+
+            TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(s -> s.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
+
+            verify(cloudinaryService).eliminar(SUBIDA.publicId());
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
+    void agregarFotoConservaLaImagenSubidaSiLaTransaccionHaceCommit() {
+        when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacionConFotos()));
+        when(cloudinaryService.subir(any())).thenReturn(SUBIDA);
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            publicacionService.agregarFoto(10L, archivoDeFoto());
+
+            TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(s -> s.afterCompletion(TransactionSynchronization.STATUS_COMMITTED));
+
+            verify(cloudinaryService, never()).eliminar(any());
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
     void agregarFotoYReordenarCarganLaPublicacionConLockPesimista() {
         Publicacion publicacion = publicacionConFotos(foto(1L, 0), foto(2L, 1));
         when(publicacionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(publicacion));
