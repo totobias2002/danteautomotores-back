@@ -17,6 +17,9 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -24,6 +27,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -74,6 +78,33 @@ class PublicacionControllerCatalogoTest extends SeguridadWebMvcTestBase {
         mvc.perform(get("/api/publicaciones?tipo=NAVE"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").isString());
+    }
+
+    @Test
+    void unFiltroDeEnumInvalidoDa400ConMensajeEnEspanolSinTextoTecnico() throws Exception {
+        // transmision=automatica: los enums de Spring distinguen mayúsculas, un link escrito a mano lo rompe.
+        for (String parametro : new String[]{"tipo=NAVE", "transmision=automatica", "zona=norte", "estado=roto"}) {
+            String campo = parametro.substring(0, parametro.indexOf('='));
+            mvc.perform(get("/api/publicaciones?" + parametro))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("Datos inválidos"))
+                    .andExpect(jsonPath("$.campos." + campo).value("El valor indicado para \"" + campo + "\" no es válido."))
+                    .andExpect(content().string(not(anyOf(containsString("Failed to convert"), containsString("java."),
+                            containsString("enum"), containsString("NAVE")))));
+        }
+        verify(catalogoService, never()).buscar(any());
+    }
+
+    @Test
+    void unNumeroIlegibleEnUnFiltroDa400ConMensajeEnEspanolSinTextoTecnico() throws Exception {
+        for (String campo : new String[]{"anioMin", "anioMax", "kmMax", "precioMin", "precioMax", "agenciaId"}) {
+            mvc.perform(get("/api/publicaciones?" + campo + "=abc"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.campos." + campo).value("El valor indicado para \"" + campo + "\" no es válido."))
+                    .andExpect(content().string(not(anyOf(containsString("Failed to convert"), containsString("java."),
+                            containsString("NumberFormat")))));
+        }
+        verify(catalogoService, never()).buscar(any());
     }
 
     @Test

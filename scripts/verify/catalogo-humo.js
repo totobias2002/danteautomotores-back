@@ -164,6 +164,8 @@ async function get(ruta) {
     const { estado, cuerpo } = await get("/publicaciones?tipo=NAVE");
     exigir(estado === 400, `estado ${estado}`);
     exigir(cuerpo && typeof cuerpo.error === "string", "la respuesta no trae error");
+    exigir(!/Failed to convert|java\.|No enum constant|no matching constants/.test(JSON.stringify(cuerpo)),
+      "el 400 filtra texto tecnico de Spring");
   });
 
   await revisar("listado: marca y precioMax se aplican en el servidor", async () => {

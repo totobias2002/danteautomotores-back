@@ -89,12 +89,23 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpHeaders headers, HttpStatusCode status, WebRequest request) {
         Map<String, String> campos = new LinkedHashMap<>();
         for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
-            campos.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage());
+            campos.putIfAbsent(fieldError.getField(), mensajeDeCampo(fieldError));
         }
         Map<String, Object> cuerpo = new LinkedHashMap<>();
         cuerpo.put("error", "Datos inválidos");
         cuerpo.put("campos", campos);
         return ResponseEntity.status(status).headers(headers).body(cuerpo);
+    }
+
+    // Un fallo de conversión (un enum o un número ilegible en un parámetro de la URL, por ejemplo ?tipo=NAVE) trae como
+    // mensaje por defecto el texto del TypeMismatchException, en inglés y con nombres de clases Java. Se reemplaza por un
+    // mensaje fijo en español que no repite lo que mandó el cliente. Las validaciones de Bean Validation conservan el suyo.
+    private String mensajeDeCampo(FieldError fieldError) {
+        if (!fieldError.isBindingFailure()) {
+            return fieldError.getDefaultMessage();
+        }
+        String campo = fieldError.getField().replaceAll("\\[.*", "");
+        return "El valor indicado para \"" + campo + "\" no es válido.";
     }
 
     // Reemplaza el ProblemDetail por defecto por el formato uniforme, conservando la lógica de la base
