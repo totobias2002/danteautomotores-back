@@ -32,10 +32,10 @@ updated: 2026-10-03T02:49:07Z
 | IN-11 | info | open | - |
 | IN-10 | info | open | - |
 | IN-09 | info | open | - |
-| WR-13 | warning | open | - |
-| WR-12 | warning | open | - |
+| WR-13 | warning | fixed | 01-REVIEW-FIX.md (iteration 2) |
+| WR-12 | warning | fixed | 01-REVIEW-FIX.md (iteration 2) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 
-open: 14
+open: 12
 total: 26
