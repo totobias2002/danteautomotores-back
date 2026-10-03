@@ -17,8 +17,8 @@
 - [x] **ADM-01**: Existe una única cuenta admin, creada por config o seed, y no se puede registrar otra desde la web
 - [ ] **ADM-02**: El admin puede crear, editar y eliminar publicaciones desde el panel, contra la API real
 - [ ] **ADM-03**: El admin puede subir, reordenar y eliminar fotos (solo imágenes válidas, con límite de tamaño)
-- [ ] **ADM-04**: El admin puede cambiar el estado de un auto (disponible / reservado / vendido)
-- [ ] **ADM-05**: El admin puede marcar o desmarcar autos como destacados
+- [x] **ADM-04**: El admin puede cambiar el estado de un auto (disponible / reservado / vendido)
+- [x] **ADM-05**: El admin puede marcar o desmarcar autos como destacados
 - [ ] **ADM-06**: El admin ve métricas simples del mes (cotizaciones, conversaciones abiertas, autos vendidos)
 
 ### Cuentas
@@ -109,8 +109,8 @@
 | ADM-01 | Phase 1 | Complete |
 | ADM-02 | Phase 1 | Pending |
 | ADM-03 | Phase 1 | Pending |
-| ADM-04 | Phase 1 | Pending |
-| ADM-05 | Phase 1 | Pending |
+| ADM-04 | Phase 1 | Complete |
+| ADM-05 | Phase 1 | Complete |
 | ADM-06 | Phase 5 | Pending |
 | AUTH-01 | Phase 3 | Pending |
 | AUTH-02 | Phase 3 | Pending |

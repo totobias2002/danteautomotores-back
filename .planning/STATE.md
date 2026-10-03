@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Gestión del inventario por el admin
 status: executing
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-10-03T02:28:36.633Z"
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-10-03T02:32:32.972Z"
 last_activity: 2026-10-02
 last_activity_desc: Phase 1 execution started
-state_head: b64618a7eb755202826c702e72eade378d077f76
+state_head: 13ab1456c43f1bd86e64e74444578f6137c58ee1
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 7
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-02)
 ## Current Position
 
 Phase: 1 (Gestión del inventario por el admin) — EXECUTING
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
 Last activity: 2026-10-02 — Phase 1 execution started
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 1 P02 | 3 min | 2 tasks | 7 files |
 | Phase 1 P03 | 7 min | 2 tasks | 7 files |
 | Phase 1 P04 | 6 min | 2 tasks | 3 files |
+| Phase 01 P05 | 14 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,7 @@ Recent decisions affecting current work:
 - [Phase 1]: 01-03: una agencia con autos no se puede eliminar (400 con mensaje accionable via existsByAgenciaId); AgenciaService.listar() ordena por id
 - [Phase 1]: [01-04] Formato de error uniforme: {error} y en validacion {error:'Datos invalidos', campos:{...}}; un unico advice que extiende ResponseEntityExceptionHandler, sin @ExceptionHandler propio para excepciones de Spring MVC
 - [Phase 1]: [01-04] ServicioExternoException -> 502 con su mensaje; DataIntegrityViolation -> 409 fijo; 500 generico sin detalle interno (solo en log)
+- [Phase 01]: 01-05: destacado es independiente del estado (VENDIDO no lo desmarca, editar no lo toca); Fase 2 filtra destacado && estado != VENDIDO. Sin tope de destacados.
 
 ### Pending Todos
 
@@ -101,6 +103,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-03T02:28:36.615Z
-Stopped at: Completed 01-04-PLAN.md
+Last session: 2026-10-03T02:32:32.951Z
+Stopped at: Completed 01-05-PLAN.md
 Resume file: None

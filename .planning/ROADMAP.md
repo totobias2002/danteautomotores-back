@@ -42,7 +42,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. El admin cambia el estado de un auto (disponible / reservado / vendido) y lo marca o desmarca como destacado desde el panel
   5. Con un token vencido o malformado, la API responde 401 (no 500) con un error de formato uniforme, y el panel lleva al admin al login en vez de romperse
 
-**Plans**: 4/7 plans executed
+**Plans**: 5/7 plans executed
 
 Plans:
 **Wave 1**
@@ -54,7 +54,7 @@ Plans:
 - [x] 01-04-PLAN.md — TDD: formato uniforme de errores con un único advice (+ ServicioExternoException → 502) (ola 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 01-05-PLAN.md — Destacados (PATCH /destacado) + filtro por estado y búsqueda en el listado del panel (ola 3)
+- [x] 01-05-PLAN.md — Destacados (PATCH /destacado) + filtro por estado y búsqueda en el listado del panel (ola 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 01-06-PLAN.md — Fotos: validación de tipo real, tamaño y tope de 10, public_id, reorden con portada (ola 4)
@@ -157,7 +157,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Gestión del inventario por el admin | 4/7 | In Progress|  |
+| 1. Gestión del inventario por el admin | 5/7 | In Progress|  |
 | 2. Catálogo público real en producción | 0/TBD | Not started | - |
 | 3. Cuentas verificadas | 0/TBD | Not started | - |
 | 4. Compra por conversación con la agencia | 0/TBD | Not started | - |
