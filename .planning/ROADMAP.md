@@ -30,6 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 1: Gestión del inventario por el admin
+
 **Goal**: La única cuenta admin gestiona el inventario completo de autos (datos, fotos, estado y destacados) desde el panel, contra la API real y con errores manejados de forma uniforme
 **Mode:** mvp
 **Depends on**: Nothing (first phase)
@@ -40,20 +41,32 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. El admin sube, reordena y elimina fotos de un auto; si el archivo no es una imagen válida o supera el límite de tamaño, se rechaza con un mensaje claro
   4. El admin cambia el estado de un auto (disponible / reservado / vendido) y lo marca o desmarca como destacado desde el panel
   5. Con un token vencido o malformado, la API responde 401 (no 500) con un error de formato uniforme, y el panel lleva al admin al login en vez de romperse
+
 **Plans**: 7 plans
 
 Plans:
+**Wave 1**
 - [ ] 01-01-PLAN.md — Tracer: listado admin con todos los estados (GET /api/admin/publicaciones) + 401/403 JSON y sesión vencida en el front (ola 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01-02-PLAN.md — Cuenta admin y agencia sembradas al arrancar desde ADMIN_* (falla en perfil prod) (ola 2)
 - [ ] 01-03-PLAN.md — Agencia única: el backend la asigna, sin alta ni baja de agencias, panel y form sin selector (ola 2)
 - [ ] 01-04-PLAN.md — TDD: formato uniforme de errores con un único advice (+ ServicioExternoException → 502) (ola 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-05-PLAN.md — Destacados (PATCH /destacado) + filtro por estado y búsqueda en el listado del panel (ola 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 01-06-PLAN.md — Fotos: validación de tipo real, tamaño y tope de 10, public_id, reorden con portada (ola 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 01-07-PLAN.md — Borrado seguro: publicación en cascada con aviso de consultas, foto con resecuenciado, Cloudinary después del commit (ola 5)
+
 **UI hint**: yes
 **Notes**: El panel admin del front ya usa la API real (sin mocks). Esta fase completa lo que falta: seed del admin, validación y orden de fotos, flag de destacado y manejo global de errores (`@ControllerAdvice` + filtro JWT que devuelve 401).
 
 ### Phase 2: Catálogo público real en producción
+
 **Goal**: Cualquier visitante navega el catálogo real cargado por el admin, sin mocks, en el sitio desplegado en producción
 **Mode:** mvp
 **Depends on**: Phase 1
@@ -64,11 +77,13 @@ Plans:
   3. La Home muestra los autos que el admin marcó como destacados, y cada card y cada detalle muestran el estado del auto (disponible / reservado / vendido)
   4. El back (Railway/Render) y el front (Vercel) están desplegados con perfil de producción (sin `ddl-auto: update` ni `show-sql`), y el sitio público funciona contra la API productiva
   5. El backend no arranca si falta el secret JWT o las credenciales de Cloudinary, y CORS acepta la lista de orígenes aunque tenga espacios
+
 **Plans**: TBD
 **UI hint**: yes
 **Notes**: Al quitar `ddl-auto: update`, el esquema pasa a migraciones versionadas (por ejemplo, Flyway) con una línea base que incluye los cambios de la Fase 1. Desde acá, las fases siguientes agregan migraciones y se verifican también en producción.
 
 ### Phase 3: Cuentas verificadas
+
 **Goal**: Toda persona que quiera comprar o cotizar tiene una cuenta con identidad completa (nombre, mail, teléfono, DNI), ya sea que entre con mail o con Google
 **Mode:** mvp
 **Depends on**: Phase 2
@@ -79,11 +94,13 @@ Plans:
   3. El usuario que olvidó su contraseña recibe un mail con un link y puede definir una nueva (el servicio de mail está configurado en producción)
   4. El usuario ve y edita su perfil desde la web
   5. Un visitante sin sesión que toca "Lo quiero", "Cotizá tu usado" o "Mis mensajes" es llevado al login y, al terminar, vuelve a la página donde estaba
+
 **Plans**: TBD
 **UI hint**: yes
 **Notes**: DNI y teléfono son datos personales (Ley 25.326): exponerlos solo al propio usuario y al admin. Los botones de Google en `LoginPage.jsx` y `RegistroPage.jsx` hoy son TODOs.
 
 ### Phase 4: Compra por conversación con la agencia
+
 **Goal**: Un usuario verificado toca "Lo quiero" en un auto y conversa con la agencia dentro de la web; el admin atiende todas las conversaciones desde su bandeja y sabe exactamente con quién habla
 **Mode:** mvp
 **Depends on**: Phase 3
@@ -94,11 +111,13 @@ Plans:
   3. El usuario y el admin ven un contador de mensajes no leídos en la web y reciben un mail cuando les llega un mensaje nuevo
   4. El admin ve en el panel una bandeja con todas las conversaciones, la filtra por tipo, estado y no leídas, y puede cerrar o reabrir cada conversación
   5. Desde una conversación, el admin abre la ficha del usuario (nombre, teléfono, DNI, mail) con su historial de conversaciones
+
 **Plans**: TBD
 **UI hint**: yes
 **Notes**: La entidad `Consulta` existente evoluciona hacia el modelo de conversaciones o se reemplaza por él. Ese modelo contempla desde el inicio el tipo "cotización" (lo usa la Fase 5). Los avisos por mail reutilizan el servicio de PROD-03. Mensajería tipo bandeja, sin tiempo real.
 
 ### Phase 5: Cotizador de usados
+
 **Goal**: El usuario cotiza su auto en la web, recibe al instante un precio estimado y lo usa para venderle a la agencia o entregarlo como parte de pago; todo termina en una conversación con el admin
 **Mode:** mvp
 **Depends on**: Phase 4
@@ -109,11 +128,13 @@ Plans:
   3. El usuario elige venta directa o parte de pago; tanto "Aceptar" como "Consultar otro precio" abren una conversación de cotización con el admin
   4. El usuario ve el historial de sus cotizaciones y, al tocar "Lo quiero" en un auto, puede ofrecer una de ellas como parte de pago
   5. El admin ve en el panel las métricas del mes (cotizaciones, conversaciones abiertas, autos vendidos) y las cotizaciones de cada usuario en su ficha
+
 **Plans**: TBD
 **UI hint**: yes
 **Notes**: RESEARCH NEEDED. La investigación del proyecto se omitió, así que la elección del proveedor de precios (COT-02/COT-06) se investiga al inicio de esta fase. Opciones: InfoAuto, ACARA, la API de Mercado Libre con publicaciones comparables u otras. Hay que evaluar costo, acceso y cobertura del mercado argentino. El proveedor va detrás de una interfaz intercambiable con fallback a valuación manual. Las fotos de la cotización van a Cloudinary con la misma validación de ADM-03.
 
 ### Phase 6: Experiencia visual pulida
+
 **Goal**: El sitio se siente moderno y familiar (estilo Kavak / Mercado Libre), con animaciones medidas que suman sin molestar
 **Mode:** mvp
 **Depends on**: Phase 5
@@ -124,6 +145,7 @@ Plans:
   3. En el detalle de un auto, la galería permite swipe, zoom y pantalla completa, en mobile y en desktop
   4. El cotizador muestra una barra de progreso animada entre pasos y revela el precio con una animación
   5. Con `prefers-reduced-motion` activado, las animaciones se reducen o se desactivan sin perder funcionalidad
+
 **Plans**: TBD
 **UI hint**: yes
 **Notes**: Un solo sistema de motion para todo el sitio, con animaciones moderadas por pedido explícito. UX-01, UX-02 y UX-03 podrían adelantarse sobre las páginas ya existentes; UX-04 necesita el cotizador de la Fase 5.
