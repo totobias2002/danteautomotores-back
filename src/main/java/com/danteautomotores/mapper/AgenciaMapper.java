@@ -18,6 +18,7 @@ public class AgenciaMapper {
                 .direccion(agencia.getDireccion())
                 .telefonoContacto(agencia.getTelefonoContacto())
                 .emailContacto(agencia.getEmailContacto())
+                .zona(agencia.getZona())
                 .fechaAlta(agencia.getFechaAlta())
                 .build();
     }

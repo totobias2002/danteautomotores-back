@@ -83,6 +83,27 @@ async function get(ruta) {
     exigir(cuerpo.length <= 12, `trae ${cuerpo.length} autos (maximo 12)`);
   });
 
+  // Plan 02-03: campos nuevos del contrato (tipo, precio anterior, oferta, zona de la agencia y fecha de venta).
+  await revisar("destacados: cada item trae tipoCarroceria, precioAnterior, oferta, agenciaZona y fechaVendido", async () => {
+    if (destacados.length === 0) saltear("la lista viene vacia");
+    for (const p of destacados) {
+      for (const clave of ["tipoCarroceria", "precioAnterior", "oferta", "agenciaZona", "fechaVendido"]) {
+        exigir(clave in p, `al auto ${p.id} le falta la clave ${clave}`);
+      }
+      exigir(typeof p.oferta === "boolean", `oferta del auto ${p.id} no es booleana`);
+      const esOferta = p.precioAnterior != null && Number(p.precioAnterior) > Number(p.precio);
+      exigir(p.oferta === esOferta, `el auto ${p.id} dice oferta=${p.oferta} con precio ${p.precio} y anterior ${p.precioAnterior}`);
+    }
+  });
+
+  await revisar("GET /agencias trae la clave zona en cada agencia", async () => {
+    const { estado, cuerpo } = await get("/agencias");
+    exigir(estado === 200, `estado ${estado}`);
+    exigir(Array.isArray(cuerpo), "la respuesta no es un array");
+    if (cuerpo.length === 0) saltear("no hay agencias");
+    for (const a of cuerpo) exigir("zona" in a, `a la agencia ${a.id} le falta la clave zona`);
+  });
+
   console.log(`humo: ${ok} ok, ${fallas} fallas, ${skip} skip`);
   // exitCode en vez de process.exit: en Windows, salir con fetch pendiente puede abortar Node con un assert de libuv.
   process.exitCode = fallas > 0 ? 1 : 0;

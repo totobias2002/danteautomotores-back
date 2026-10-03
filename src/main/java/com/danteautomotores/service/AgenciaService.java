@@ -44,6 +44,7 @@ public class AgenciaService {
                 .direccion(request.getDireccion())
                 .telefonoContacto(request.getTelefonoContacto())
                 .emailContacto(request.getEmailContacto())
+                .zona(request.getZona())
                 .build();
 
         agenciaRepository.save(agencia);
@@ -60,6 +61,7 @@ public class AgenciaService {
         agencia.setDireccion(request.getDireccion());
         agencia.setTelefonoContacto(request.getTelefonoContacto());
         agencia.setEmailContacto(request.getEmailContacto());
+        agencia.setZona(request.getZona());
 
         agenciaRepository.save(agencia);
         return AgenciaMapper.toResponse(agencia);

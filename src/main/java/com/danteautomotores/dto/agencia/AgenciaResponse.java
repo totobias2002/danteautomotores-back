@@ -1,5 +1,6 @@
 package com.danteautomotores.dto.agencia;
 
+import com.danteautomotores.enums.ZonaAgencia;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,5 +21,6 @@ public class AgenciaResponse {
     private String direccion;
     private String telefonoContacto;
     private String emailContacto;
+    private ZonaAgencia zona;
     private LocalDateTime fechaAlta;
 }

@@ -2,6 +2,7 @@ package com.danteautomotores.controller;
 
 import com.danteautomotores.exception.ReglaDeNegocioException;
 import com.danteautomotores.dto.agencia.AgenciaResponse;
+import com.danteautomotores.enums.ZonaAgencia;
 import com.danteautomotores.service.AgenciaService;
 import com.danteautomotores.support.SeguridadWebMvcTestBase;
 import org.junit.jupiter.api.Test;
@@ -72,6 +73,29 @@ class AgenciaControllerTest extends SeguridadWebMvcTestBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(BODY_VALIDO))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void adminCreaUnaAgenciaConZona() throws Exception {
+        when(agenciaService.crear(any())).thenReturn(
+                AgenciaResponse.builder().id(1L).nombre("Dante Automotores").zona(ZonaAgencia.ZONA_NORTE).build());
+
+        mvc.perform(post("/api/agencias")
+                        .header("Authorization", admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nombre\":\"Dante Automotores\",\"emailContacto\":\"ventas@dante.com\",\"zona\":\"ZONA_NORTE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.zona").value("ZONA_NORTE"));
+    }
+
+    @Test
+    void unaZonaDesconocidaDa400ConElFormatoUniforme() throws Exception {
+        mvc.perform(post("/api/agencias")
+                        .header("Authorization", admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nombre\":\"Dante Automotores\",\"emailContacto\":\"ventas@dante.com\",\"zona\":\"MARTE\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").exists());
     }
 
     @Test
