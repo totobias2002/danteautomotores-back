@@ -1,18 +1,14 @@
 ---
-status: testing
+status: partial
 phase: 01-gesti-n-del-inventario-por-el-admin
 source: [01-VERIFICATION.md]
 started: 2026-10-03T03:20:00Z
-updated: 2026-10-03T03:40:00Z
+updated: 2026-10-03T03:50:00Z
 ---
 
 ## Current Test
 
-number: 3
-name: Panel completo contra la API real (navegador)
-expected: |
-  Todo persiste al recargar; un auto reservado/vendido sigue visible con su estado; el destacado no cambia al cambiar de estado ni al editar
-awaiting: user response
+[testing paused — 5 items outstanding: 3, 6, 7 (navegador), 4 (ConfirmDialog en navegador), 5 (Cloudinary real)]
 
 ## Tests
 
