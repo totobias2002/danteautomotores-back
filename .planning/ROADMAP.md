@@ -40,7 +40,16 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. El admin sube, reordena y elimina fotos de un auto; si el archivo no es una imagen válida o supera el límite de tamaño, se rechaza con un mensaje claro
   4. El admin cambia el estado de un auto (disponible / reservado / vendido) y lo marca o desmarca como destacado desde el panel
   5. Con un token vencido o malformado, la API responde 401 (no 500) con un error de formato uniforme, y el panel lleva al admin al login en vez de romperse
-**Plans**: TBD
+**Plans**: 7 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Tracer: listado admin con todos los estados (GET /api/admin/publicaciones) + 401/403 JSON y sesión vencida en el front (ola 1)
+- [ ] 01-02-PLAN.md — Cuenta admin y agencia sembradas al arrancar desde ADMIN_* (falla en perfil prod) (ola 2)
+- [ ] 01-03-PLAN.md — Agencia única: el backend la asigna, sin alta ni baja de agencias, panel y form sin selector (ola 2)
+- [ ] 01-04-PLAN.md — TDD: formato uniforme de errores con un único advice (+ ServicioExternoException → 502) (ola 2)
+- [ ] 01-05-PLAN.md — Destacados (PATCH /destacado) + filtro por estado y búsqueda en el listado del panel (ola 3)
+- [ ] 01-06-PLAN.md — Fotos: validación de tipo real, tamaño y tope de 10, public_id, reorden con portada (ola 4)
+- [ ] 01-07-PLAN.md — Borrado seguro: publicación en cascada con aviso de consultas, foto con resecuenciado, Cloudinary después del commit (ola 5)
 **UI hint**: yes
 **Notes**: El panel admin del front ya usa la API real (sin mocks). Esta fase completa lo que falta: seed del admin, validación y orden de fotos, flag de destacado y manejo global de errores (`@ControllerAdvice` + filtro JWT que devuelve 401).
 
@@ -126,7 +135,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Gestión del inventario por el admin | 0/TBD | Not started | - |
+| 1. Gestión del inventario por el admin | 0/7 | Not started | - |
 | 2. Catálogo público real en producción | 0/TBD | Not started | - |
 | 3. Cuentas verificadas | 0/TBD | Not started | - |
 | 4. Compra por conversación con la agencia | 0/TBD | Not started | - |
