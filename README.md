@@ -31,15 +31,15 @@ Ver `src/main/resources/application.yml`. Para producción, sobreescribir `app.j
 | `PORT` | Puerto HTTP (Railway/Render la inyectan solos). |
 | `SPRING_DATASOURCE_URL` | URL JDBC de la base Postgres, ej: `jdbc:postgresql://host:5432/db`. |
 | `SPRING_DATASOURCE_USERNAME` | Usuario de la base. |
-| `SPRING_DATASOURCE_PASSWORD` | Contraseña de la base. Con el perfil `prod`, el backend no arranca si se deja la contraseña de desarrollo del repo. |
-| `APP_JWT_SECRET` | **Obligatoria en producción.** Secreto para firmar JWT — al menos 32 caracteres y distinto del valor de ejemplo del repo. Con el perfil `prod`, el backend no arranca si falta o si es el valor de ejemplo (que es público: con él cualquiera podría falsificar tokens, incluso de admin). En desarrollo se usa el valor de ejemplo y solo avisa en el log. |
+| `SPRING_DATASOURCE_PASSWORD` | Contraseña de la base. Fuera del modo desarrollo (ver `SPRING_PROFILES_ACTIVE`), el backend no arranca si se deja la contraseña de desarrollo del repo. |
+| `APP_JWT_SECRET` | **Obligatoria en producción.** Secreto para firmar JWT — al menos 32 caracteres y distinto del valor de ejemplo del repo. Si falta, es el valor de ejemplo (público: con él cualquiera podría falsificar tokens, incluso de admin) o tiene menos de 32 bytes, el backend no arranca (salvo en modo desarrollo, ver `SPRING_PROFILES_ACTIVE`). |
 | `APP_JWT_EXPIRATION_MS` | Duración del token en ms (opcional, default 24hs). |
 | `APP_CORS_ALLOWED_ORIGINS` | Orígenes permitidos separados por coma, ej: `https://mi-app.vercel.app`. |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Credenciales de Cloudinary para las fotos. |
 | `ADMIN_EMAIL` | Email de la cuenta admin. Solo se usa para crear la cuenta si no existe ningún admin; no puede ser el de una cuenta ya registrada. |
 | `ADMIN_PASSWORD` | Contraseña de la cuenta admin (mínimo 8 caracteres). Solo se usa para crear la cuenta si no existe ningún admin; cambiarla después no modifica la cuenta. |
 | `ADMIN_NOMBRE` | Nombre visible del admin (por ejemplo, Dante). Mismo uso que `ADMIN_EMAIL`. |
-| `SPRING_PROFILES_ACTIVE` | Perfil de Spring. El `Dockerfile` lo deja en `prod` por defecto. Con `prod`, el backend no arranca si faltan (o son inválidas) las variables del admin y todavía no existe ninguno, ni si `APP_JWT_SECRET` / `SPRING_DATASOURCE_PASSWORD` son los valores por defecto del repo. Sin `prod`, solo avisa en el log y arranca igual. |
+| `SPRING_PROFILES_ACTIVE` | Perfil de Spring. El `Dockerfile` lo deja en `prod` por defecto. `SecretosGuard` solo es permisivo (avisa en el log y arranca) cuando **no hay ningún perfil activo** (desarrollo local con `mvn spring-boot:run` o el IDE, sin configurar nada) o cuando todos los perfiles activos son `dev`, `local` o `test`. Con cualquier otro perfil (`prod`, `production`, `railway`, `staging`...) o una mezcla como `prod,dev`, el backend no arranca si `APP_JWT_SECRET` falta, es el valor de ejemplo o tiene menos de 32 bytes, ni si `SPRING_DATASOURCE_PASSWORD` es la contraseña de desarrollo del repo. Si desplegás **sin el Dockerfile** (por ejemplo el build nativo de Railway), definí `SPRING_PROFILES_ACTIVE=prod`: sin perfil el guard queda en modo desarrollo. Además, con `prod` el backend tampoco arranca si faltan (o son inválidas) las variables del admin y todavía no existe ninguno. |
 
 El repo incluye un `Dockerfile` (build multi-stage con Maven + JDK 25) listo para deployar en Railway, Render o cualquier hosting que soporte contenedores.
 
