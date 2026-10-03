@@ -55,6 +55,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/agencias/**", "/api/publicaciones/**").hasRole("ADMIN")
                         .requestMatchers("/api/consultas/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // Railway activa un deploy recién cuando el healthcheck responde 2xx. Es lo único de actuator
+                        // que se abre; el resto sigue cerrado y la exposición está limitada a health (application.yml).
+                        .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(e -> e

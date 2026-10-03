@@ -105,4 +105,37 @@ class SeguridadErroresTest extends SeguridadWebMvcTestBase {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").isString());
     }
+
+    // En el slice @WebMvcTest no hay actuator: un 404 prueba que Security dejó pasar la request (no es 401 ni 403).
+    @Test
+    void healthSinTokenNoLoBloqueaSecurity() throws Exception {
+        mvc.perform(get("/actuator/health"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void healthLivenessSinTokenNoLoBloqueaSecurity() throws Exception {
+        mvc.perform(get("/actuator/health/liveness"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void healthConTokenMalformadoNoLoBloqueaSecurity() throws Exception {
+        mvc.perform(get("/actuator/health").header("Authorization", "Bearer basura"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void actuatorEnvSinTokenSigueDando401Json() throws Exception {
+        mvc.perform(get("/actuator/env"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.error").isString());
+    }
+
+    @Test
+    void healthPorPostSigueProtegido() throws Exception {
+        mvc.perform(post("/actuator/health"))
+                .andExpect(status().isUnauthorized());
+    }
 }
