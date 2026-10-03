@@ -78,7 +78,29 @@ Plans:
   4. El back (Railway/Render) y el front (Vercel) están desplegados con perfil de producción (sin `ddl-auto: update` ni `show-sql`), y el sitio público funciona contra la API productiva
   5. El backend no arranca si falta el secret JWT o las credenciales de Cloudinary, y CORS acepta la lista de orígenes aunque tenga espacios
 
-**Plans**: TBD
+**Plans**: 8 plans
+
+Plans:
+**Wave 1**
+- [ ] 02-01-PLAN.md — Tracer: Flyway (V1/V2/V3, validate, baseline) + destacados reales en la Home de punta a punta, migración segura de una base existente (ola 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 02-02-PLAN.md — Producción lista en código: Cloudinary obligatorio, healthcheck público, admin normalizado, README y demo segura con datos nuevos (ola 2)
+- [ ] 02-03-PLAN.md — Datos nuevos en la API: tipo de carrocería, precio anterior/oferta, zona de la agencia y fecha de venta (ola 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 02-04-PLAN.md — API del catálogo: listado paginado de a 24 con filtros, orden y vendidos al final + facetas (ola 3)
+- [ ] 02-05-PLAN.md — Panel y card: tipo, precio anterior y zona en los forms; estado, oferta y zona en la card; página de créditos (ola 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 02-06-PLAN.md — Front del catálogo: /autos con estado en la URL y paginador, página de agencia y Home contra la API (ola 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 02-07-PLAN.md — Detalle real (vendido con aviso y parecidos, consulta rechazada si se vendió), front sin mocks y humo completo (ola 5)
+
+**Wave 6** *(blocked on Wave 5 completion; checkpoints humanos)*
+- [ ] 02-08-PLAN.md — Producción: backup y ensayo con copia, deploy de Railway y Vercel, carga de la demo (ola 6, no autónomo)
+
 **UI hint**: yes
 **Notes**: Al quitar `ddl-auto: update`, el esquema pasa a migraciones versionadas (por ejemplo, Flyway) con una línea base que incluye los cambios de la Fase 1. Desde acá, las fases siguientes agregan migraciones y se verifican también en producción.
 
@@ -158,7 +180,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Gestión del inventario por el admin | 7/7 | Complete    | 2026-10-03 |
-| 2. Catálogo público real en producción | 0/TBD | Not started | - |
+| 2. Catálogo público real en producción | 0/8 | Planned | - |
 | 3. Cuentas verificadas | 0/TBD | Not started | - |
 | 4. Compra por conversación con la agencia | 0/TBD | Not started | - |
 | 5. Cotizador de usados | 0/TBD | Not started | - |
