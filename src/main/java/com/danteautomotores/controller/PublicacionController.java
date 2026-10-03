@@ -62,6 +62,13 @@ public class PublicacionController {
         return ResponseEntity.ok(catalogoService.destacados(limite));
     }
 
+    // Público (sin token): autos disponibles parecidos a este (cualquier estado del auto), hasta 4 por defecto.
+    @GetMapping("/{id}/similares")
+    public ResponseEntity<List<PublicacionResumenResponse>> similares(@PathVariable Long id,
+                                                                      @RequestParam(required = false) Integer limite) {
+        return ResponseEntity.ok(catalogoService.similares(id, limite));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<PublicacionResponse> obtenerPorId(@PathVariable Long id) {
         return ResponseEntity.ok(publicacionService.obtenerPorId(id));

@@ -6,6 +6,7 @@ import com.danteautomotores.dto.publicacion.PaginaResponse;
 import com.danteautomotores.dto.publicacion.PublicacionResponse;
 import com.danteautomotores.dto.publicacion.PublicacionResumenResponse;
 import com.danteautomotores.enums.TipoCarroceria;
+import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.service.PublicacionService;
 import com.danteautomotores.support.SeguridadWebMvcTestBase;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -129,5 +131,37 @@ class PublicacionControllerCatalogoTest extends SeguridadWebMvcTestBase {
         mvc.perform(get("/api/publicaciones/facetas?agenciaId=3")).andExpect(status().isOk());
 
         verify(catalogoService).facetas(eq(3L));
+    }
+
+    @Test
+    void similaresSinTokenLlegaAlServicioSinLimiteYNoVaAObtenerPorId() throws Exception {
+        when(catalogoService.similares(eq(7L), any())).thenReturn(List.of(
+                PublicacionResumenResponse.builder().id(9L).marca("Toyota").build()));
+
+        mvc.perform(get("/api/publicaciones/7/similares"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(9));
+
+        verify(catalogoService).similares(7L, null);
+        verify(publicacionService, never()).obtenerPorId(any());
+    }
+
+    @Test
+    void similaresConLimiteSeLoPasaAlServicio() throws Exception {
+        when(catalogoService.similares(eq(7L), any())).thenReturn(List.of());
+
+        mvc.perform(get("/api/publicaciones/7/similares?limite=6")).andExpect(status().isOk());
+
+        verify(catalogoService).similares(7L, 6);
+    }
+
+    @Test
+    void similaresDeUnAutoInexistenteDa404ConError() throws Exception {
+        when(catalogoService.similares(eq(404L), any()))
+                .thenThrow(new ResourceNotFoundException("No existe una publicación con id: 404"));
+
+        mvc.perform(get("/api/publicaciones/404/similares"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("No existe una publicación con id: 404"));
     }
 }

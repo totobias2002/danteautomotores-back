@@ -5,6 +5,7 @@ import com.danteautomotores.dto.publicacion.FiltrosCatalogo;
 import com.danteautomotores.entity.Publicacion;
 import com.danteautomotores.enums.OrdenCatalogo;
 import com.danteautomotores.enums.TipoCarroceria;
+import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.repository.PublicacionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,9 +22,11 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -204,5 +207,42 @@ class CatalogoServiceTest {
         assertThat(facetas.getPrecio()).isNull();
         assertThat(facetas.getMarcas()).isEmpty();
         assertThat(facetas.getAnio().getMin()).isNull();
+    }
+
+    private Pageable similaresConLimite(Integer limite) {
+        when(repositorio.findById(5L)).thenReturn(Optional.of(
+                Publicacion.builder().id(5L).marca("Toyota").modelo("Corolla").anio(2020).precio(new BigDecimal("1000")).build()));
+        when(repositorio.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
+
+        servicio.similares(5L, limite);
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(repositorio).findAll(any(Specification.class), captor.capture());
+        assertThat(captor.getValue().getPageNumber()).isZero();
+        return captor.getValue();
+    }
+
+    @Test
+    void similaresSinLimitePideCuatro() {
+        assertThat(similaresConLimite(null).getPageSize()).isEqualTo(4);
+    }
+
+    @Test
+    void similaresConLimiteCeroPideUno() {
+        assertThat(similaresConLimite(0).getPageSize()).isEqualTo(1);
+    }
+
+    @Test
+    void similaresConLimiteEnormeSeAcotaAOcho() {
+        assertThat(similaresConLimite(20).getPageSize()).isEqualTo(8);
+    }
+
+    @Test
+    void similaresDeUnIdInexistenteDaResourceNotFound() {
+        when(repositorio.findById(404L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> servicio.similares(404L, null))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("No existe una publicación con id: 404");
     }
 }

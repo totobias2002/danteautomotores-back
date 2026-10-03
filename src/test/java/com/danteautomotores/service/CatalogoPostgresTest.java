@@ -506,4 +506,76 @@ class CatalogoPostgresTest extends PostgresLocalTestBase {
         assertThat(f.getMarcas()).isEmpty();
         assertThat(f.getAnio().getMin()).isNull();
     }
+
+    // ---- Autos parecidos (plan 02-07, D-06) ----
+
+    @Test
+    void similaresFiltraPorEstadoMonedaPrecioYTipoOMarcaYOrdenaPorCercaniaDePrecio() {
+        Long elAuto = disponible(base("Toyota", "Corolla").tipoCarroceria(TipoCarroceria.SEDAN).precio(new BigDecimal("20000000")));
+        Long mismaMarcaOtroTipo = disponible(base("Toyota", "Yaris").tipoCarroceria(TipoCarroceria.HATCHBACK).precio(new BigDecimal("19000000")));
+        Long mismoTipoOtraMarca = disponible(base("Ford", "Focus").tipoCarroceria(TipoCarroceria.SEDAN).precio(new BigDecimal("22000000")));
+        disponible(base("Ford", "EcoSport").tipoCarroceria(TipoCarroceria.SUV).precio(new BigDecimal("21000000"))); // otra marca y otro tipo
+        disponible(base("Toyota", "Camry").tipoCarroceria(TipoCarroceria.SEDAN).precio(new BigDecimal("27000000"))); // sobre 130 %
+        disponible(base("Toyota", "Etios").tipoCarroceria(TipoCarroceria.SEDAN).precio(new BigDecimal("13000000"))); // bajo 70 %
+        guardar(base("Toyota", "Reservado").tipoCarroceria(TipoCarroceria.SEDAN).precio(new BigDecimal("20000000")), "RESERVADO", AHORA.minusDays(2), null);
+        guardar(base("Toyota", "Vendido").tipoCarroceria(TipoCarroceria.SEDAN).precio(new BigDecimal("20000000")), "VENDIDO", AHORA.minusDays(2), AHORA.minusDays(1));
+        disponible(base("Toyota", "EnDolares").tipoCarroceria(TipoCarroceria.SEDAN).precio(new BigDecimal("20000")).moneda("USD"));
+
+        List<PublicacionResumenResponse> resultado = catalogoService.similares(elAuto, null);
+
+        // Distancia 1.000.000 (Yaris) antes que 2.000.000 (Focus); el propio auto nunca aparece.
+        assertThat(resultado).extracting(PublicacionResumenResponse::getId)
+                .containsExactly(mismaMarcaOtroTipo, mismoTipoOtraMarca);
+    }
+
+    @Test
+    void similaresDesempataPorIdDescendenteAIgualDistanciaDePrecio() {
+        Long elAuto = disponible(base("Toyota", "Corolla").precio(new BigDecimal("1000000")));
+        Long mas = disponible(base("Toyota", "Mas").precio(new BigDecimal("1100000")));
+        Long menos = disponible(base("Toyota", "Menos").precio(new BigDecimal("900000")));
+
+        assertThat(catalogoService.similares(elAuto, null)).extracting(PublicacionResumenResponse::getId)
+                .containsExactly(menos, mas);
+    }
+
+    @Test
+    void similaresSinTipoDeCarroceriaSoloConsideraLaMismaMarcaSinDistinguirMayusculas() {
+        Long elAuto = disponible(base("Toyota", "Corolla").precio(new BigDecimal("1000000")));
+        Long mismaMarca = disponible(base("TOYOTA", "Yaris").tipoCarroceria(TipoCarroceria.HATCHBACK).precio(new BigDecimal("1000000")));
+        disponible(base("Ford", "Focus").tipoCarroceria(TipoCarroceria.SEDAN).precio(new BigDecimal("1000000")));
+        disponible(base("Ford", "Ka").precio(new BigDecimal("1000000")));
+
+        assertThat(catalogoService.similares(elAuto, null)).extracting(PublicacionResumenResponse::getId)
+                .containsExactly(mismaMarca);
+    }
+
+    @Test
+    void similaresDeUnVendidoDeHace90DiasFuncionaIgual() {
+        Long vendido = guardar(base("Toyota", "Corolla").tipoCarroceria(TipoCarroceria.SEDAN).precio(new BigDecimal("1000000")),
+                "VENDIDO", AHORA.minusDays(120), AHORA.minusDays(90));
+        Long parecido = disponible(base("Toyota", "Yaris").precio(new BigDecimal("1050000")));
+
+        assertThat(catalogoService.similares(vendido, null)).extracting(PublicacionResumenResponse::getId)
+                .containsExactly(parecido);
+    }
+
+    @Test
+    void similaresRespetaElLimiteYPorDefectoDevuelveCuatro() {
+        Long elAuto = disponible(base("Toyota", "Corolla").precio(new BigDecimal("1000000")));
+        for (int i = 0; i < 10; i++) {
+            disponible(base("Toyota", "M" + i).precio(new BigDecimal("1000000")));
+        }
+
+        assertThat(catalogoService.similares(elAuto, null)).hasSize(4);
+        assertThat(catalogoService.similares(elAuto, 2)).hasSize(2);
+        assertThat(catalogoService.similares(elAuto, 50)).hasSize(8);
+        assertThat(catalogoService.similares(elAuto, 0)).hasSize(1);
+    }
+
+    @Test
+    void similaresSinCandidatosDevuelveListaVacia() {
+        Long solo = disponible(base("Toyota", "Corolla").precio(new BigDecimal("1000000")));
+
+        assertThat(catalogoService.similares(solo, null)).isEmpty();
+    }
 }

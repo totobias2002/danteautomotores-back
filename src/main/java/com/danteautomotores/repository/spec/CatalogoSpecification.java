@@ -121,6 +121,43 @@ public class CatalogoSpecification {
         };
     }
 
+    /**
+     * Autos parecidos a uno dado (D-06): DISPONIBLES, distintos del auto, en su misma moneda, con precio entre el 70 % y
+     * el 130 % del suyo y del mismo tipo de carrocería o de la misma marca (solo la marca si el auto no tiene tipo).
+     * Ordenados por cercanía de precio y, a igual distancia, el más nuevo (id desc). Sirve para un auto en cualquier
+     * estado, incluso un vendido hace meses.
+     */
+    public static Specification<Publicacion> similaresA(Publicacion base) {
+        BigDecimal precioBase = base.getPrecio();
+        return (root, query, cb) -> {
+            List<Predicate> predicados = new ArrayList<>();
+            predicados.add(cb.equal(root.get("estado"), EstadoPublicacion.DISPONIBLE));
+            predicados.add(cb.notEqual(root.get("id"), base.getId()));
+            if (base.getMoneda() == null) {
+                predicados.add(cb.isNull(root.get("moneda")));
+            } else {
+                predicados.add(cb.equal(root.get("moneda"), base.getMoneda()));
+            }
+            predicados.add(cb.between(root.<BigDecimal>get("precio"),
+                    precioBase.multiply(new BigDecimal("0.70")), precioBase.multiply(new BigDecimal("1.30"))));
+
+            Predicate mismaMarca = cb.equal(cb.lower(root.<String>get("marca")), base.getMarca().trim().toLowerCase(Locale.ROOT));
+            if (base.getTipoCarroceria() == null) {
+                predicados.add(mismaMarca);
+            } else {
+                predicados.add(cb.or(cb.equal(root.get("tipoCarroceria"), base.getTipoCarroceria()), mismaMarca));
+            }
+
+            // No ordena la consulta de conteo (donde el tipo de resultado es Long).
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                query.orderBy(
+                        cb.asc(cb.abs(cb.diff(root.<BigDecimal>get("precio"), precioBase))),
+                        cb.desc(root.get("id")));
+            }
+            return cb.and(predicados.toArray(new Predicate[0]));
+        };
+    }
+
     private static boolean hay(List<?> lista) {
         return lista != null && !lista.isEmpty();
     }

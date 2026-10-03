@@ -12,6 +12,7 @@ import com.danteautomotores.dto.publicacion.PublicacionResumenResponse;
 import com.danteautomotores.entity.Publicacion;
 import com.danteautomotores.enums.EstadoPublicacion;
 import com.danteautomotores.enums.OrdenCatalogo;
+import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.mapper.PublicacionMapper;
 import com.danteautomotores.repository.PublicacionRepository;
 import com.danteautomotores.repository.spec.CatalogoSpecification;
@@ -50,6 +51,9 @@ public class CatalogoService {
     static final int LIMITE_DESTACADOS_POR_DEFECTO = 6;
     static final int LIMITE_DESTACADOS_MAXIMO = 12;
 
+    static final int LIMITE_SIMILARES_POR_DEFECTO = 4;
+    static final int LIMITE_SIMILARES_MAXIMO = 8;
+
     // Tamaño de página fijo (D-07): el cliente no lo elige.
     static final int TAMANIO_PAGINA = 24;
     static final int MAX_VALORES_POR_FILTRO = 20;
@@ -84,6 +88,22 @@ public class CatalogoService {
         Page<Publicacion> pagina = publicacionRepository.findAll(spec, PageRequest.of(filtros.getPagina() - 1, TAMANIO_PAGINA));
         // El mapeo va adentro de la transacción: agencia y fotos son lazy.
         return PaginaResponse.de(pagina.map(PublicacionMapper::toResumen));
+    }
+
+    /**
+     * Autos parecidos (D-06): hasta 4 por defecto, acotado a 1..8. Funciona para un auto en cualquier estado: el detalle
+     * de un vendido sigue abierto por link directo y sugiere alternativas disponibles.
+     */
+    public List<PublicacionResumenResponse> similares(Long id, Integer limite) {
+        Publicacion base = publicacionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("No existe una publicación con id: " + id));
+        int tope = limite == null ? LIMITE_SIMILARES_POR_DEFECTO
+                : Math.min(Math.max(limite, 1), LIMITE_SIMILARES_MAXIMO);
+        // El mapeo va adentro de la transacción: agencia y fotos son lazy.
+        return publicacionRepository.findAll(CatalogoSpecification.similaresA(base), PageRequest.of(0, tope))
+                .stream()
+                .map(PublicacionMapper::toResumen)
+                .toList();
     }
 
     /**
