@@ -30,6 +30,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -226,6 +228,7 @@ public class PublicacionService {
         return PublicacionMapper.toResponse(publicacion);
     }
 
+    @Transactional
     public void eliminarFoto(Long publicacionId, Long fotoId) {
         FotoPublicacion foto = fotoPublicacionRepository.findById(fotoId)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe la foto con id: " + fotoId));
@@ -234,7 +237,27 @@ public class PublicacionService {
             throw new IllegalArgumentException("La foto no pertenece a esta publicación");
         }
 
+        Publicacion publicacion = foto.getPublicacion();
+        publicacion.getFotos().remove(foto);
         fotoPublicacionRepository.delete(foto);
+        resecuenciarFotos(publicacion);
+
+        // singletonList y no List.of: el public_id es null en las fotos viejas.
+        eliminarImagenesDespuesDelCommit(Collections.singletonList(foto.getPublicId()));
+    }
+
+    // Deja las fotos que quedan en 0..n-1 sin huecos ni repetidos, con el mismo criterio de orden que
+    // PublicacionMapper (null cuenta como 0, desempate por id): evita órdenes duplicados y una portada
+    // indefinida después de borrar (RESEARCH Pitfall 3).
+    private void resecuenciarFotos(Publicacion publicacion) {
+        List<FotoPublicacion> ordenadas = publicacion.getFotos().stream()
+                .sorted(Comparator
+                        .comparing((FotoPublicacion f) -> f.getOrden() == null ? 0 : f.getOrden())
+                        .thenComparing(FotoPublicacion::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        for (int i = 0; i < ordenadas.size(); i++) {
+            ordenadas.get(i).setOrden(i);
+        }
     }
 
     // El borrado en Cloudinary va después del commit: si la transacción hace rollback, las filas siguen

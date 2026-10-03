@@ -479,6 +479,78 @@ class PublicacionServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
+    // ---- eliminar foto: resecuenciado y borrado del asset ----
+
+    @Test
+    void eliminarUnaFotoDelMedioDejaLasRestantesEnOrdenSinHuecos() {
+        FotoPublicacion f0 = foto(1L, 0);
+        FotoPublicacion f1 = foto(2L, 1);
+        FotoPublicacion f2 = foto(3L, 2);
+        Publicacion publicacion = publicacionConFotos(f0, f1, f2);
+        when(fotoPublicacionRepository.findById(2L)).thenReturn(Optional.of(f1));
+
+        publicacionService.eliminarFoto(10L, 2L);
+
+        verify(fotoPublicacionRepository).delete(f1);
+        assertThat(publicacion.getFotos()).containsExactly(f0, f2);
+        assertThat(f0.getOrden()).isZero();
+        assertThat(f2.getOrden()).isEqualTo(1);
+    }
+
+    @Test
+    void eliminarLaPortadaHaceQueLaSiguientePaseAOrdenCero() {
+        FotoPublicacion f0 = foto(1L, 0);
+        FotoPublicacion f1 = foto(2L, 1);
+        FotoPublicacion f2 = foto(3L, 2);
+        Publicacion publicacion = publicacionConFotos(f0, f1, f2);
+        when(fotoPublicacionRepository.findById(1L)).thenReturn(Optional.of(f0));
+
+        publicacionService.eliminarFoto(10L, 1L);
+
+        assertThat(publicacion.getFotos()).containsExactly(f1, f2);
+        assertThat(f1.getOrden()).isZero();
+        assertThat(f2.getOrden()).isEqualTo(1);
+    }
+
+    @Test
+    void eliminarUnaFotoDeOtraPublicacionFallaYNoBorraNada() {
+        FotoPublicacion ajena = foto(7L, 0);
+        publicacionConFotos(ajena);
+        when(fotoPublicacionRepository.findById(7L)).thenReturn(Optional.of(ajena));
+
+        assertThatThrownBy(() -> publicacionService.eliminarFoto(99L, 7L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("La foto no pertenece a esta publicación");
+
+        verify(fotoPublicacionRepository, never()).delete(any());
+        verify(cloudinaryService, never()).eliminar(any());
+    }
+
+    @Test
+    void eliminarUnaFotoInexistenteLanzaNotFound() {
+        when(fotoPublicacionRepository.findById(404L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> publicacionService.eliminarFoto(10L, 404L))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(cloudinaryService, never()).eliminar(any());
+    }
+
+    @Test
+    void eliminarUnaFotoConPublicIdBorraElAssetYSinPublicIdNoLlamaACloudinary() {
+        FotoPublicacion conId = fotoConPublicId(1L, 0, "pid-x");
+        FotoPublicacion sinId = fotoConPublicId(2L, 1, null);
+        publicacionConFotos(conId, sinId);
+        when(fotoPublicacionRepository.findById(1L)).thenReturn(Optional.of(conId));
+        when(fotoPublicacionRepository.findById(2L)).thenReturn(Optional.of(sinId));
+
+        publicacionService.eliminarFoto(10L, 2L);
+        verify(cloudinaryService, never()).eliminar(any());
+
+        publicacionService.eliminarFoto(10L, 1L);
+        verify(cloudinaryService).eliminar("pid-x");
+    }
+
     @Test
     void elImpactoDeEliminacionSoloTieneDosConteosSinDatosPersonales() {
         assertThat(ImpactoEliminacionResponse.class.getDeclaredFields())
