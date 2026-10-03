@@ -40,6 +40,13 @@ class AdminPublicacionControllerTest extends SeguridadWebMvcTestBase {
     }
 
     @Test
+    void sinTokenElPanelAdminDa401ConError() throws Exception {
+        mvc.perform(get("/api/admin/publicaciones"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").isString());
+    }
+
+    @Test
     void compradorNoPuedeListarElPanelAdmin() throws Exception {
         mvc.perform(get("/api/admin/publicaciones")
                         .header("Authorization", bearerPara("comprador@x.com", "COMPRADOR")))
