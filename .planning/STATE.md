@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Catálogo público real en producción
 status: executing
-stopped_at: Phase 1 complete, ready to plan Phase 02
-last_updated: "2026-10-03T17:25:18.254Z"
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-10-03T17:35:18.342Z"
 last_activity: 2026-10-03
-last_activity_desc: Phase 1 complete, transitioned to Phase 02
-state_head: 77e995619707ffa8f822be6674408557c114fbc5
+last_activity_desc: Phase 02 execution started
+state_head: 0d72b8108738a6ca247c09e7ecd60fad991fed0c
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 15
-  completed_plans: 7
+  completed_plans: 8
   percent: 17
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-03)
 
 **Core value:** Un usuario registrado y verificado puede encontrar un auto y hablar con la agencia para comprarlo, o cotizar el suyo, todo dentro de la web, y el admin sabe al 100 % con quién está hablando.
-**Current focus:** Phase 2 — Catálogo público real en producción
+**Current focus:** Phase 02 — Catálogo público real en producción
 
 ## Current Position
 
-Phase: 02 (Catálogo público real en producción) — READY TO EXECUTE
-Plan: Not started
+Phase: 02 (Catálogo público real en producción) — EXECUTING
+Plan: 2 of 8
 Status: Ready to execute
-Last activity: 2026-10-03 — Phase 1 complete, transitioned to Phase 02
+Last activity: 2026-10-03 — Phase 02 execution started
 
 Progress: [██░░░░░░░░] 17%
 
@@ -63,6 +63,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 01 P05 | 14 min | 2 tasks | 9 files |
 | Phase 1 P06 | 25 min | 3 tasks | 12 files |
 | Phase 1 P07 | 17 min | 3 tasks | 10 files |
+| Phase 02 P01 | 9 min | 2 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-05: destacado es independiente del estado (VENDIDO no lo desmarca, editar no lo toca); Fase 2 filtra destacado && estado != VENDIDO. Sin tope de destacados.
 - [Phase 1]: 01-06: fotos validadas por magic bytes (JPEG/PNG/WebP), tope 10 MB y 10 por auto; reorden por flechas + Hacer portada (orden 0 = portada) via PUT /fotos/orden con lista completa de ids
 - [Phase 1]: [01-07] Borrado de publicacion en cascada (favoritos+consultas, una transaccion) con aviso de conteo via GET /api/admin/publicaciones/{id}/impacto-eliminacion; assets de Cloudinary solo en afterCommit; ConfirmDialog nativo
+- [Phase 02]: [02-01] Flyway V1/V2/V3 con baseline-version 1 y ddl-auto validate: una base de Hibernate sin historial queda como V1 y recibe solo V2 y V3; cada cambio de entidad exige su migracion
+- [Phase 02]: [02-01] PostgresLocalTestBase usa una base test_* por JVM (shutdown hook) y los tests de Postgres exigen -Ddante.pg.required=true; el humo local corre contra copias descartables via con-back-local.sh
 
 ### Pending Todos
 
@@ -109,6 +112,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-03T16:50:00Z
-Stopped at: Phase 1 complete, ready to plan Phase 02
-Resume file: .planning/phases/02-cat-logo-p-blico-real-en-producci-n/02-CONTEXT.md
+Last session: 2026-10-03T17:35:18.295Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None
