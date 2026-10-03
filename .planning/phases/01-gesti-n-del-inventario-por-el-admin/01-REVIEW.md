@@ -1,204 +1,135 @@
 ---
 phase: 01-gesti-n-del-inventario-por-el-admin
-reviewed: 2026-10-02T00:00:00Z
+reviewed: 2026-10-03T00:00:00Z
 depth: standard
-files_reviewed: 38
+files_reviewed: 33
 files_reviewed_list:
+  - Dockerfile
   - README.md
-  - src/main/java/com/danteautomotores/config/DataSeeder.java
+  - src/main/resources/application.yml
+  - src/main/java/com/danteautomotores/config/SecretosGuard.java
   - src/main/java/com/danteautomotores/config/SecurityConfig.java
-  - src/main/java/com/danteautomotores/controller/AdminPublicacionController.java
-  - src/main/java/com/danteautomotores/controller/PublicacionController.java
-  - src/main/java/com/danteautomotores/dto/publicacion/CambiarDestacadoRequest.java
-  - src/main/java/com/danteautomotores/dto/publicacion/ImpactoEliminacionResponse.java
-  - src/main/java/com/danteautomotores/dto/publicacion/PublicacionResponse.java
-  - src/main/java/com/danteautomotores/dto/publicacion/ReordenarFotosRequest.java
-  - src/main/java/com/danteautomotores/entity/FotoPublicacion.java
-  - src/main/java/com/danteautomotores/entity/Publicacion.java
+  - src/main/java/com/danteautomotores/dto/publicacion/AnioDeModelo.java
+  - src/main/java/com/danteautomotores/dto/publicacion/PublicacionRequest.java
   - src/main/java/com/danteautomotores/exception/GlobalExceptionHandler.java
-  - src/main/java/com/danteautomotores/exception/ServicioExternoException.java
-  - src/main/java/com/danteautomotores/mapper/PublicacionMapper.java
-  - src/main/java/com/danteautomotores/repository/ConsultaRepository.java
-  - src/main/java/com/danteautomotores/repository/FavoritoRepository.java
+  - src/main/java/com/danteautomotores/exception/ReglaDeNegocioException.java
   - src/main/java/com/danteautomotores/repository/PublicacionRepository.java
-  - src/main/java/com/danteautomotores/repository/UsuarioRepository.java
-  - src/main/java/com/danteautomotores/security/JwtAuthenticationFilter.java
-  - src/main/java/com/danteautomotores/security/RestAccessDeniedHandler.java
-  - src/main/java/com/danteautomotores/security/RestAuthenticationEntryPoint.java
   - src/main/java/com/danteautomotores/service/AgenciaService.java
-  - src/main/java/com/danteautomotores/service/CloudinaryService.java
+  - src/main/java/com/danteautomotores/service/AuthService.java
+  - src/main/java/com/danteautomotores/service/ConsultaService.java
+  - src/main/java/com/danteautomotores/service/FavoritoService.java
   - src/main/java/com/danteautomotores/service/ImagenValidator.java
   - src/main/java/com/danteautomotores/service/PublicacionService.java
-  - src/main/resources/application.yml
-  - src/test/java/com/danteautomotores/ (12 test files, skimmed: PublicacionServiceTest, SeguridadWebMvcTestBase, DataSeederTest in detail)
-  - ../danteautomotores-front/src/components/ConfirmDialog.jsx
-  - ../danteautomotores-front/src/components/ProtectedRoute.jsx
+  - src/main/java/com/danteautomotores/service/CloudinaryService.java
+  - src/main/java/com/danteautomotores/security/JwtService.java
+  - src/main/java/com/danteautomotores/security/JwtAuthenticationFilter.java
+  - src/main/java/com/danteautomotores/mapper/PublicacionMapper.java
+  - src/main/java/com/danteautomotores/mapper/AgenciaMapper.java
+  - src/main/java/com/danteautomotores/mapper/FavoritoMapper.java
+  - src/main/java/com/danteautomotores/mapper/ConsultaMapper.java
+  - src/main/java/com/danteautomotores/entity/Publicacion.java
+  - src/test/java/com/danteautomotores/config/SecretosGuardTest.java
+  - src/test/java/com/danteautomotores/exception/GlobalExceptionHandlerTest.java
+  - src/test/java/com/danteautomotores/service/PublicacionServiceTest.java
+  - src/test/java/com/danteautomotores/service/TransaccionesServiceTest.java
   - ../danteautomotores-front/src/context/AuthContext.jsx
-  - ../danteautomotores-front/src/pages/LoginPage.jsx
   - ../danteautomotores-front/src/pages/admin/AdminDashboardPage.jsx
   - ../danteautomotores-front/src/pages/admin/AdminPublicacionFormPage.jsx
-  - ../danteautomotores-front/src/services/api.js
   - ../danteautomotores-front/src/utils/errores.js
+  - src/test/java/com/danteautomotores/ (remaining fix-touched tests skimmed: PublicacionRequestValidationTest, CorsOrigenesTest, AgenciaServiceTest, AuthServiceTest, ImagenValidatorTest, AgenciaControllerTest)
 findings:
-  critical: 1
-  warning: 11
-  info: 8
-  total: 20
+  critical: 0
+  warning: 2
+  info: 12
+  total: 14
 status: issues_found
 ---
 
-# Phase 1: Code Review Report
+# Phase 1: Code Review Report (re-review after fixes)
 
-**Reviewed:** 2026-10-02
+**Reviewed:** 2026-10-03
 **Depth:** standard
-**Files Reviewed:** 38 (back and front repos)
+**Files Reviewed:** 33 (back and front repos)
 **Status:** issues_found
 
 ## Summary
 
-The phase is generally well built. Errors share one format, the photo validator checks magic bytes, the cascade delete runs in one transaction, and the Cloudinary cleanup runs after commit. The orchestrator's specific concerns came out as follows.
+I checked each prior finding (CR-01, WR-01 to WR-11) against the current source, not against the fix report. All twelve are fixed. Two have a residual that is tracked as a new finding (CR-01 gives WR-12; WR-01 gives WR-13 and IN-10). No blocker remains. The fixes introduced no functional regression in the areas the orchestrator listed.
 
-- **Cloudinary cleanup in `eliminar` and `eliminarFoto`:** correct. The `afterCommit` registration happens inside an active transaction. A rollback skips the Cloudinary delete. `CloudinaryService.eliminar` swallows its own failures, so a failure there cannot undo a committed delete. The weak spots are listed below (WR-02, IN-04).
-- **Open redirect via `from`:** not exploitable. `from` is built by the app from `window.location` or the router location and travels in history `state`, not in the URL. `LoginPage` also rejects values that don't start with `/` and values that start with `//`. No finding.
-- **`JwtAuthenticationFilter` exception handling:** correct for the cases it targets. An invalid token is cleared and the request continues, so protected routes return 401 and public routes still work. It swallows some failures silently (IN-03).
-- **`DataSeeder` secret handling:** the password is never logged, and it is hashed with BCrypt. The seeder's `prod` guard does not cover the more dangerous default JWT secret (CR-01).
-- **Search input accessible name:** confirmed (WR-08).
+Verification results:
 
-## Critical Issues
+| ID | Status | Evidence |
+|----|--------|----------|
+| CR-01 | Fixed for the Docker path. The guard is fail-open outside the exact profile `prod` (see WR-12). | `SecretosGuard.java:33-47` throws under `prod` for a blank or placeholder JWT secret and for the dev DB password. `Dockerfile:15` sets `ENV SPRING_PROFILES_ACTIVE=prod`. |
+| WR-01 | Fixed for the three photo operations. Held-lock side effects are WR-13. `eliminar()` is still unlocked (IN-10). | `PublicacionRepository.java:19-21` has `@Lock(PESSIMISTIC_WRITE)` with `select p from Publicacion p`. It is used in `agregarFoto`, `reordenarFotos` and `eliminarFoto` through `buscarEntidadParaEscritura`. The lock is taken before the lazy `fotos` collection is read, so the cap and `max(orden)+1` see current state. The query has no join, so Postgres does not reject `FOR UPDATE` on a nullable side of an outer join. |
+| WR-02 | Fixed. One edge case is IN-11. | `PublicacionService.java:190-192, 295-307`. The synchronization is registered right after `subir`, and nothing between the upload and the registration can throw. A `subir` failure registers nothing, which is correct. Validation and the 10-photo cap run before the upload. |
+| WR-03 | Fixed. | `PublicacionRequest.java` and `AnioDeModelo.java`. Limits match the columns (`varchar(255)`, `numeric(12,2)`). Optional fields stay nullable. The year ceiling is computed at validation time. The front end already enforces at least 10 characters and ARS/USD, so no legitimate payload from the UI is rejected. |
+| WR-04 | Fixed and complete. | Every `throw new IllegalArgumentException` in `src/main` became `ReglaDeNegocioException` (grep: AgenciaService, AuthService, FavoritoService, ImagenValidator, PublicacionService). The only remaining `IllegalArgumentException` reference is the catch in `JwtAuthenticationFilter:58`, which is correct. Spring-originated argument errors are still mapped to 400 by `ResponseEntityExceptionHandler`: type mismatch, unreadable body and missing part. Other `IllegalArgumentException`s now reach `handleUnexpected`, which logs them and returns a generic 500. |
+| WR-05 | Fixed. | `SecurityConfig.java:74-77` trims and drops empty entries. |
+| WR-06 | Fixed in the way the review suggested. A silent-rounding side effect is IN-09. | `AdminPublicacionFormPage.jsx:86`. |
+| WR-07 | Fixed. | `AdminPublicacionFormPage.jsx:91-94, 158-160, 427-481`. A null value loads as `''` and the payload sends `null`. The new-car defaults are unchanged. |
+| WR-08 | Fixed. | `AdminDashboardPage.jsx:392, 440`. |
+| WR-09 | Fixed. | `AuthContext.jsx:9-18`. |
+| WR-10 | Fixed. | `errores.js:11-18`. |
+| WR-11 | Fixed. | Class-level `@Transactional` on `PublicacionService`, `FavoritoService` and `ConsultaService`. `buscar`, `obtenerPorId`, `listarParaAdmin` and `obtenerImpactoEliminacion` are `readOnly`. `open-in-view: false` is set. |
 
-### CR-01: Default JWT secret is committed and nothing blocks it from reaching production
+Open-in-view regression check. Every mapper that reads a lazy association runs inside a transaction:
+- `PublicacionMapper` reads `agencia` and `fotos`.
+- `FavoritoMapper` reads `publicacion`, then `PublicacionMapper`.
+- `ConsultaMapper` reads `publicacion.getId()`, which is safe on a proxy.
+- `AgenciaMapper` touches only scalar columns, so `AgenciaService` correctly needs no transaction.
+- No controller, `DataSeeder`, `CustomUserDetailsService` or the JWT filter touches lazy state. A grep of `controller/` found no repository or entity access.
 
-**File:** `src/main/resources/application.yml:30` (also `config/DataSeeder.java:98-103`)
-**Issue:** `app.jwt.secret` falls back to `CAMBIAR_ESTE_SECRETO_POR_UNO_PROPIO_DE_AL_MENOS_32_CARACTERES`. That string is 62 characters long and public in the repo, so it passes the key-length check. If `APP_JWT_SECRET` is missing on Railway or Render, the app boots normally and signs tokens with a known key. Anyone who knows the admin's email can then forge `{"sub":"<admin email>"}` and get ADMIN access.
-
-This phase added a fail-fast guard for the missing admin variables, but only under the `prod` profile. The Dockerfile does not set that profile. The datasource password also falls back to `dante_dev_password` (`application.yml:14`).
-
-**Fix:** Remove the default so the app fails to start when the secret is unset, or reject the placeholder explicitly.
-```yaml
-app:
-  jwt:
-    secret: ${APP_JWT_SECRET}   # no default
-```
-Or add a `@PostConstruct` check in `JwtService` that throws when the secret starts with `CAMBIAR_`. Put the dev default in `application-dev.yml` instead. Also set `SPRING_PROFILES_ACTIVE=prod` in the Dockerfile `ENV`, or invert the logic so that only a `dev` profile is lenient.
+Cloudinary cleanup on rollback and commit paths is correct. `eliminarImagenesDespuesDelCommit` runs after commit and `eliminarImagenSiNoHayCommit` runs after a non-commit. Both only register when synchronization is active, and `CloudinaryService.eliminar` never throws.
 
 ## Warnings
 
-### WR-01: `agregarFoto` can exceed the 10-photo cap and duplicate `orden` under concurrent uploads
+### WR-12: `SecretosGuard` is fail-open and does not enforce the 32-character minimum it advertises (residual of CR-01)
 
-**File:** `src/main/java/com/danteautomotores/service/PublicacionService.java:176-205`
-**Issue:** The cap check (`getFotos().size() >= MAX_FOTOS`) and the `max(orden)+1` calculation read a snapshot, with no lock and no unique constraint on `(publicacion_id, orden)`. Two simultaneous uploads for the same car both pass the check and both get the same `orden`. The front end uploads sequentially, but nothing on the server enforces that. Duplicate orders make the cover photo ambiguous. The mapper's tie-break is unstable (see IN-06).
+**File:** `src/main/java/com/danteautomotores/config/SecretosGuard.java:33-47` (and `Dockerfile:15`, `security/JwtService.java:19-21`)
+**Issue:**
+1. The guard aborts only when the active profile is exactly `prod`. Any other value for `SPRING_PROFILES_ACTIVE` disables it silently: `production`, `railway`, `staging`, or an override that drops `prod`. The same applies to any deployment that does not use the Dockerfile, such as Railway's native Spring Boot build mentioned in the project docs. The only signal is one `log.warn`. In that case the app boots with the public placeholder secret, and anyone who knows the admin email can forge an ADMIN token, which is exactly the original CR-01 scenario. The original review offered the inverted logic ("only a `dev` profile is lenient") as an alternative. The fix chose opt-in strictness, so the safe default depends on deploy configuration.
+2. The guard rejects a blank secret or the exact placeholder. A short secret supplied through the environment (for example `APP_JWT_SECRET=abc`) passes. The README and the message both say "at least 32 characters", but nothing enforces it. `Keys.hmacShaKeyFor` then throws `WeakKeyException` on the first `generateToken`, so every login and registration returns a generic 500 instead of failing at startup.
 
-**Fix:** Take a pessimistic lock when loading the publication for photo mutations, for example `@Lock(PESSIMISTIC_WRITE)` on a `findByIdForUpdate` repository method used by `agregarFoto`, `reordenarFotos` and `eliminarFoto`. Or add `@Version` to `Publicacion`.
-
-### WR-02: Orphan Cloudinary asset when the DB write or commit fails after a successful upload
-
-**File:** `src/main/java/com/danteautomotores/service/PublicacionService.java:176-205`
-**Issue:** `agregarFoto` is `@Transactional` and calls `cloudinaryService.subir` inside the transaction. If `fotoPublicacionRepository.save` or the commit then fails (connection loss, constraint violation, a concurrent delete of the car), the transaction rolls back but the image stays in Cloudinary. No row points to it, so it is never cleaned up. The delete path is carefully "after commit", but the upload path has no matching compensation.
-
-**Fix:** Register a compensating action for rollback.
+**Fix:** Make the lenient mode opt-in instead of the strict mode.
 ```java
-TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-    @Override public void afterCompletion(int status) {
-        if (status != STATUS_COMMITTED) cloudinaryService.eliminar(subida.publicId());
-    }
-});
+boolean dev = environment.acceptsProfiles(Profiles.of("dev", "test", "default"));
+// ...
+if (!dev) throw new IllegalStateException(mensaje);
 ```
-Alternatively, upload first outside the transaction and persist in a short transaction with `try/catch` cleanup.
-
-### WR-03: `PublicacionRequest` has almost no server-side validation, so bad data returns a misleading 409
-
-**File:** `src/main/java/com/danteautomotores/dto/publicacion/PublicacionRequest.java:12-37` (with `GlobalExceptionHandler.java:58-62`)
-**Issue:** The validation gaps are:
-- `anio` has only `@NotNull`, so 0, -5 or 99999 pass.
-- `kilometraje` accepts negative values.
-- `moneda` is any free string, although the UI only offers ARS and USD.
-- `marca`, `modelo`, `color` and `descripcion` have no `@Size`.
-- `precio` has no `@Digits`, although the column is `numeric(12,2)`.
-
-A name over 255 characters or a price over 10 digits fails at the database. `handleDataIntegrity` then returns 409 "No se pudo completar la operación porque hay datos relacionados", which is wrong and unhelpful for an input problem. The front end enforces "description of at least 10 characters" (`AdminPublicacionFormPage.jsx:142`), but the server does not, so the two disagree.
-
-**Fix:** Add `@Min(1900) @Max(<currentYear+1>)` on `anio`, `@PositiveOrZero` on `kilometraje`, `@Pattern(regexp="ARS|USD")` on `moneda`, `@Size(max=255)` on the string fields, and `@Digits(integer=10, fraction=2)` on `precio`. Decide whether `descripcion` has a minimum and apply it on both sides.
-
-### WR-04: `IllegalArgumentException` handler echoes arbitrary internal messages to the client
-
-**File:** `src/main/java/com/danteautomotores/exception/GlobalExceptionHandler.java:41-44`
-**Issue:** Any `IllegalArgumentException` becomes a 400 with `ex.getMessage()`. Business rules throw it on purpose, but so do Spring, Hibernate, Spring Data and JDK internals (for example, an invalid entity state or an argument check). Those messages can leak class and property names, and they report a server bug as a client error. The same handler also hides real 500s from monitoring, because it logs nothing.
-
-**Fix:** Throw a dedicated `ReglaDeNegocioException` for deliberate rule violations and map only that to 400. Let `IllegalArgumentException` fall through to `handleUnexpected`, which logs it and returns a generic 500. If the broad handler stays, add at least `log.debug`.
-
-### WR-05: CORS origins are not trimmed
-
-**File:** `src/main/java/com/danteautomotores/config/SecurityConfig.java:72`
-**Issue:** `allowedOrigins.split(",")` keeps the whitespace. The README documents "orígenes separados por coma". A natural value like `https://a.vercel.app, https://b.com` gives the second origin a leading space, and the browser then blocks every request from it.
-
-**Fix:**
+Alternatively, keep `prod` but also fail when no profile at all is active outside tests. Add a length check in the same method:
 ```java
-configuration.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
-        .map(String::trim).filter(s -> !s.isEmpty()).toList());
+if (jwtSecret.getBytes(StandardCharsets.UTF_8).length < 32) {
+    fallarOAvisar("APP_JWT_SECRET tiene menos de 32 bytes");
+}
 ```
+Add test cases for a short secret and for a profile other than `prod`. Also use the same charset in `JwtService.key()` (`secret.getBytes()` uses the platform default).
 
-### WR-06: Editing a car with a decimal price corrupts the displayed price, and the next keystroke corrupts the saved value
+### WR-13: Row lock and DB connection are held across the Cloudinary upload, with no lock timeout
 
-**File:** `../danteautomotores-front/src/pages/admin/AdminPublicacionFormPage.jsx:58-62, 84, 488-489`
-**Issue:** The column is `numeric(12,2)` and the backend accepts decimals. `publicacionAForm` puts `String(p.precio)` into the form, for example `"12500.5"`. `formatearPrecio` strips every non-digit, so the input displays `125.005`, which is ten times the real price. Any edit to the field runs `e.target.value.replace(/\D/g,'')`, and the stored value becomes `125005`. A save without touching the field sends the correct raw value, which hides the bug until someone edits the price.
+**File:** `src/main/java/com/danteautomotores/service/PublicacionService.java:180-211` (with `repository/PublicacionRepository.java:19-21` and `service/CloudinaryService.java:27-39`)
+**Issue:** The WR-01 fix makes `agregarFoto` take `PESSIMISTIC_WRITE` on the publication row and then call `cloudinaryService.subir` (a network upload of up to 10 MB) while still inside the transaction. Three consequences:
+- The lock and a Hikari connection are held for the whole upload.
+- No lock timeout is configured (`jakarta.persistence.lock.timeout` is unset), and `CloudinaryConfig` sets no connect or read timeout on the SDK. If Cloudinary stalls, every other photo operation on that car (reorder, delete, a second upload) waits on the row lock indefinitely. Each waiter holds a pool connection and a Tomcat thread, so a few stalled uploads can exhaust the pool for the whole API, including public reads.
+- The admin UI uploads files one after another, so normal use serializes, but the stall scenario is a server-side exposure.
 
-**Fix:** Store the price as an integer, or parse it properly.
-```js
-precio: p.precio != null ? String(Math.round(Number(p.precio))) : '',
+The concurrency behavior (the cap and duplicate `orden`) is still only covered by Mockito tests, as the fix report notes. No real concurrent run was done.
+
+**Fix:** Bound the wait and the upload.
+```java
+@Lock(LockModeType.PESSIMISTIC_WRITE)
+@QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "5000"))
+@Query("select p from Publicacion p where p.id = :id")
+Optional<Publicacion> findByIdForUpdate(@Param("id") Long id);
 ```
-Better, decide that prices are whole numbers. In that case validate with `@Digits(fraction=0)` on the server and round at load time.
-
-### WR-07: Editing a car silently overwrites unset transmission, fuel and condition with defaults
-
-**File:** `../danteautomotores-front/src/pages/admin/AdminPublicacionFormPage.jsx:87-90, 148-154`
-**Issue:** `publicacionAForm` maps a null `transmision`, `combustible` or `condicion` to `'MANUAL'`, `'NAFTA'` or `'BUENO'`. These fields are nullable in the entity, and legacy rows can have nulls. The edit form has no "unspecified" option, and the PUT always sends the whole form. Saving any edit therefore writes invented values to the database. The admin would see a plausible value and not notice the data was invented.
-
-**Fix:** Add an empty "Sin especificar" option and keep null as `''`. Send `null` for `''` in the payload. If the fields are meant to be mandatory, mark them `@NotNull` on the server and show them as required.
-
-### WR-08: Dashboard search input and status select have no accessible name
-
-**File:** `../danteautomotores-front/src/pages/admin/AdminDashboardPage.jsx:388-397, 438-448`
-**Issue:** The search `<label>` wraps only an icon (`Search`, no text) and the `<input>`. The only name left is the placeholder, which is a weak fallback in the accessible-name computation and disappears once the user types. Several assistive technologies don't announce it reliably. The aria-label was removed to satisfy a grep count, which is the wrong reason to drop it. The per-row status `<select>` has no label at all, so a screen reader reads "combobox, Disponible" with no context.
-
-**Fix:**
-```jsx
-<input type="text" aria-label="Buscar por marca o modelo" ... />
-<select aria-label={`Estado de ${p.marca} ${p.modelo}`} ... />
-```
-
-### WR-09: `AuthProvider` crashes the whole app on corrupt `localStorage`
-
-**File:** `../danteautomotores-front/src/context/AuthContext.jsx:8-11`
-**Issue:** `JSON.parse(guardado)` in the `useState` initializer has no `try/catch`. If `usuario` holds invalid JSON (an extension, a manual edit, a half-written value), the provider throws on mount. The whole tree unmounts to a blank page, and there is no error boundary, so the user can't recover without clearing storage by hand.
-
-**Fix:**
-```js
-const [usuario, setUsuario] = useState(() => {
-  try { return JSON.parse(localStorage.getItem('usuario') ?? 'null') }
-  catch { localStorage.removeItem('usuario'); localStorage.removeItem('token'); return null }
-})
-```
-
-### WR-10: `mensajeDeError` discards the field messages and shows raw property names
-
-**File:** `../danteautomotores-front/src/utils/errores.js:8-11`
-**Issue:** For validation errors it returns `Datos inválidos (agenciaId, precio)`. It joins only the keys of `campos` and drops the Spanish messages the backend sends. The user sees Java property names (`telefonoContacto`, `agenciaId`) and no reason.
-
-**Fix:** Return `Object.values(campos).join('. ')`, or `Object.entries(campos).map(([k,v]) => `${k}: ${v}`).join('\n')`. Spanish labels per field would be better still.
-
-### WR-11: `PublicacionService` mixes transactional and non-transactional methods and relies on Open-Session-In-View
-
-**File:** `src/main/java/com/danteautomotores/service/PublicacionService.java:54-135`
-**Issue:** `buscar`, `obtenerPorId`, `crear`, `actualizar` and `cambiarEstado` have no `@Transactional`. Yet `PublicacionMapper.toResponse` reads lazy associations (`agencia`, `fotos`). `actualizar` and `cambiarEstado` load the entity, then the mapper reads the `fotos` collection after the repository call has returned. This works only because `spring.jpa.open-in-view` defaults to true. Turning it off, which Boot recommends and warns about at startup, would cause `LazyInitializationException` in these paths. `actualizar` and `cambiarEstado` also run a read, a write and a read as separate units, while `cambiarDestacado` is `@Transactional`, so the class is inconsistent.
-
-**Fix:** Annotate the class with `@Transactional` and mark read-only methods with `@Transactional(readOnly = true)`. Set `spring.jpa.open-in-view: false` and add a test that exercises the mapper outside a session.
+Map `PessimisticLockingFailureException` and `CannotAcquireLockException` to a 409 or 503 with a Spanish message in `GlobalExceptionHandler`. Set explicit Cloudinary timeouts (`"timeout"` or `"connection_timeout"` in `ObjectUtils.asMap`). Optionally, upload before opening the transaction, then take the lock only to check the cap, compute `orden` and insert, keeping the compensation on failure. Add one real concurrent test (`@DataJpaTest` with two threads) for the cap.
 
 ## Info
 
 ### IN-01: Login shows "Email o contraseña incorrectos" for every failure
 
 **File:** `../danteautomotores-front/src/pages/LoginPage.jsx:31-33`
-**Issue:** The bare `catch` shows a wrong-credentials message for a network failure, a 500 or a 502 too. Someone who types the right password during a backend outage is told it's wrong.
+**Issue:** The bare `catch` shows a wrong-credentials message for a network failure, a 500 or a 502 too. Someone who types the right password during a backend outage is told it's wrong. This is more visible now that a short JWT secret in a misconfigured prod gives a 500 on every login (WR-12).
 **Fix:** Show that message only when `err.response?.status === 401`. Otherwise use `mensajeDeError(err, ...)`.
 
 ### IN-02: `ConfirmDialog` can lose sync with its parent and lacks an accessible name
@@ -215,13 +146,13 @@ const [usuario, setUsuario] = useState(() => {
 
 ### IN-04: Cloudinary deletes run synchronously after commit with no retry or reconciliation
 
-**File:** `src/main/java/com/danteautomotores/service/PublicacionService.java:266-283`
-**Issue:** `afterCommit` loops over up to 10 sequential Cloudinary calls on the request thread, so the 204 waits for all of them. A Cloudinary failure is only logged, so the asset stays orphaned and nothing records it. The design trades a possible orphan for safety, which is reasonable, but nothing lets the admin find or fix orphans later.
+**File:** `src/main/java/com/danteautomotores/service/PublicacionService.java:274-291`
+**Issue:** `afterCommit` loops over up to 10 sequential Cloudinary calls on the request thread, so the 204 waits for all of them. A Cloudinary failure is only logged, so the asset stays orphaned and nothing records it. The design trades a possible orphan for safety, which is reasonable, but nothing lets the admin find or fix orphans later. The new rollback compensation (`eliminarImagenSiNoHayCommit`) has the same property.
 **Fix:** Send the deletes through an `@Async` executor, or write the `public_id` to a `cloudinary_pendientes` table and clean it up with a scheduled job. At minimum log at `error` with the `public_id` so orphans can be recovered from the log.
 
 ### IN-05: Agency slug generation yields empty or dash-terminated slugs
 
-**File:** `src/main/java/com/danteautomotores/service/AgenciaService.java:90-97`
+**File:** `src/main/java/com/danteautomotores/service/AgenciaService.java:91-98`
 **Issue:** `trim()` runs before the punctuation is removed. `"Dante !"` becomes `"dante "` and then `"dante-"`. A name made only of symbols or emoji gives `""`, and `GET /api/agencias/{slug}` can't reach that agency. Names with non-Latin characters also lose all their letters.
 **Fix:** Strip the punctuation first, then `trim()`, then collapse whitespace and dashes. Use a fallback like `"agencia"` when the result is empty.
 
@@ -233,23 +164,47 @@ const [usuario, setUsuario] = useState(() => {
 
 ### IN-07: Documentation drift in the README
 
-**File:** `README.md:20, 46, 62-65`
-**Issue:** The README says Postgres runs on port 5432, but `docker-compose.yml` maps `5433:5432` and the default JDBC URL uses 5433. It says "Maven + JDK 25", but the Dockerfile uses JDK 21. The test instructions point at `jdk-17` with `-Djava.version=17`. The project's baseline is Java 21.
+**File:** `README.md:20, 44, 53, 58`
+**Issue:** The README says Postgres runs on port 5432, but `docker-compose.yml` maps `5433:5432` and the default JDBC URL uses 5433. It says "Maven + JDK 25", but the Dockerfile uses JDK 21. The test instructions point at `jdk-17` with `-Djava.version=17`. The project's baseline is Java 21. The fix commit edited the prod-variables table but did not touch these lines.
 **Fix:** Update those lines so they match the compose file, the Dockerfile and `pom.xml`.
 
 ### IN-08: Smaller issues in seeding, build config and tests
 
-**File:** `src/main/java/com/danteautomotores/config/DataSeeder.java:70-93`; `src/main/resources/application.yml:17-21`; `src/test/java/com/danteautomotores/service/PublicacionServiceTest.java`
+**File:** `src/main/java/com/danteautomotores/config/DataSeeder.java:70-93`; `src/main/resources/application.yml:19-24`; `src/test/java/com/danteautomotores/service/PublicacionServiceTest.java`; `../danteautomotores-front/src/pages/admin/AdminPublicacionFormPage.jsx:121-134`
 **Issue:**
 - `DataSeeder` doesn't trim or lowercase `ADMIN_EMAIL`. A trailing space from a pasted env var creates an admin who can't log in. `contains("@")` is a very weak email check.
-- `show-sql: true` and `ddl-auto: update` apply in every profile, including production. SQL is dumped to the logs, and the schema is changed automatically with no migrations.
-- The service tests are all Mockito-only. Nothing exercises a real transaction, so the `afterCommit` ordering, orphan removal, `orden` persistence through dirty checking, and the cascade delete order are untested end to end. Only the synchronization registration is simulated by hand.
-- If loading a publication fails in edit mode, the form stays in edit mode with the default empty values. A PUT from that blank form would overwrite the car.
+- `show-sql: true` and `ddl-auto: update` apply in every profile, including production, so the new `prod`-by-default Docker image still dumps SQL to the logs and changes the schema automatically with no migrations.
+- The service tests are all Mockito-only. Nothing exercises a real transaction, so the `afterCommit` ordering, orphan removal, `orden` persistence through dirty checking, the cascade delete order and the new pessimistic lock are untested end to end. The new rollback tests simulate synchronization callbacks by hand.
+- If loading a publication fails in edit mode, the form stays in edit mode with `FORM_INICIAL` defaults (Manual, Nafta, Bueno, empty text). A PUT from that blank form would overwrite the car. WR-07 fixed the null-on-load case but not this one.
 
-**Fix:** Normalize the seeder email with `trim().toLowerCase()`. Move `show-sql` and `ddl-auto` to a dev profile. Add one `@DataJpaTest` or `@SpringBootTest` with Testcontainers or H2 for delete and reorder. Disable the edit form when the load fails.
+**Fix:** Normalize the seeder email with `trim().toLowerCase()`. Move `show-sql` and `ddl-auto` to a dev profile. Add one `@DataJpaTest` or `@SpringBootTest` with Testcontainers or H2 for delete, reorder and the lock. Disable the edit form when the load fails.
+
+### IN-09: Editing a car now silently rounds a stored price with cents, while the server still accepts cents
+
+**File:** `../danteautomotores-front/src/pages/admin/AdminPublicacionFormPage.jsx:84-86` (and `dto/publicacion/PublicacionRequest.java:39`)
+**Issue:** The WR-06 fix rounds the price on load. A car stored at 12999.99 (USD, for example) shows as 13000, and the next save of any unrelated field writes 13000 without telling the admin. The server contract still allows two decimals (`@Digits(integer=10, fraction=2)`), so the two sides disagree about what a price is. The review's suggested fix said to decide that prices are whole numbers and validate that on the server too. This was not done.
+**Fix:** Decide on whole-number prices, then use `@Digits(integer = 10, fraction = 0)` and round or migrate existing rows. Or support decimals in the input (keep the fraction, format with a decimal separator). At minimum, skip sending `precio` when it was not edited.
+
+### IN-10: `eliminar` does not take the publication lock that the photo operations now use
+
+**File:** `src/main/java/com/danteautomotores/service/PublicacionService.java:154-167`
+**Issue:** `eliminar` loads the car with plain `findById` and collects `public_id`s from the photos visible at that moment. A concurrent `agregarFoto` that commits in between adds a photo the delete never saw. The `DELETE` on `publicaciones` then fails on the foreign key, and `handleDataIntegrity` returns a misleading 409 "hay datos relacionados". No data is lost, because the transaction rolls back. The Cloudinary cleanup for that photo is not at risk either, but the admin gets a confusing error.
+**Fix:** Use `buscarEntidadParaEscritura(id)` in `eliminar` so the delete and the photo mutations serialize.
+
+### IN-11: The upload compensation also deletes the image when the commit outcome is `STATUS_UNKNOWN`
+
+**File:** `src/main/java/com/danteautomotores/service/PublicacionService.java:299-306`
+**Issue:** `afterCompletion` deletes the image for every status other than `STATUS_COMMITTED`, which includes `STATUS_UNKNOWN` (a heuristic outcome or a connection lost during commit). If the database actually committed the row, the image is destroyed and the published car points to a dead URL. This is rare, and the alternative is an orphan, but a dead cover photo is the worse failure.
+**Fix:** Delete only on `STATUS_ROLLED_BACK`. For `STATUS_UNKNOWN`, log at `error` with the `public_id` and leave the asset alone.
+
+### IN-12: `AuthService.login` throws a 400 with the same text that the handler returns as a 401
+
+**File:** `src/main/java/com/danteautomotores/service/AuthService.java:49-50`
+**Issue:** After `authenticationManager.authenticate` succeeds, the `orElseThrow` raises `ReglaDeNegocioException("Credenciales inválidas")`, which maps to 400. The branch is effectively unreachable, but if a user is deleted between the two calls, the client sees 400 where every other credential failure is 401. The WR-04 conversion made this inconsistency explicit.
+**Fix:** Throw `BadCredentialsException("Credenciales inválidas")` there.
 
 ---
 
-_Reviewed: 2026-10-02_
+_Reviewed: 2026-10-03_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_

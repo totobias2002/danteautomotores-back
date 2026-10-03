@@ -28,8 +28,14 @@ updated: 2026-10-03T02:49:07Z
 | IN-06 | info | open | - |
 | IN-07 | info | open | - |
 | IN-08 | info | open | - |
+| IN-12 | info | open | - |
+| IN-11 | info | open | - |
+| IN-10 | info | open | - |
+| IN-09 | info | open | - |
+| WR-13 | warning | open | - |
+| WR-12 | warning | open | - |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 
-open: 8
-total: 20
+open: 14
+total: 26
