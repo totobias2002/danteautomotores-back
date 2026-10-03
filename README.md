@@ -31,15 +31,15 @@ Ver `src/main/resources/application.yml`. Para producción, sobreescribir `app.j
 | `PORT` | Puerto HTTP (Railway/Render la inyectan solos). |
 | `SPRING_DATASOURCE_URL` | URL JDBC de la base Postgres, ej: `jdbc:postgresql://host:5432/db`. |
 | `SPRING_DATASOURCE_USERNAME` | Usuario de la base. |
-| `SPRING_DATASOURCE_PASSWORD` | Contraseña de la base. |
-| `APP_JWT_SECRET` | Secreto para firmar JWT — al menos 32 caracteres, distinto al de desarrollo. |
+| `SPRING_DATASOURCE_PASSWORD` | Contraseña de la base. Con el perfil `prod`, el backend no arranca si se deja la contraseña de desarrollo del repo. |
+| `APP_JWT_SECRET` | **Obligatoria en producción.** Secreto para firmar JWT — al menos 32 caracteres y distinto del valor de ejemplo del repo. Con el perfil `prod`, el backend no arranca si falta o si es el valor de ejemplo (que es público: con él cualquiera podría falsificar tokens, incluso de admin). En desarrollo se usa el valor de ejemplo y solo avisa en el log. |
 | `APP_JWT_EXPIRATION_MS` | Duración del token en ms (opcional, default 24hs). |
 | `APP_CORS_ALLOWED_ORIGINS` | Orígenes permitidos separados por coma, ej: `https://mi-app.vercel.app`. |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Credenciales de Cloudinary para las fotos. |
 | `ADMIN_EMAIL` | Email de la cuenta admin. Solo se usa para crear la cuenta si no existe ningún admin; no puede ser el de una cuenta ya registrada. |
 | `ADMIN_PASSWORD` | Contraseña de la cuenta admin (mínimo 8 caracteres). Solo se usa para crear la cuenta si no existe ningún admin; cambiarla después no modifica la cuenta. |
 | `ADMIN_NOMBRE` | Nombre visible del admin (por ejemplo, Dante). Mismo uso que `ADMIN_EMAIL`. |
-| `SPRING_PROFILES_ACTIVE` | Perfil de Spring. Con `prod`, el backend no arranca si faltan (o son inválidas) las variables del admin y todavía no existe ninguno. Sin `prod`, solo avisa en el log y arranca igual. |
+| `SPRING_PROFILES_ACTIVE` | Perfil de Spring. El `Dockerfile` lo deja en `prod` por defecto. Con `prod`, el backend no arranca si faltan (o son inválidas) las variables del admin y todavía no existe ninguno, ni si `APP_JWT_SECRET` / `SPRING_DATASOURCE_PASSWORD` son los valores por defecto del repo. Sin `prod`, solo avisa en el log y arranca igual. |
 
 El repo incluye un `Dockerfile` (build multi-stage con Maven + JDK 25) listo para deployar en Railway, Render o cualquier hosting que soporte contenedores.
 
