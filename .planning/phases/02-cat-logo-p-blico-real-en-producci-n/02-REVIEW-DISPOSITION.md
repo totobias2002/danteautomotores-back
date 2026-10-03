@@ -1,7 +1,7 @@
 ---
 phase: 02
 review: 02-REVIEW.md
-updated: 2026-10-03T22:30:00Z
+updated: 2026-10-03T22:10:49Z
 ---
 
 # Code review disposition — Phase 2
@@ -17,15 +17,15 @@ updated: 2026-10-03T22:30:00Z
 | WR-05 | warning | deferred | Decisión de producto del usuario: textos comerciales sin respaldo (financiación, 3% extra, badge Verificado) y botones aún no conectados |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
-| IN-03 | info | open | - |
-| IN-04 | info | open | - |
+| IN-03 | info | fixed | quick 261003-qde |
+| IN-04 | info | fixed | quick 261003-qde |
 | IN-05 | info | open | - |
 | IN-06 | info | open | - |
-| IN-07 | info | open | - |
+| IN-07 | info | fixed | quick 261003-qde |
 | IN-08 | info | open | - |
 | IN-09 | info | open | - |
 | IN-10 | info | open | - |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 
-open: 10
+open: 7
