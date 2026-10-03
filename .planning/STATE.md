@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Catálogo público real en producción
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-10-03T17:35:18.342Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-10-03T17:41:24.776Z"
 last_activity: 2026-10-03
 last_activity_desc: Phase 02 execution started
-state_head: 0d72b8108738a6ca247c09e7ecd60fad991fed0c
+state_head: 13fdb591687ffd0080866332b630f33a7db82465
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 15
-  completed_plans: 8
+  completed_plans: 9
   percent: 17
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-03)
 ## Current Position
 
 Phase: 02 (Catálogo público real en producción) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 Status: Ready to execute
 Last activity: 2026-10-03 — Phase 02 execution started
 
@@ -64,6 +64,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 1 P06 | 25 min | 3 tasks | 12 files |
 | Phase 1 P07 | 17 min | 3 tasks | 10 files |
 | Phase 02 P01 | 9 min | 2 tasks | 21 files |
+| Phase 02 P02 | 21 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,8 @@ Recent decisions affecting current work:
 - [Phase 1]: [01-07] Borrado de publicacion en cascada (favoritos+consultas, una transaccion) con aviso de conteo via GET /api/admin/publicaciones/{id}/impacto-eliminacion; assets de Cloudinary solo en afterCommit; ConfirmDialog nativo
 - [Phase 02]: [02-01] Flyway V1/V2/V3 con baseline-version 1 y ddl-auto validate: una base de Hibernate sin historial queda como V1 y recibe solo V2 y V3; cada cambio de entidad exige su migracion
 - [Phase 02]: [02-01] PostgresLocalTestBase usa una base test_* por JVM (shutdown hook) y los tests de Postgres exigen -Ddante.pg.required=true; el humo local corre contra copias descartables via con-back-local.sh
+- [Phase 02]: 02-02: credenciales de Cloudinary validas = presentes y no vacias; SecretosGuard no llama a Cloudinary al arrancar
+- [Phase 02]: 02-02: solo GET /actuator/health y /actuator/health/** son publicos; el demo aborta si ya hay autos (marca+modelo+anio) salvo FORZAR=1 y LIMPIAR remoto exige CONFIRMAR_BORRADO_EN_PRODUCCION=SI
 
 ### Pending Todos
 
@@ -112,6 +115,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-03T17:35:18.295Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-10-03T17:41:24.729Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
