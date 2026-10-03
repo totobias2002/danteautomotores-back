@@ -26,6 +26,11 @@ app:
     expiration-ms: ${APP_JWT_EXPIRATION_MS:86400000} # 24hs
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  # Cuenta admin sembrada al arrancar si no existe ninguna (ver DataSeeder)
+  admin:
+    email: ${ADMIN_EMAIL:}
+    password: ${ADMIN_PASSWORD:}
+    nombre: ${ADMIN_NOMBRE:}
 
 cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME:}
