@@ -56,6 +56,33 @@ class CatalogoServiceTest {
     }
 
     @Test
+    void unaPaginaMasAllaDelTopeVaALaPrimeraYNuncaRompeElOffset() {
+        for (int cruda : new int[]{CatalogoService.MAX_PAGINA + 1, 90_000_000, Integer.MAX_VALUE}) {
+            FiltrosCatalogo f = new FiltrosCatalogo();
+            f.setPagina(cruda);
+            assertThat(CatalogoService.normalizar(f).getPagina()).as("pagina " + cruda).isEqualTo(1);
+        }
+        FiltrosCatalogo tope = new FiltrosCatalogo();
+        tope.setPagina(CatalogoService.MAX_PAGINA);
+        assertThat(CatalogoService.normalizar(tope).getPagina()).isEqualTo(CatalogoService.MAX_PAGINA);
+    }
+
+    @Test
+    void buscarConUnaPaginaGigantePideLaPrimeraEnVezDeUnOffsetFueraDeInt() {
+        Page<Publicacion> vacia = new PageImpl<>(List.of(), PageRequest.of(0, 24), 0);
+        when(repositorio.findAll(any(Specification.class), any(Pageable.class))).thenReturn(vacia);
+        FiltrosCatalogo f = new FiltrosCatalogo();
+        f.setPagina(90_000_000);
+
+        servicio.buscar(f);
+
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(repositorio).findAll(any(Specification.class), captor.capture());
+        assertThat(captor.getValue().getPageNumber()).isZero();
+        assertThat(captor.getValue().getOffset()).isLessThanOrEqualTo(Integer.MAX_VALUE);
+    }
+
+    @Test
     void elOrdenAceptaMayusculasOMinusculasYLoDesconocidoVaARelevancia() {
         assertThat(OrdenCatalogo.desde("PRECIO_ASC")).isEqualTo(OrdenCatalogo.PRECIO_ASC);
         assertThat(OrdenCatalogo.desde("precio_asc")).isEqualTo(OrdenCatalogo.PRECIO_ASC);

@@ -56,6 +56,8 @@ public class CatalogoService {
 
     // Tamaño de página fijo (D-07): el cliente no lo elige.
     static final int TAMANIO_PAGINA = 24;
+    // 240.000 autos: muy por encima de cualquier inventario real, y con offset holgado dentro de un int.
+    static final int MAX_PAGINA = 10_000;
     static final int MAX_VALORES_POR_FILTRO = 20;
     static final int MAX_LARGO_BUSQUEDA = 60;
     // Los mismos tramos que calculaba el mock del front.
@@ -145,7 +147,10 @@ public class CatalogoService {
      */
     static FiltrosCatalogo normalizar(FiltrosCatalogo crudos) {
         FiltrosCatalogo f = new FiltrosCatalogo();
-        f.setPagina(crudos.getPagina() == null || crudos.getPagina() < 1 ? 1 : crudos.getPagina());
+        // Una página fuera de 1..MAX_PAGINA cae a la primera: un offset mayor que Integer.MAX_VALUE haría lanzar a
+        // Spring Data (500 con stack trace en el log, en un endpoint sin token).
+        Integer pagina = crudos.getPagina();
+        f.setPagina(pagina == null || pagina < 1 || pagina > MAX_PAGINA ? 1 : pagina);
         f.setOrden(OrdenCatalogo.desde(crudos.getOrden()).name());
         String busqueda = crudos.getBusqueda() == null ? "" : crudos.getBusqueda().trim();
         if (busqueda.length() > MAX_LARGO_BUSQUEDA) {

@@ -148,6 +148,12 @@ async function get(ruta) {
     exigir(Array.isArray(cuerpo.contenido) && cuerpo.contenido.length === 0, "contenido no esta vacio");
   });
 
+  await revisar("GET /publicaciones?pagina=90000000 (offset fuera de int) responde 200 en la primera pagina", async () => {
+    const { estado, cuerpo } = await get("/publicaciones?pagina=90000000");
+    exigir(estado === 200, `estado ${estado}`);
+    exigir(cuerpo.pagina === 1, `pagina ${cuerpo.pagina}`);
+  });
+
   await revisar("GET /publicaciones?size=1000&sort=admin.email no cambia el tamano ni rompe", async () => {
     const { estado, cuerpo } = await get("/publicaciones?size=1000&sort=admin.email");
     exigir(estado === 200, `estado ${estado}`);
