@@ -20,10 +20,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-02)
+See: .planning/PROJECT.md (updated 2026-10-03)
 
 **Core value:** Un usuario registrado y verificado puede encontrar un auto y hablar con la agencia para comprarlo, o cotizar el suyo, todo dentro de la web, y el admin sabe al 100 % con quién está hablando.
-**Current focus:** Phase 1 — Gestión del inventario por el admin
+**Current focus:** Phase 2 — Catálogo público real en producción
 
 ## Current Position
 
@@ -95,7 +95,9 @@ None yet.
 
 - [Phase 5]: Proveedor de precios sin elegir; la investigación del proyecto se omitió, así que se investiga al inicio de la Fase 5 (InfoAuto, ACARA, API de Mercado Libre, etc.; costo y acceso pueden condicionar la elección)
 - [Phase 3]: Login con Google requiere credenciales OAuth y URIs de redirect de producción; DNI y teléfono quedan alcanzados por la Ley 25.326
-- [General]: Sin tests automatizados (QA-V2-01 está diferido a v2); la verificación de cada fase es manual/UAT
+- [General]: Hay 172 tests de back (Fase 1), pero no hay tests de front ni de navegador; la verificación visual de cada fase sigue siendo UAT manual
+- [Phase 2]: El deploy (Railway/Vercel), el backup y la migración de la base de producción y la carga de la demo requieren credenciales del usuario: quedan como checkpoints humanos
+- [Local]: Solo hay JDK 17 instalado; el back se compila con -Djava.version=17
 
 ## Deferred Items
 
@@ -107,6 +109,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-03T07:55:29.414Z
+Last session: 2026-10-03T16:50:00Z
 Stopped at: Phase 1 complete, ready to plan Phase 02
 Resume file: .planning/phases/02-cat-logo-p-blico-real-en-producci-n/02-CONTEXT.md

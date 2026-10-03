@@ -27,11 +27,12 @@ Un usuario registrado y verificado puede encontrar un auto y hablar con la agenc
 - ✓ Front: catálogo estilo Kavak, detalle de publicación, home con video, sección de financiamiento — existing (parcialmente con datos mock)
 - ✓ Front: panel admin estilo Mercado Libre con CRUD de publicaciones — existing
 - ✓ Config por variables de entorno, Dockerfile y actuator, para deploy en Railway/Render + Vercel — existing
+- ✓ Una única cuenta admin (sembrada desde `ADMIN_*`) que gestiona todas las publicaciones de varias agencias: crear, editar, eliminar con conteo de consultas/favoritos, fotos en Cloudinary (validación por contenido, tope de 10, orden y portada), estados disponible/reservado/vendido y destacados — Phase 1
+- ✓ Errores de la API con formato uniforme (`{"error"}` / `{"error","campos"}`), 401/403 en JSON y sesión vencida que lleva al login y vuelve a la página de origen — Phase 1
 
 ### Active
 
 - [ ] Front conectado al backend real en todas las páginas (eliminar `catalogoMock.js` y `USE_MOCK_DATA`)
-- [ ] Una única cuenta admin que gestiona todas las publicaciones (crear, editar, eliminar, fotos, estados disponible/reservado/vendido)
 - [ ] Registro obligatorio para cotizar o comprar, con teléfono y DNI obligatorios
 - [ ] Login con Google funcional; el usuario que entra con Google debe completar teléfono y DNI antes de operar
 - [ ] Botón "Lo quiero" en la publicación, que abre una conversación de compra con el admin atada a ese auto (opcionalmente con el auto del usuario como parte de pago)
@@ -55,7 +56,8 @@ Un usuario registrado y verificado puede encontrar un auto y hablar con la agenc
 - Brownfield: el backend ya tiene auth JWT, publicaciones, agencias, consultas y favoritos. El front tiene diseño avanzado pero varias páginas usan mocks (Home, Autos, Agencia, Detalle).
 - Hoy "Cotizá tu usado" y la compra solo abren WhatsApp (`utils/whatsapp.js`, con un número placeholder). El navbar ya tiene "Vender tu auto" sin flujo detrás.
 - La entidad `Consulta` existente (contacto anónimo sobre una publicación) probablemente se reemplace o evolucione hacia el modelo de conversaciones con usuario registrado.
-- Deuda conocida (ver `.planning/codebase/CONCERNS.md`): no hay tests, sin `@ControllerAdvice`, el filtro JWT devuelve 500 ante tokens malformados, no se validan tipos de archivo en uploads, búsqueda sin paginación, `ddl-auto: update`, secret JWT por defecto y el split de CORS no recorta espacios.
+- Deuda conocida (ver `.planning/codebase/CONCERNS.md`): búsqueda sin paginación, `ddl-auto: update`, `show-sql` y secret JWT por defecto en el yml base, y el split de CORS no recorta espacios (la Fase 2 lo cierra). La Fase 1 resolvió los tests (172 en el back), el `@ControllerAdvice`, el 500 ante tokens malformados y la validación de uploads.
+- El entorno local tiene solo JDK 17: el back se compila y se prueba con `-Djava.version=17`.
 - Las APIs de precios de autos en Argentina (InfoAuto, ACARA) suelen ser pagas o requerir convenio; la investigación debe evaluar alternativas (por ejemplo, la API de Mercado Libre con publicaciones comparables).
 - Los datos personales (DNI, teléfono) se guardan y se muestran al admin; hay que considerar protección de datos personales (Ley 25.326).
 
@@ -78,7 +80,10 @@ Un usuario registrado y verificado puede encontrar un auto y hablar con la agenc
 | Registro obligatorio con teléfono + DNI | El admin necesita saber con certeza con quién habla | — Pending |
 | Login con Google + completar perfil | Baja la fricción del registro obligatorio | — Pending |
 | Precio estimado desde una API externa detrás de una interfaz | Precisión de mercado; la interfaz permite cambiar de proveedor o usar un fallback | — Pending |
-| Una sola cuenta admin | Pedido actual del negocio | — Pending |
+| Una sola cuenta admin | Pedido actual del negocio | ✓ Good — sembrada al arrancar desde `ADMIN_*`, el registro público solo crea compradores (Phase 1) |
+| Varias agencias gestionadas por el único admin | El negocio tiene sucursales; el auto pertenece a una agencia | ✓ Good — ABM de agencias con baja segura (Phase 1) |
+| Destacado independiente del estado | El admin decide qué se muestra en la Home sin tocar el estado | ✓ Good (Phase 1) |
+| Subida a Cloudinary fuera de la transacción, con lock corto y compensación | Una subida lenta no debe retener locks ni conexiones de la base | ✓ Good — WR-13 (Phase 1) |
 
 ## Evolution
 
@@ -98,4 +103,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-02 after initialization*
+*Last updated: 2026-10-03 after Phase 1*
