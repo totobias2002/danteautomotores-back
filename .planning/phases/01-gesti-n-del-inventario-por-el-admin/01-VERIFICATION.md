@@ -4,11 +4,47 @@ verified: 2026-10-03T03:05:00Z
 status: human_needed
 score: 8/10 must-haves verified
 covered_files:
+  - .planning/phases/01-gesti-n-del-inventario-por-el-admin/01-01-PLAN.md
+  - .planning/phases/01-gesti-n-del-inventario-por-el-admin/01-01-SUMMARY.md
+  - .planning/phases/01-gesti-n-del-inventario-por-el-admin/01-02-PLAN.md
+  - .planning/phases/01-gesti-n-del-inventario-por-el-admin/01-02-SUMMARY.md
+  - .planning/phases/01-gesti-n-del-inventario-por-el-admin/01-03-PLAN.md
+  - .planning/phases/01-gesti-n-del-inventario-por-el-admin/01-03-SUMMARY.md
+  - .planning/phases/01-gesti-n-del-inventario-por-el-admin/01-04-PLAN.md
+  - .planning/phases/01-gesti-n-del-inventario-por-el-admin/01-04-SUMMARY.md
+  - .planning/phases/01-gesti-n-del-inventario-por-el-admin/01-05-PLAN.md
+  - .planning/phases/01-gesti-n-del-inventario-por-el-admin/01-05-SUMMARY.md
+  - .planning/phases/01-gesti-n-del-inventario-por-el-admin/01-06-PLAN.md
+  - .planning/phases/01-gesti-n-del-inventario-por-el-admin/01-06-SUMMARY.md
+  - .planning/phases/01-gesti-n-del-inventario-por-el-admin/01-07-PLAN.md
+  - .planning/phases/01-gesti-n-del-inventario-por-el-admin/01-07-SUMMARY.md
+  - README.md
   - src/main/java/com/danteautomotores/config/DataSeeder.java
   - src/main/java/com/danteautomotores/config/SecurityConfig.java
+  - src/main/java/com/danteautomotores/controller/AdminPublicacionController.java
+  - src/main/java/com/danteautomotores/controller/PublicacionController.java
+  - src/main/java/com/danteautomotores/dto/publicacion/CambiarDestacadoRequest.java
+  - src/main/java/com/danteautomotores/dto/publicacion/ImpactoEliminacionResponse.java
+  - src/main/java/com/danteautomotores/dto/publicacion/PublicacionResponse.java
+  - src/main/java/com/danteautomotores/dto/publicacion/ReordenarFotosRequest.java
+  - src/main/java/com/danteautomotores/entity/FotoPublicacion.java
+  - src/main/java/com/danteautomotores/entity/Publicacion.java
   - src/main/java/com/danteautomotores/exception/GlobalExceptionHandler.java
+  - src/main/java/com/danteautomotores/exception/ServicioExternoException.java
+  - src/main/java/com/danteautomotores/mapper/PublicacionMapper.java
+  - src/main/java/com/danteautomotores/repository/ConsultaRepository.java
+  - src/main/java/com/danteautomotores/repository/FavoritoRepository.java
+  - src/main/java/com/danteautomotores/repository/PublicacionRepository.java
+  - src/main/java/com/danteautomotores/repository/UsuarioRepository.java
+  - src/main/java/com/danteautomotores/security/JwtAuthenticationFilter.java
+  - src/main/java/com/danteautomotores/security/RestAccessDeniedHandler.java
+  - src/main/java/com/danteautomotores/security/RestAuthenticationEntryPoint.java
+  - src/main/java/com/danteautomotores/service/AgenciaService.java
+  - src/main/java/com/danteautomotores/service/CloudinaryService.java
+  - src/main/java/com/danteautomotores/service/ImagenValidator.java
   - src/main/java/com/danteautomotores/service/PublicacionService.java
-covered_digest: "v2:sha256:a6f3a0f2c877ac293322e2a7fe57aa5cb6dbf2442487e5d3c37fcfa0804c7f2a"
+  - src/main/resources/application.yml
+covered_digest: "v2:sha256:4302bdcbb3a916c85dc2712b5ba2ba59bab6650ebec98cb7bc713920ed83c3c5"
 behavior_unverified: 1
 overrides_applied: 0
 re_verification: false
