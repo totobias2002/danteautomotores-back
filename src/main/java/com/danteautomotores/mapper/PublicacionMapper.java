@@ -13,12 +13,24 @@ public class PublicacionMapper {
     private PublicacionMapper() {
     }
 
+    // Única regla de oferta (D-03), de la que dependen la card, el detalle y el filtro: hay oferta solo si el precio
+    // anterior es mayor que el actual. compareTo y no equals: 120.00 y 120 son el mismo precio.
+    public static boolean esOferta(Publicacion publicacion) {
+        return publicacion.getPrecioAnterior() != null
+                && publicacion.getPrecio() != null
+                && publicacion.getPrecioAnterior().compareTo(publicacion.getPrecio()) > 0;
+    }
+
     public static PublicacionResponse toResponse(Publicacion publicacion) {
         return PublicacionResponse.builder()
                 .id(publicacion.getId())
                 .agenciaId(publicacion.getAgencia().getId())
                 .agenciaNombre(publicacion.getAgencia().getNombre())
                 .agenciaSlug(publicacion.getAgencia().getSlug())
+                .tipoCarroceria(publicacion.getTipoCarroceria())
+                .precioAnterior(publicacion.getPrecioAnterior())
+                .oferta(esOferta(publicacion))
+                .agenciaZona(publicacion.getAgencia().getZona())
                 .marca(publicacion.getMarca())
                 .modelo(publicacion.getModelo())
                 .anio(publicacion.getAnio())
@@ -58,6 +70,10 @@ public class PublicacionMapper {
                 .agenciaId(publicacion.getAgencia().getId())
                 .agenciaNombre(publicacion.getAgencia().getNombre())
                 .agenciaSlug(publicacion.getAgencia().getSlug())
+                .tipoCarroceria(publicacion.getTipoCarroceria())
+                .precioAnterior(publicacion.getPrecioAnterior())
+                .oferta(esOferta(publicacion))
+                .agenciaZona(publicacion.getAgencia().getZona())
                 .fotoPortada(publicacion.getFotos().stream()
                         .min(Comparator.comparing((FotoPublicacion f) -> f.getOrden() == null ? 0 : f.getOrden()))
                         .map(FotoPublicacion::getUrl)

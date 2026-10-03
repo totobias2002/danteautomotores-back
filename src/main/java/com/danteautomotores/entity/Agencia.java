@@ -1,5 +1,6 @@
 package com.danteautomotores.entity;
 
+import com.danteautomotores.enums.ZonaAgencia;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -36,6 +37,10 @@ public class Agencia {
 
     @Column(name = "email_contacto")
     private String emailContacto;
+
+    // Zona para el filtro de ubicación (D-02); los autos de la agencia la heredan.
+    @Enumerated(EnumType.STRING)
+    private ZonaAgencia zona;
 
     @Column(name = "fecha_alta")
     private LocalDateTime fechaAlta;

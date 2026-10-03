@@ -3,6 +3,7 @@ package com.danteautomotores.entity;
 import com.danteautomotores.enums.Combustible;
 import com.danteautomotores.enums.Condicion;
 import com.danteautomotores.enums.EstadoPublicacion;
+import com.danteautomotores.enums.TipoCarroceria;
 import com.danteautomotores.enums.Transmision;
 import jakarta.persistence.*;
 import lombok.*;
@@ -58,6 +59,14 @@ public class Publicacion {
     private Combustible combustible;
 
     private String color;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_carroceria")
+    private TipoCarroceria tipoCarroceria;
+
+    // Precio previo para la regla de oferta (D-03): es oferta si es mayor que el precio actual.
+    @Column(name = "precio_anterior", precision = 12, scale = 2)
+    private BigDecimal precioAnterior;
 
     @Enumerated(EnumType.STRING)
     private Condicion condicion;

@@ -13,6 +13,7 @@ import com.danteautomotores.entity.Publicacion;
 import com.danteautomotores.entity.Usuario;
 import com.danteautomotores.enums.EstadoPublicacion;
 import com.danteautomotores.enums.Rol;
+import com.danteautomotores.enums.TipoCarroceria;
 import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.exception.ServicioExternoException;
 import com.danteautomotores.repository.AgenciaRepository;
@@ -160,6 +161,53 @@ class PublicacionServiceTest {
                 .hasMessage("No existe una agencia con id: 99");
 
         verify(publicacionRepository, never()).save(any());
+    }
+
+    @Test
+    void crearCopiaTipoCarroceriaYPrecioAnteriorDelRequest() {
+        stubAdminAutenticado();
+        when(agenciaRepository.findById(2L)).thenReturn(Optional.of(agencia(2L, "Sucursal")));
+        PublicacionRequest request = requestValido(2L);
+        request.setTipoCarroceria(TipoCarroceria.PICKUP);
+        request.setPrecioAnterior(new BigDecimal("18000"));
+
+        publicacionService.crear(request);
+
+        ArgumentCaptor<Publicacion> guardada = ArgumentCaptor.forClass(Publicacion.class);
+        verify(publicacionRepository).save(guardada.capture());
+        assertThat(guardada.getValue().getTipoCarroceria()).isEqualTo(TipoCarroceria.PICKUP);
+        assertThat(guardada.getValue().getPrecioAnterior()).isEqualByComparingTo("18000");
+    }
+
+    @Test
+    void actualizarReemplazaTipoCarroceriaYPrecioAnterior() {
+        Publicacion existente = publicacionExistente(false);
+        existente.setTipoCarroceria(TipoCarroceria.SEDAN);
+        existente.setPrecioAnterior(new BigDecimal("20000"));
+        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(existente));
+        when(agenciaRepository.findById(1L)).thenReturn(Optional.of(existente.getAgencia()));
+        PublicacionRequest request = requestValido(1L);
+        request.setTipoCarroceria(TipoCarroceria.SUV);
+        request.setPrecioAnterior(new BigDecimal("17000"));
+
+        publicacionService.actualizar(10L, request);
+
+        assertThat(existente.getTipoCarroceria()).isEqualTo(TipoCarroceria.SUV);
+        assertThat(existente.getPrecioAnterior()).isEqualByComparingTo("17000");
+    }
+
+    @Test
+    void actualizarConTipoYPrecioAnteriorNulosLosBorra() {
+        Publicacion existente = publicacionExistente(false);
+        existente.setTipoCarroceria(TipoCarroceria.SEDAN);
+        existente.setPrecioAnterior(new BigDecimal("20000"));
+        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(existente));
+        when(agenciaRepository.findById(1L)).thenReturn(Optional.of(existente.getAgencia()));
+
+        publicacionService.actualizar(10L, requestValido(1L));
+
+        assertThat(existente.getTipoCarroceria()).isNull();
+        assertThat(existente.getPrecioAnterior()).isNull();
     }
 
     private static CambiarDestacadoRequest destacadoRequest(boolean valor) {

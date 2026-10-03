@@ -1,7 +1,9 @@
 package com.danteautomotores.dto.publicacion;
 
 import com.danteautomotores.enums.EstadoPublicacion;
+import com.danteautomotores.enums.TipoCarroceria;
 import com.danteautomotores.enums.Transmision;
+import com.danteautomotores.enums.ZonaAgencia;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -33,6 +35,10 @@ public class PublicacionResumenResponse {
     private Long agenciaId;
     private String agenciaNombre;
     private String agenciaSlug;
+    private ZonaAgencia agenciaZona;
+    private TipoCarroceria tipoCarroceria;
+    private BigDecimal precioAnterior;
+    private boolean oferta;
     private String fotoPortada;
     private LocalDateTime fechaPublicacion;
 }

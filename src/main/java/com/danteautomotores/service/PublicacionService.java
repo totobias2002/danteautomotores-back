@@ -108,6 +108,8 @@ public class PublicacionService {
                 .transmision(request.getTransmision())
                 .combustible(request.getCombustible())
                 .color(request.getColor())
+                .tipoCarroceria(request.getTipoCarroceria())
+                .precioAnterior(request.getPrecioAnterior())
                 .condicion(request.getCondicion())
                 .descripcion(request.getDescripcion())
                 .build();
@@ -132,6 +134,8 @@ public class PublicacionService {
         publicacion.setTransmision(request.getTransmision());
         publicacion.setCombustible(request.getCombustible());
         publicacion.setColor(request.getColor());
+        publicacion.setTipoCarroceria(request.getTipoCarroceria());
+        publicacion.setPrecioAnterior(request.getPrecioAnterior());
         publicacion.setCondicion(request.getCondicion());
         publicacion.setDescripcion(request.getDescripcion());
 

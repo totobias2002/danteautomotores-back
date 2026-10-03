@@ -111,6 +111,47 @@ class PublicacionRequestValidationTest {
     }
 
     @Test
+    void sinPrecioAnteriorNiTipoEsValido() {
+        PublicacionRequest request = valido();
+        request.setPrecioAnterior(null);
+        request.setTipoCarroceria(null);
+
+        assertThat(errores(request)).isEmpty();
+    }
+
+    @Test
+    void precioAnteriorCeroONegativoSeRechazaSenalandoElCampo() {
+        for (String valor : new String[]{"0", "-1", "-0.01"}) {
+            PublicacionRequest request = valido();
+            request.setPrecioAnterior(new BigDecimal(valor));
+            assertThat(errores(request)).containsKey("precioAnterior");
+        }
+    }
+
+    @Test
+    void precioAnteriorConMasDigitosQueLaColumnaSeRechaza() {
+        PublicacionRequest request = valido();
+        request.setPrecioAnterior(new BigDecimal("12345678901"));
+        assertThat(errores(request)).containsKey("precioAnterior");
+
+        request.setPrecioAnterior(new BigDecimal("100.123"));
+        assertThat(errores(request)).containsKey("precioAnterior");
+
+        request.setPrecioAnterior(new BigDecimal("9999999999.99"));
+        assertThat(errores(request)).isEmpty();
+    }
+
+    @Test
+    void precioAnteriorMenorOIgualAlPrecioSeAceptaPeroNoEsOferta() {
+        PublicacionRequest request = valido();
+        request.setPrecioAnterior(new BigDecimal("100"));
+        assertThat(errores(request)).isEmpty();
+
+        request.setPrecioAnterior(request.getPrecio());
+        assertThat(errores(request)).isEmpty();
+    }
+
+    @Test
     void descripcionCortaOExcesivaSeRechaza() {
         PublicacionRequest request = valido();
         request.setDescripcion("corta");

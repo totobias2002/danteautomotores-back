@@ -2,6 +2,7 @@ package com.danteautomotores.dto.publicacion;
 
 import com.danteautomotores.enums.Combustible;
 import com.danteautomotores.enums.Condicion;
+import com.danteautomotores.enums.TipoCarroceria;
 import com.danteautomotores.enums.Transmision;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
@@ -44,6 +45,13 @@ public class PublicacionRequest {
 
     @PositiveOrZero(message = "El kilometraje no puede ser negativo")
     private Integer kilometraje;
+
+    private TipoCarroceria tipoCarroceria;
+
+    // Opcional. Un precio anterior menor o igual al precio no es inválido: simplemente no hay descuento que mostrar (D-03).
+    @Positive(message = "El precio anterior tiene que ser mayor a cero")
+    @Digits(integer = 10, fraction = 2, message = "El precio anterior admite hasta 10 dígitos enteros y 2 decimales")
+    private BigDecimal precioAnterior;
 
     private Transmision transmision;
     private Combustible combustible;
