@@ -3,6 +3,8 @@ package com.danteautomotores.support;
 import com.danteautomotores.config.SecurityConfig;
 import com.danteautomotores.security.JwtAuthenticationFilter;
 import com.danteautomotores.security.JwtService;
+import com.danteautomotores.security.RestAccessDeniedHandler;
+import com.danteautomotores.security.RestAuthenticationEntryPoint;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +24,8 @@ import static org.mockito.Mockito.when;
  * Base para tests @WebMvcTest que ejercitan el SecurityConfig real y el filtro JWT real, sin base de datos.
  * Las subclases agregan su propio @WebMvcTest(controllers = ...) y los @MockBean de los services.
  */
-@Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtService.class})
+@Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtService.class,
+        RestAuthenticationEntryPoint.class, RestAccessDeniedHandler.class})
 @TestPropertySource(properties = {
         "app.jwt.secret=0123456789012345678901234567890123456789",
         "app.jwt.expiration-ms=86400000",
