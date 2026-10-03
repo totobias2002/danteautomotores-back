@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Gestión del inventario por el admin
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-10-03T01:59:47.006Z"
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-10-03T02:06:01.416Z"
 last_activity: 2026-10-02
 last_activity_desc: Phase 1 execution started
-state_head: c66ec8383d8f8ed5f46b392fd2da8ba591ddbbcd
+state_head: d5be501d5ccabd6c6c3753f362754c6adcf90ce4
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 7
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-10-02)
 ## Current Position
 
 Phase: 1 (Gestión del inventario por el admin) — EXECUTING
-Plan: 1 of 7
-Status: Executing Phase 1
+Plan: 2 of 7
+Status: Ready to execute
 Last activity: 2026-10-02 — Phase 1 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -52,6 +52,11 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 1 P01 | 5 min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -64,6 +69,9 @@ Recent decisions affecting current work:
 - [Roadmap]: El admin va antes que el catálogo público (el panel admin ya usa la API real; los mocks están solo en las páginas públicas)
 - [Roadmap]: El deploy a producción (PROD-04) entra en la Fase 2; desde ahí el esquema usa migraciones versionadas y las fases siguientes se verifican en producción
 - [Roadmap]: El modelo de conversaciones (Fase 4) contempla el tipo "cotización" desde el inicio, para la Fase 5
+- [Phase 1]: [01-01] listarParaAdmin() es un metodo aparte; buscar() conserva el default DISPONIBLE (lo cambia la Fase 2)
+- [Phase 1]: [01-01] Filtro JWT: try/catch solo sobre la autenticacion; 401/403 JSON los emiten RestAuthenticationEntryPoint/RestAccessDeniedHandler con cuerpo fijo
+- [Phase 1]: [01-01] Front: sin Bearer hacia /auth/*; el interceptor 401 ignora /auth/* y solo actua si hay token (una sola redireccion)
 
 ### Pending Todos
 
@@ -85,6 +93,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-02T19:27:42.895Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-gesti-n-del-inventario-por-el-admin/01-CONTEXT.md
+Last session: 2026-10-03T02:06:01.399Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: None
