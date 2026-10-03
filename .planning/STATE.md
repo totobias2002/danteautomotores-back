@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 1
 current_phase_name: Gestión del inventario por el admin
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-10-03T02:24:56.267Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-10-03T02:28:36.633Z"
 last_activity: 2026-10-02
 last_activity_desc: Phase 1 execution started
-state_head: c9b54ac58e40972c6948dc1811d5e694306a07c8
+state_head: b64618a7eb755202826c702e72eade378d077f76
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 7
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-02)
 ## Current Position
 
 Phase: 1 (Gestión del inventario por el admin) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-10-02 — Phase 1 execution started
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 1 P01 | 5 min | 3 tasks | 15 files |
 | Phase 1 P02 | 3 min | 2 tasks | 7 files |
 | Phase 1 P03 | 7 min | 2 tasks | 7 files |
+| Phase 1 P04 | 6 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Recent decisions affecting current work:
 - [Phase 1]: [01-02] El seed no sincroniza ni promueve: con ADMIN existente no toca nada y un ADMIN_EMAIL ya registrado falla (prod) o avisa
 - [Phase 1]: [01-02] DataSeeder siembra la agencia inicial solo si no hay ninguna (multiples agencias soportadas); Rol.ADMIN solo aparece en DataSeeder
 - [Phase 1]: 01-03: una agencia con autos no se puede eliminar (400 con mensaje accionable via existsByAgenciaId); AgenciaService.listar() ordena por id
+- [Phase 1]: [01-04] Formato de error uniforme: {error} y en validacion {error:'Datos invalidos', campos:{...}}; un unico advice que extiende ResponseEntityExceptionHandler, sin @ExceptionHandler propio para excepciones de Spring MVC
+- [Phase 1]: [01-04] ServicioExternoException -> 502 con su mensaje; DataIntegrityViolation -> 409 fijo; 500 generico sin detalle interno (solo en log)
 
 ### Pending Todos
 
@@ -98,6 +101,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-03T02:24:56.249Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-10-03T02:28:36.615Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None
