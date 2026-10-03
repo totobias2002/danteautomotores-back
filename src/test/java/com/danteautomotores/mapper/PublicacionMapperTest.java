@@ -9,6 +9,7 @@ import com.danteautomotores.enums.ZonaAgencia;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -77,6 +78,16 @@ class PublicacionMapperTest {
         assertThat(resumen.getPrecioAnterior()).isEqualByComparingTo("120");
         assertThat(resumen.isOferta()).isTrue();
         assertThat(resumen.getAgenciaZona()).isEqualTo(ZonaAgencia.ZONA_NORTE);
+    }
+
+    @Test
+    void ambosMappersExponenLaFechaDeVenta() {
+        Publicacion publicacion = auto("100", null, null);
+        LocalDateTime fecha = LocalDateTime.of(2026, 10, 1, 12, 0);
+        publicacion.setFechaVendido(fecha);
+
+        assertThat(PublicacionMapper.toResponse(publicacion).getFechaVendido()).isEqualTo(fecha);
+        assertThat(PublicacionMapper.toResumen(publicacion).getFechaVendido()).isEqualTo(fecha);
     }
 
     @Test

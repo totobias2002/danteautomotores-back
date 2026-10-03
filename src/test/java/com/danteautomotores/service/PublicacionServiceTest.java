@@ -32,6 +32,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.dao.CannotAcquireLockException;
@@ -46,6 +47,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -94,6 +99,9 @@ class PublicacionServiceTest {
 
     @BeforeEach
     void autenticarComoAdmin() {
+        // @InjectMocks deja el Clock en null: se fija un reloj de prueba (2026-10-01T12:00Z, zona UTC).
+        ReflectionTestUtils.setField(publicacionService, "clock",
+                Clock.fixed(Instant.parse("2026-10-01T12:00:00Z"), ZoneOffset.UTC));
         SecurityContextHolder.getContext()
                 .setAuthentication(new TestingAuthenticationToken("admin@dante.com", null));
     }
@@ -271,6 +279,96 @@ class PublicacionServiceTest {
         assertThat(guardada.getValue().getEstado()).isEqualTo(EstadoPublicacion.VENDIDO);
         assertThat(guardada.getValue().isDestacado()).isTrue();
         assertThat(respuesta.isDestacado()).isTrue();
+    }
+
+    // ---- fecha de venta (D-04) ----
+
+    private static final LocalDateTime AHORA = LocalDateTime.of(2026, 10, 1, 12, 0);
+    private static final LocalDateTime ANTES = LocalDateTime.of(2026, 9, 1, 9, 30);
+
+    private PublicacionResponse cambiarEstadoDe(Publicacion existente, EstadoPublicacion nuevo) {
+        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(existente));
+        CambiarEstadoRequest request = new CambiarEstadoRequest();
+        request.setEstado(nuevo);
+        return publicacionService.cambiarEstado(10L, request);
+    }
+
+    private static Publicacion conEstado(EstadoPublicacion estado, LocalDateTime fechaVendido) {
+        Publicacion p = publicacionExistente(false);
+        p.setEstado(estado);
+        p.setFechaVendido(fechaVendido);
+        return p;
+    }
+
+    @Test
+    void pasarDeDisponibleAVendidoFijaLaFechaConElRelojDelServidor() {
+        Publicacion existente = conEstado(EstadoPublicacion.DISPONIBLE, null);
+
+        PublicacionResponse respuesta = cambiarEstadoDe(existente, EstadoPublicacion.VENDIDO);
+
+        assertThat(existente.getFechaVendido()).isEqualTo(AHORA);
+        assertThat(respuesta.getFechaVendido()).isEqualTo(AHORA);
+    }
+
+    @Test
+    void pasarDeReservadoAVendidoTambienFijaLaFecha() {
+        Publicacion existente = conEstado(EstadoPublicacion.RESERVADO, null);
+
+        cambiarEstadoDe(existente, EstadoPublicacion.VENDIDO);
+
+        assertThat(existente.getFechaVendido()).isEqualTo(AHORA);
+    }
+
+    @Test
+    void volverAMarcarVendidoConservaLaFechaOriginal() {
+        Publicacion existente = conEstado(EstadoPublicacion.VENDIDO, ANTES);
+
+        cambiarEstadoDe(existente, EstadoPublicacion.VENDIDO);
+
+        assertThat(existente.getFechaVendido()).isEqualTo(ANTES);
+    }
+
+    @Test
+    void salirDeVendidoADisponibleBorraLaFecha() {
+        Publicacion existente = conEstado(EstadoPublicacion.VENDIDO, ANTES);
+
+        PublicacionResponse respuesta = cambiarEstadoDe(existente, EstadoPublicacion.DISPONIBLE);
+
+        assertThat(existente.getFechaVendido()).isNull();
+        assertThat(respuesta.getFechaVendido()).isNull();
+    }
+
+    @Test
+    void salirDeVendidoAReservadoBorraLaFecha() {
+        Publicacion existente = conEstado(EstadoPublicacion.VENDIDO, ANTES);
+
+        cambiarEstadoDe(existente, EstadoPublicacion.RESERVADO);
+
+        assertThat(existente.getFechaVendido()).isNull();
+    }
+
+    @Test
+    void crearDejaLaFechaDeVentaEnNull() {
+        stubAdminAutenticado();
+        when(agenciaRepository.findById(2L)).thenReturn(Optional.of(agencia(2L, "Sucursal")));
+
+        publicacionService.crear(requestValido(2L));
+
+        ArgumentCaptor<Publicacion> guardada = ArgumentCaptor.forClass(Publicacion.class);
+        verify(publicacionRepository).save(guardada.capture());
+        assertThat(guardada.getValue().getFechaVendido()).isNull();
+    }
+
+    @Test
+    void actualizarNoTocaNiElEstadoNiLaFechaDeVenta() {
+        Publicacion existente = conEstado(EstadoPublicacion.VENDIDO, ANTES);
+        when(publicacionRepository.findById(10L)).thenReturn(Optional.of(existente));
+        when(agenciaRepository.findById(1L)).thenReturn(Optional.of(existente.getAgencia()));
+
+        publicacionService.actualizar(10L, requestValido(1L));
+
+        assertThat(existente.getEstado()).isEqualTo(EstadoPublicacion.VENDIDO);
+        assertThat(existente.getFechaVendido()).isEqualTo(ANTES);
     }
 
     @Test

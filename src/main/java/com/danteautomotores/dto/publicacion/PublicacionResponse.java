@@ -42,5 +42,6 @@ public class PublicacionResponse {
     private EstadoPublicacion estado;
     private boolean destacado;
     private LocalDateTime fechaPublicacion;
+    private LocalDateTime fechaVendido;
     private List<FotoResponse> fotos;
 }

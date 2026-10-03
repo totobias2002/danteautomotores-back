@@ -88,6 +88,10 @@ public class Publicacion {
     @Column(name = "fecha_publicacion")
     private LocalDateTime fechaPublicacion;
 
+    // La fija solo el servidor al pasar a VENDIDO (D-04); no viaja en ningun request.
+    @Column(name = "fecha_vendido")
+    private LocalDateTime fechaVendido;
+
     @OneToMany(mappedBy = "publicacion", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<FotoPublicacion> fotos = new ArrayList<>();

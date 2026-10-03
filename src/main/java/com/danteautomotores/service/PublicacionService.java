@@ -34,6 +34,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -56,6 +58,7 @@ public class PublicacionService {
     private final CloudinaryService cloudinaryService;
     private final ImagenValidator imagenValidator;
     private final PlatformTransactionManager transactionManager;
+    private final Clock clock;
 
     private static final String MENSAJE_TOPE_FOTOS = "Cada auto puede tener hasta 10 fotos";
     // Tope de la transacción corta de agregarFoto (lock + insert): si tarda más, algo anda mal y se corta.
@@ -145,7 +148,17 @@ public class PublicacionService {
 
     public PublicacionResponse cambiarEstado(Long id, CambiarEstadoRequest request) {
         Publicacion publicacion = buscarEntidad(id);
+        EstadoPublicacion estadoAnterior = publicacion.getEstado();
         publicacion.setEstado(request.getEstado());
+        // D-04: los 30 días de visibilidad cuentan desde que se marcó como vendido; volver a marcarlo no pisa la fecha
+        // y salir de VENDIDO la borra.
+        if (request.getEstado() == EstadoPublicacion.VENDIDO) {
+            if (estadoAnterior != EstadoPublicacion.VENDIDO) {
+                publicacion.setFechaVendido(LocalDateTime.now(clock));
+            }
+        } else {
+            publicacion.setFechaVendido(null);
+        }
         publicacionRepository.save(publicacion);
         return PublicacionMapper.toResponse(publicacion);
     }

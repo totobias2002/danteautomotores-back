@@ -45,6 +45,7 @@ public class PublicacionMapper {
                 .estado(publicacion.getEstado())
                 .destacado(publicacion.isDestacado())
                 .fechaPublicacion(publicacion.getFechaPublicacion())
+                .fechaVendido(publicacion.getFechaVendido())
                 .fotos(publicacion.getFotos().stream()
                         .sorted(Comparator.comparing(f -> f.getOrden() == null ? 0 : f.getOrden()))
                         .map(f -> FotoResponse.builder().id(f.getId()).url(f.getUrl()).orden(f.getOrden()).build())
@@ -79,6 +80,7 @@ public class PublicacionMapper {
                         .map(FotoPublicacion::getUrl)
                         .orElse(null))
                 .fechaPublicacion(publicacion.getFechaPublicacion())
+                .fechaVendido(publicacion.getFechaVendido())
                 .build();
     }
 }

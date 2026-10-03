@@ -41,4 +41,5 @@ public class PublicacionResumenResponse {
     private boolean oferta;
     private String fotoPortada;
     private LocalDateTime fechaPublicacion;
+    private LocalDateTime fechaVendido;
 }
