@@ -6,16 +6,18 @@ import com.danteautomotores.dto.publicacion.PublicacionRequest;
 import com.danteautomotores.dto.publicacion.PublicacionResponse;
 import com.danteautomotores.dto.publicacion.PublicacionResumenResponse;
 import com.danteautomotores.dto.publicacion.ReordenarFotosRequest;
-import com.danteautomotores.enums.EstadoPublicacion;
+import com.danteautomotores.dto.publicacion.FiltrosCatalogo;
+import com.danteautomotores.dto.publicacion.PaginaResponse;
 import com.danteautomotores.service.CatalogoService;
 import com.danteautomotores.service.PublicacionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.math.BigDecimal;
+import java.beans.PropertyEditorSupport;
 import java.util.List;
 
 @RestController
@@ -26,18 +28,25 @@ public class PublicacionController {
     private final PublicacionService publicacionService;
     private final CatalogoService catalogoService;
 
+    // Público (sin token): catálogo paginado de a 24, con filtros y orden resueltos en el servidor.
     @GetMapping
-    public ResponseEntity<List<PublicacionResponse>> buscar(
-            @RequestParam(required = false) String marca,
-            @RequestParam(required = false) String modelo,
-            @RequestParam(required = false) Integer anioMin,
-            @RequestParam(required = false) Integer anioMax,
-            @RequestParam(required = false) BigDecimal precioMin,
-            @RequestParam(required = false) BigDecimal precioMax,
-            @RequestParam(required = false) EstadoPublicacion estado,
-            @RequestParam(required = false) Long agenciaId
-    ) {
-        return ResponseEntity.ok(publicacionService.buscar(marca, modelo, anioMin, anioMax, precioMin, precioMax, estado, agenciaId));
+    public ResponseEntity<PaginaResponse<PublicacionResumenResponse>> buscar(@ModelAttribute FiltrosCatalogo filtros) {
+        return ResponseEntity.ok(catalogoService.buscar(filtros));
+    }
+
+    // Un número de página ilegible (pagina=abc, o fuera de rango) cae a la primera página en vez de dar 400.
+    @InitBinder("filtrosCatalogo")
+    void configurarBinding(WebDataBinder binder) {
+        binder.registerCustomEditor(Integer.class, "pagina", new PropertyEditorSupport() {
+            @Override
+            public void setAsText(String texto) {
+                try {
+                    setValue(texto == null || texto.isBlank() ? null : Integer.valueOf(texto.trim()));
+                } catch (NumberFormatException e) {
+                    setValue(null);
+                }
+            }
+        });
     }
 
     // Público (sin token). La ruta literal gana a /{id} por especificidad.

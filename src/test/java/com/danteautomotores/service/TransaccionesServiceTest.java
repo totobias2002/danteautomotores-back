@@ -46,7 +46,7 @@ class TransaccionesServiceTest {
 
     @Test
     void lasLecturasDePublicacionSonReadOnly() throws Exception {
-        for (String nombre : List.of("buscar", "obtenerPorId", "listarParaAdmin", "obtenerImpactoEliminacion")) {
+        for (String nombre : List.of("obtenerPorId", "listarParaAdmin", "obtenerImpactoEliminacion")) {
             Method metodo = Arrays.stream(PublicacionService.class.getDeclaredMethods())
                     .filter(m -> m.getName().equals(nombre)).findFirst().orElseThrow();
             Transactional transaccional = AnnotatedElementUtils.findMergedAnnotation(metodo, Transactional.class);

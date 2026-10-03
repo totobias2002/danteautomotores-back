@@ -20,7 +20,6 @@ import com.danteautomotores.repository.FavoritoRepository;
 import com.danteautomotores.repository.FotoPublicacionRepository;
 import com.danteautomotores.repository.PublicacionRepository;
 import com.danteautomotores.repository.UsuarioRepository;
-import com.danteautomotores.repository.spec.PublicacionSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,7 +32,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -64,22 +62,7 @@ public class PublicacionService {
     // Tope de la transacción corta de agregarFoto (lock + insert): si tarda más, algo anda mal y se corta.
     private static final int SEGUNDOS_TOPE_TRANSACCION_FOTO = 15;
 
-    @Transactional(readOnly = true)
-    public List<PublicacionResponse> buscar(String marca, String modelo, Integer anioMin, Integer anioMax,
-                                             BigDecimal precioMin, BigDecimal precioMax,
-                                             EstadoPublicacion estado, Long agenciaId) {
-        // Si no se pide un estado puntual, por defecto solo se muestran los autos disponibles
-        // (para que un admin vea también los vendidos/reservados, que pase ?estado=VENDIDO explícitamente).
-        EstadoPublicacion estadoFiltro = estado != null ? estado : EstadoPublicacion.DISPONIBLE;
-
-        return publicacionRepository
-                .findAll(PublicacionSpecification.conFiltros(marca, modelo, anioMin, anioMax, precioMin, precioMax, estadoFiltro, agenciaId))
-                .stream()
-                .map(PublicacionMapper::toResponse)
-                .toList();
-    }
-
-    // Listado del panel admin: todos los estados (el catálogo público sigue filtrando DISPONIBLE en buscar()),
+    // Listado del panel admin: todos los estados (el catálogo público paginado vive en CatalogoService),
     // los más recientes primero.
     @Transactional(readOnly = true)
     public List<PublicacionResponse> listarParaAdmin() {

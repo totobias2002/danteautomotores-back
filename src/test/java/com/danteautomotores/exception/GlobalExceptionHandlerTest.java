@@ -126,7 +126,7 @@ class GlobalExceptionHandlerTest extends SeguridadWebMvcTestBase {
 
     @Test
     void errorNoControladoDevuelve500GenericoSinDetalleInterno() throws Exception {
-        when(publicacionService.buscar(any(), any(), any(), any(), any(), any(), any(), any()))
+        when(catalogoService.buscar(any()))
                 .thenThrow(new RuntimeException("detalle interno secreto"));
 
         mvc.perform(get("/api/publicaciones"))
