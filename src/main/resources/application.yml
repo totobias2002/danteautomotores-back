@@ -1,5 +1,9 @@
 server:
   port: ${PORT:8080}
+  tomcat:
+    # Cuánto de un upload rechazado (por pasarse de max-file-size) Tomcat sigue leyendo para poder contestar
+    # el 413 en vez de cortar la conexión. Acotado a propósito: nunca -1 (ilimitado).
+    max-swallow-size: 50MB
 
 spring:
   application:
@@ -17,8 +21,9 @@ spring:
         format_sql: true
   servlet:
     multipart:
+      # Una foto pesa hasta 10 MB; max-request-size deja un margen para el resto de las partes del multipart.
       max-file-size: 10MB
-      max-request-size: 10MB
+      max-request-size: 12MB
 
 app:
   jwt:
