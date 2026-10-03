@@ -1,5 +1,6 @@
 package com.danteautomotores.service;
 
+import com.danteautomotores.dto.publicacion.CambiarDestacadoRequest;
 import com.danteautomotores.dto.publicacion.CambiarEstadoRequest;
 import com.danteautomotores.dto.publicacion.PublicacionRequest;
 import com.danteautomotores.dto.publicacion.PublicacionResponse;
@@ -114,6 +115,16 @@ public class PublicacionService {
     public PublicacionResponse cambiarEstado(Long id, CambiarEstadoRequest request) {
         Publicacion publicacion = buscarEntidad(id);
         publicacion.setEstado(request.getEstado());
+        publicacionRepository.save(publicacion);
+        return PublicacionMapper.toResponse(publicacion);
+    }
+
+    // destacado es independiente del estado: solo este método lo modifica (ni crear, ni actualizar,
+    // ni cambiarEstado lo tocan).
+    @Transactional
+    public PublicacionResponse cambiarDestacado(Long id, CambiarDestacadoRequest request) {
+        Publicacion publicacion = buscarEntidad(id);
+        publicacion.setDestacado(request.getDestacado());
         publicacionRepository.save(publicacion);
         return PublicacionMapper.toResponse(publicacion);
     }

@@ -29,6 +29,7 @@ public class PublicacionMapper {
                 .condicion(publicacion.getCondicion())
                 .descripcion(publicacion.getDescripcion())
                 .estado(publicacion.getEstado())
+                .destacado(publicacion.isDestacado())
                 .fechaPublicacion(publicacion.getFechaPublicacion())
                 .fotos(publicacion.getFotos().stream()
                         .sorted(Comparator.comparing(f -> f.getOrden() == null ? 0 : f.getOrden()))

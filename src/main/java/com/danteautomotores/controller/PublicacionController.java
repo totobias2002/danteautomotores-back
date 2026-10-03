@@ -1,5 +1,6 @@
 package com.danteautomotores.controller;
 
+import com.danteautomotores.dto.publicacion.CambiarDestacadoRequest;
 import com.danteautomotores.dto.publicacion.CambiarEstadoRequest;
 import com.danteautomotores.dto.publicacion.PublicacionRequest;
 import com.danteautomotores.dto.publicacion.PublicacionResponse;
@@ -53,6 +54,11 @@ public class PublicacionController {
     @PatchMapping("/{id}/estado")
     public ResponseEntity<PublicacionResponse> cambiarEstado(@PathVariable Long id, @Valid @RequestBody CambiarEstadoRequest request) {
         return ResponseEntity.ok(publicacionService.cambiarEstado(id, request));
+    }
+
+    @PatchMapping("/{id}/destacado")
+    public ResponseEntity<PublicacionResponse> cambiarDestacado(@PathVariable Long id, @Valid @RequestBody CambiarDestacadoRequest request) {
+        return ResponseEntity.ok(publicacionService.cambiarDestacado(id, request));
     }
 
     @DeleteMapping("/{id}")

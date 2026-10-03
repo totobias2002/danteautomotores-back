@@ -34,6 +34,7 @@ public class PublicacionResponse {
     private Condicion condicion;
     private String descripcion;
     private EstadoPublicacion estado;
+    private boolean destacado;
     private LocalDateTime fechaPublicacion;
     private List<FotoResponse> fotos;
 }

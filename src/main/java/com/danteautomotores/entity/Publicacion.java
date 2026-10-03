@@ -6,6 +6,7 @@ import com.danteautomotores.enums.EstadoPublicacion;
 import com.danteautomotores.enums.Transmision;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -67,6 +68,13 @@ public class Publicacion {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private EstadoPublicacion estado = EstadoPublicacion.DISPONIBLE;
+
+    // @ColumnDefault: sin default, ddl-auto: update genera "boolean not null" y PostgreSQL no puede
+    // agregar la columna a una tabla que ya tiene filas. @Builder.Default: sin él el builder ignora el "= false".
+    @Column(nullable = false)
+    @ColumnDefault("false")
+    @Builder.Default
+    private boolean destacado = false;
 
     @Column(name = "fecha_publicacion")
     private LocalDateTime fechaPublicacion;
