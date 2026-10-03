@@ -19,7 +19,14 @@ class SecretosGuardTest {
     private static final String SECRETO_PROPIO = "un-secreto-propio-de-mas-de-treinta-y-dos-caracteres";
     private static final String DB_PROPIA = "clave-propia-de-la-base";
 
+    private static final String CLOUDINARY_VALIDO = "credencial-cloudinary-propia";
+
     private SecretosGuard guard(String jwtSecret, String dbPassword, String... perfiles) {
+        return guardConCloudinary(CLOUDINARY_VALIDO, CLOUDINARY_VALIDO, CLOUDINARY_VALIDO, jwtSecret, dbPassword, perfiles);
+    }
+
+    private SecretosGuard guardConCloudinary(String cloudName, String apiKey, String apiSecret,
+                                             String jwtSecret, String dbPassword, String... perfiles) {
         MockEnvironment environment = new MockEnvironment();
         if (perfiles.length > 0) {
             environment.setActiveProfiles(perfiles);
@@ -27,6 +34,9 @@ class SecretosGuardTest {
         SecretosGuard guard = new SecretosGuard(environment);
         ReflectionTestUtils.setField(guard, "jwtSecret", jwtSecret);
         ReflectionTestUtils.setField(guard, "dbPassword", dbPassword);
+        ReflectionTestUtils.setField(guard, "cloudinaryCloudName", cloudName);
+        ReflectionTestUtils.setField(guard, "cloudinaryApiKey", apiKey);
+        ReflectionTestUtils.setField(guard, "cloudinaryApiSecret", apiSecret);
         return guard;
     }
 
@@ -126,5 +136,68 @@ class SecretosGuardTest {
         guard(SECRETO_PROPIO, DB_PROPIA).afterPropertiesSet();
 
         assertThat(output.getAll()).doesNotContain("APP_JWT_SECRET").doesNotContain("SPRING_DATASOURCE_PASSWORD");
+    }
+
+    @Test
+    void prodConCloudinaryCompleto_arranca() {
+        assertThatCode(() -> guardConCloudinary("mi-nube", "123456", "secreto-cloud", SECRETO_PROPIO, DB_PROPIA, "prod")
+                .afterPropertiesSet())
+                .doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"cloudName", "apiKey", "apiSecret"})
+    void prodConUnaCredencialDeCloudinaryVacia_noArranca(String faltante) {
+        assertThatThrownBy(() -> guardConCloudinary(
+                "cloudName".equals(faltante) ? "" : CLOUDINARY_VALIDO,
+                "apiKey".equals(faltante) ? "" : CLOUDINARY_VALIDO,
+                "apiSecret".equals(faltante) ? "" : CLOUDINARY_VALIDO,
+                SECRETO_PROPIO, DB_PROPIA, "prod").afterPropertiesSet())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("CLOUDINARY")
+                .hasMessageNotContaining(CLOUDINARY_VALIDO);
+    }
+
+    @Test
+    void prodConCredencialesDeCloudinaryEnBlancoONulas_noArranca() {
+        assertThatThrownBy(() -> guardConCloudinary("   ", CLOUDINARY_VALIDO, CLOUDINARY_VALIDO,
+                SECRETO_PROPIO, DB_PROPIA, "prod").afterPropertiesSet())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("CLOUDINARY_CLOUD_NAME");
+        assertThatThrownBy(() -> guardConCloudinary(CLOUDINARY_VALIDO, null, CLOUDINARY_VALIDO,
+                SECRETO_PROPIO, DB_PROPIA, "prod").afterPropertiesSet())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("CLOUDINARY_API_KEY");
+    }
+
+    @Test
+    void prodYDevMezcladosSinCloudinary_noArranca() {
+        assertThatThrownBy(() -> guardConCloudinary("", "", "", SECRETO_PROPIO, DB_PROPIA, "prod", "dev")
+                .afterPropertiesSet())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("CLOUDINARY");
+    }
+
+    @Test
+    void sinPerfilSinCloudinary_arrancaYAvisa(CapturedOutput output) {
+        assertThatCode(() -> guardConCloudinary("", "", "", SECRETO_PROPIO, DB_PROPIA).afterPropertiesSet())
+                .doesNotThrowAnyException();
+
+        assertThat(output.getAll()).contains("CLOUDINARY");
+    }
+
+    @Test
+    void perfilDevSinCloudinary_arrancaYAvisa(CapturedOutput output) {
+        assertThatCode(() -> guardConCloudinary("", "", "", SECRETO_PROPIO, DB_PROPIA, "dev").afterPropertiesSet())
+                .doesNotThrowAnyException();
+
+        assertThat(output.getAll()).contains("CLOUDINARY");
+    }
+
+    @Test
+    void sinPerfilConCloudinaryCompleto_noAvisaDeCloudinary(CapturedOutput output) {
+        guard(SECRETO_PROPIO, DB_PROPIA).afterPropertiesSet();
+
+        assertThat(output.getAll()).doesNotContain("CLOUDINARY");
     }
 }

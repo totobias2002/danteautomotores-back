@@ -16,6 +16,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Locale;
+
 /**
  * Siembra, al arrancar, la agencia inicial y la cuenta admin a partir de variables de entorno.
  * Ningún endpoint crea ni promueve admins: esta es la única vía.
@@ -67,11 +69,13 @@ public class DataSeeder implements ApplicationRunner {
             log.info("Ya existe una cuenta admin; el seed no la modifica");
             return;
         }
-        if (estaEnBlanco(adminEmail) || estaEnBlanco(adminPassword) || estaEnBlanco(adminNombre)) {
+        // El login busca el email exacto: un espacio o una mayúscula de más en la variable dejaría un admin que no puede entrar.
+        String email = adminEmail == null ? "" : adminEmail.trim().toLowerCase(Locale.ROOT);
+        if (estaEnBlanco(email) || estaEnBlanco(adminPassword) || estaEnBlanco(adminNombre)) {
             fallarOAvisar("Faltan las variables ADMIN_EMAIL, ADMIN_PASSWORD o ADMIN_NOMBRE y no existe ninguna cuenta admin");
             return;
         }
-        if (!adminEmail.contains("@")) {
+        if (!email.contains("@")) {
             fallarOAvisar("ADMIN_EMAIL no es un email válido");
             return;
         }
@@ -80,18 +84,18 @@ public class DataSeeder implements ApplicationRunner {
             return;
         }
         // Nunca se promueve una cuenta existente (por ejemplo, un comprador) a admin.
-        if (usuarioRepository.existsByEmail(adminEmail)) {
+        if (usuarioRepository.existsByEmail(email)) {
             fallarOAvisar("ADMIN_EMAIL ya pertenece a una cuenta que no es admin; usá otro email");
             return;
         }
 
         usuarioRepository.save(Usuario.builder()
                 .nombre(adminNombre)
-                .email(adminEmail)
+                .email(email)
                 .passwordHash(passwordEncoder.encode(adminPassword))
                 .rol(Rol.ADMIN)
                 .build());
-        log.info("Cuenta admin creada para {}", adminEmail);
+        log.info("Cuenta admin creada para {} (ingresá con ese email)", email);
     }
 
     // En prod abortar el arranque es mejor que dejar la app sin admin.

@@ -201,4 +201,44 @@ class DataSeederTest {
         verify(usuarioRepository, never()).findByEmail(any());
         assertThat(output.getAll()).doesNotContain(PASSWORD);
     }
+
+    @Test
+    void emailConEspaciosYMayusculas_seNormalizaAntesDeValidarBuscarYGuardar(CapturedOutput output) {
+        when(agenciaRepository.count()).thenReturn(1L);
+        when(usuarioRepository.existsByRol(Rol.ADMIN)).thenReturn(false);
+        when(usuarioRepository.existsByEmail("admin@dante.com")).thenReturn(false);
+        when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
+
+        assertThatCode(() -> seeder(true, "  Admin@Dante.com  ", PASSWORD, "Dante").run(null))
+                .doesNotThrowAnyException();
+
+        ArgumentCaptor<Usuario> captor = ArgumentCaptor.forClass(Usuario.class);
+        verify(usuarioRepository).save(captor.capture());
+        assertThat(captor.getValue().getEmail()).isEqualTo("admin@dante.com");
+        verify(usuarioRepository).existsByEmail("admin@dante.com");
+        assertThat(output.getAll()).contains("admin@dante.com").doesNotContain(PASSWORD).doesNotContain(HASH);
+    }
+
+    @Test
+    void emailDeSoloEspaciosConPerfilProd_cuentaComoFaltante() {
+        when(agenciaRepository.count()).thenReturn(1L);
+        when(usuarioRepository.existsByRol(Rol.ADMIN)).thenReturn(false);
+
+        assertThatThrownBy(() -> seeder(true, "    ", PASSWORD, "Dante").run(null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ADMIN_EMAIL");
+
+        verify(usuarioRepository, never()).save(any());
+    }
+
+    @Test
+    void emailDeSoloEspaciosSinPerfilProd_soloAvisaYNoGuarda(CapturedOutput output) {
+        when(agenciaRepository.count()).thenReturn(1L);
+        when(usuarioRepository.existsByRol(Rol.ADMIN)).thenReturn(false);
+
+        assertThatCode(() -> seeder(false, "    ", PASSWORD, "Dante").run(null)).doesNotThrowAnyException();
+
+        verify(usuarioRepository, never()).save(any());
+        assertThat(output.getAll()).contains("ADMIN_EMAIL");
+    }
 }

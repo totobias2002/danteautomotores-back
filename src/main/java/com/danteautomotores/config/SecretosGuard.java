@@ -13,7 +13,9 @@ import java.util.Set;
 
 /**
  * Impide arrancar en producción con los valores por defecto del repo (públicos) para el secreto JWT
- * y la contraseña de la base, o con un secreto demasiado corto para HS256.
+ * y la contraseña de la base, con un secreto demasiado corto para HS256, o sin las credenciales de Cloudinary
+ * (sin ellas no se pueden subir ni borrar fotos). Las credenciales de Cloudinary se interpretan como válidas si están
+ * presentes y no vacías: no se consulta a Cloudinary al arrancar, para no acoplar el deploy a un tercero.
  * <p>
  * El modo permisivo (solo avisa en el log) es el que hay que pedir explícitamente: aplica cuando NO hay ningún perfil
  * activo (desarrollo local sin configuración: {@code mvn spring-boot:run} o el IDE) o cuando todos los perfiles
@@ -42,6 +44,15 @@ public class SecretosGuard implements InitializingBean {
     @Value("${spring.datasource.password:}")
     private String dbPassword;
 
+    @Value("${cloudinary.cloud-name:}")
+    private String cloudinaryCloudName;
+
+    @Value("${cloudinary.api-key:}")
+    private String cloudinaryApiKey;
+
+    @Value("${cloudinary.api-secret:}")
+    private String cloudinaryApiSecret;
+
     @Override
     public void afterPropertiesSet() {
         if (jwtSecret == null || jwtSecret.isBlank() || JWT_SECRET_POR_DEFECTO.equals(jwtSecret)) {
@@ -55,6 +66,14 @@ public class SecretosGuard implements InitializingBean {
         if (DB_PASSWORD_POR_DEFECTO.equals(dbPassword)) {
             fallarOAvisar("SPRING_DATASOURCE_PASSWORD es la contraseña de desarrollo del repo: definí una contraseña propia");
         }
+        if (estaEnBlanco(cloudinaryCloudName) || estaEnBlanco(cloudinaryApiKey) || estaEnBlanco(cloudinaryApiSecret)) {
+            fallarOAvisar("CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY o CLOUDINARY_API_SECRET faltan: "
+                    + "sin ellos no se pueden subir ni borrar fotos");
+        }
+    }
+
+    private static boolean estaEnBlanco(String valor) {
+        return valor == null || valor.isBlank();
     }
 
     private void fallarOAvisar(String mensaje) {
