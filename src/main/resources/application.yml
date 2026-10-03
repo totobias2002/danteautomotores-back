@@ -13,6 +13,9 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:dante}
     password: ${SPRING_DATASOURCE_PASSWORD:dante_dev_password}
   jpa:
+    # Las lecturas lazy (agencia, fotos) las cubre el @Transactional de cada service, no una sesión abierta
+    # durante toda la request.
+    open-in-view: false
     hibernate:
       ddl-auto: update
     show-sql: true

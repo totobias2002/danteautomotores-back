@@ -40,6 +40,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class PublicacionService {
 
@@ -52,6 +53,7 @@ public class PublicacionService {
     private final CloudinaryService cloudinaryService;
     private final ImagenValidator imagenValidator;
 
+    @Transactional(readOnly = true)
     public List<PublicacionResponse> buscar(String marca, String modelo, Integer anioMin, Integer anioMax,
                                              BigDecimal precioMin, BigDecimal precioMax,
                                              EstadoPublicacion estado, Long agenciaId) {
@@ -77,6 +79,7 @@ public class PublicacionService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public PublicacionResponse obtenerPorId(Long id) {
         return PublicacionMapper.toResponse(buscarEntidad(id));
     }

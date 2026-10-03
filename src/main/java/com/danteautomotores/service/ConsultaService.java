@@ -10,10 +10,12 @@ import com.danteautomotores.repository.ConsultaRepository;
 import com.danteautomotores.repository.PublicacionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class ConsultaService {
 
@@ -36,6 +38,7 @@ public class ConsultaService {
         return ConsultaMapper.toResponse(consulta);
     }
 
+    @Transactional(readOnly = true)
     public List<ConsultaResponse> listarPorPublicacion(Long publicacionId) {
         return consultaRepository.findByPublicacionIdOrderByFechaDesc(publicacionId).stream()
                 .map(ConsultaMapper::toResponse)
