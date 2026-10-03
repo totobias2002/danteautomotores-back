@@ -9,3 +9,6 @@ target/
 *.log
 .env
 scripts/demo/fotos/
+
+# Los volcados de la base de produccion traen hashes de contrasenas y datos personales (Ley 25.326): nunca se commitean.
+*.dump
