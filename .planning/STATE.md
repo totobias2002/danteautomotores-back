@@ -137,6 +137,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-04T02:22:32.719Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-cuentas-verificadas/03-CONTEXT.md
+Last session: 2026-10-04T04:30:00Z
+Stopped at: Phase 2 desplegada en produccion (back Railway y front Vercel, base migrada a V4). Falta cargar la demo (H8): el usuario debe fijar la clave del admin de produccion con el UPDATE de crypt() en la consola SQL de Railway y correr C:/Users/toto/Desktop/backups-dante/cargar-demo.ps1. Despues: verificar 11 autos / 3 ofertas / 6+ marcas, escribir 02-08-SUMMARY, verificar la fase 2 y marcarla completa.
+Pendientes de seguridad (claves expuestas en el chat): rotar la clave de Postgres, la API Key/Secret de Cloudinary (y borrar las 4 filas viejas) y APP_JWT_SECRET.
+Fase 3: 03-CONTEXT y 03-RESEARCH listos; falta que el usuario responda 5 preguntas del research (union con Google que descarta la contrasena de cuentas sin mail confirmado, boton "Lo quiero", remitente Brevo/dominio, cierre de sesiones al cambiar clave, texto legal /privacidad) y planificar.
+Integrado en esta sesion: la funcion "Vender tu auto" (solicitudes_venta) que estaba en GitHub desde el 29/09; migracion V4 creada.
+Resume file: .planning/phases/02-cat-logo-p-blico-real-en-producci-n/02-08-PLAN.md
