@@ -159,8 +159,8 @@ class MigracionesPostgresTest {
 
         MigrateResult resultado = flyway(base, true).migrate();
 
-        assertThat(resultado.migrationsExecuted).isEqualTo(3);
-        assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true");
+        assertThat(resultado.migrationsExecuted).isEqualTo(4);
+        assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true");
     }
 
     @Test
@@ -170,8 +170,8 @@ class MigracionesPostgresTest {
 
         MigrateResult resultado = flyway(base, true).migrate();
 
-        assertThat(resultado.migrationsExecuted).isEqualTo(2);
-        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true");
+        assertThat(resultado.migrationsExecuted).isEqualTo(3);
+        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true");
         assertThat(conteos(base)).isEqualTo(antes);
         assertThat(valor(base, "SELECT count(*) FROM publicaciones WHERE destacado = false")).isEqualTo("2");
         assertThat(valor(base, "SELECT fecha_vendido IS NOT NULL FROM publicaciones WHERE estado = 'VENDIDO'")).isEqualTo("t");
@@ -185,8 +185,8 @@ class MigracionesPostgresTest {
 
         MigrateResult resultado = flyway(base, true).migrate();
 
-        assertThat(resultado.migrationsExecuted).isEqualTo(2);
-        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true");
+        assertThat(resultado.migrationsExecuted).isEqualTo(3);
+        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true");
         assertThat(conteos(base)).isEqualTo(antes);
     }
 
@@ -229,8 +229,8 @@ class MigracionesPostgresTest {
                 total += futuro.get(60, TimeUnit.SECONDS); // si un migrate lanzara, get() propaga la excepcion
             }
 
-            assertThat(total).isEqualTo(3);
-            assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true");
+            assertThat(total).isEqualTo(4);
+            assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true");
         } finally {
             hilos.shutdownNow();
         }
