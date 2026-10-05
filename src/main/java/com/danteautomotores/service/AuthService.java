@@ -8,14 +8,18 @@ import com.danteautomotores.exception.ReglaDeNegocioException;
 import com.danteautomotores.enums.DatoFaltante;
 import com.danteautomotores.enums.Rol;
 import com.danteautomotores.repository.UsuarioRepository;
+import com.danteautomotores.security.CuentaUserDetails;
 import com.danteautomotores.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +30,8 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final VerificacionCuenta verificacionCuenta;
+
+    private static final String CREDENCIALES_INVALIDAS = "Credenciales inválidas";
 
     public AuthResponse registrar(RegistroRequest request) {
         if (usuarioRepository.existsByEmail(request.getEmail())) {
@@ -42,29 +48,34 @@ public class AuthService {
 
         usuarioRepository.save(usuario);
 
-        return construirRespuesta(usuario);
+        return iniciarSesion(usuario);
     }
 
     public AuthResponse login(LoginRequest request) {
+        String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
+
+        Optional<Usuario> cuenta = usuarioRepository.findByEmailIgnoreCase(email);
+
+        // Una cuenta sin contraseña (solo Google) recibe el mismo 401 genérico que una contraseña incorrecta:
+        // no se llama a BCrypt ni se revela que la cuenta existe o que es de Google.
+        if (cuenta.isPresent() && cuenta.get().getPasswordHash() == null) {
+            throw new BadCredentialsException(CREDENCIALES_INVALIDAS);
+        }
+
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+                new UsernamePasswordAuthenticationToken(email, request.getPassword())
         );
 
-        Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ReglaDeNegocioException("Credenciales inválidas"));
+        Usuario usuario = cuenta.orElseThrow(() -> new BadCredentialsException(CREDENCIALES_INVALIDAS));
 
-        return construirRespuesta(usuario);
+        return iniciarSesion(usuario);
     }
 
-    private AuthResponse construirRespuesta(Usuario usuario) {
-        org.springframework.security.core.userdetails.UserDetails userDetails =
-                org.springframework.security.core.userdetails.User.builder()
-                        .username(usuario.getEmail())
-                        .password(usuario.getPasswordHash())
-                        .authorities("ROLE_" + usuario.getRol().name())
-                        .build();
-
-        String token = jwtService.generateToken(userDetails);
+    /**
+     * Único punto por el que se emite una sesión: lo usan el registro, el login, Google y el cambio de contraseña.
+     */
+    public AuthResponse iniciarSesion(Usuario usuario) {
+        String token = jwtService.generateToken(CuentaUserDetails.de(usuario));
 
         List<DatoFaltante> faltantes = verificacionCuenta.faltantes(usuario);
 
