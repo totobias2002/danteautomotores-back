@@ -3,11 +3,16 @@ package com.danteautomotores.exception;
 import com.danteautomotores.controller.AuthController;
 import com.danteautomotores.controller.PublicacionController;
 import com.danteautomotores.dto.auth.LoginRequest;
+import com.danteautomotores.enums.DatoFaltante;
 import com.danteautomotores.service.AuthService;
 import com.danteautomotores.service.PublicacionService;
 import com.danteautomotores.support.SeguridadWebMvcTestBase;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -17,6 +22,10 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
+import java.sql.SQLException;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,6 +38,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -37,6 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * validaciones, además {"campos": {campo: mensaje}}. Nunca se filtran stacktraces, clases ni mensajes internos.
  */
 @WebMvcTest(controllers = {PublicacionController.class, AuthController.class})
+@ExtendWith(OutputCaptureExtension.class)
 class GlobalExceptionHandlerTest extends SeguridadWebMvcTestBase {
 
     private static final String MENSAJE_500 = "Ocurrió un error inesperado. Intentá de nuevo más tarde.";
@@ -170,6 +181,66 @@ class GlobalExceptionHandlerTest extends SeguridadWebMvcTestBase {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.error").isString())
                 .andExpect(content().string(not(containsString("fk_consulta"))));
+    }
+
+    @Test
+    void cuentaNoVerificadaDevuelve403ConCodigoYFaltantes() throws Exception {
+        when(authService.login(any(LoginRequest.class)))
+                .thenThrow(new CuentaNoVerificadaException(List.of(DatoFaltante.DNI, DatoFaltante.EMAIL_SIN_CONFIRMAR)));
+
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"a@b.com\",\"password\":\"x\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.error").value("Completá tus datos y confirmá tu mail para poder hacer esto."))
+                .andExpect(jsonPath("$.codigo").value("CUENTA_NO_VERIFICADA"))
+                .andExpect(jsonPath("$.faltantes[0]").value("DNI"))
+                .andExpect(jsonPath("$.faltantes[1]").value("EMAIL_SIN_CONFIRMAR"))
+                .andExpect(jsonPath("$.faltantes.length()").value(2));
+    }
+
+    @Test
+    void limiteDeIntentosDevuelve429ConRetryAfterYMensaje() throws Exception {
+        when(authService.login(any(LoginRequest.class)))
+                .thenThrow(new LimiteDeIntentosException("Demasiados intentos. Esperá un minuto e intentá de nuevo."));
+
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"a@b.com\",\"password\":\"x\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "60"))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.error").value("Demasiados intentos. Esperá un minuto e intentá de nuevo."));
+    }
+
+    @Test
+    void limiteDeIntentosUsaLosSegundosDeEsperaIndicados() throws Exception {
+        when(authService.login(any(LoginRequest.class)))
+                .thenThrow(new LimiteDeIntentosException("Demasiados intentos.", 300));
+
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"a@b.com\",\"password\":\"x\"}"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "300"));
+    }
+
+    @Test
+    void elLogDeIntegridadSoloTraeLaRestriccionYNuncaElDni(CapturedOutput salida) throws Exception {
+        var causa = new ConstraintViolationException(
+                "ERROR: duplicate key value violates unique constraint \"uk_usuarios_dni\"\n"
+                        + "  Detail: Key (dni)=(12345678) already exists.",
+                new SQLException("Key (dni)=(12345678) already exists"), "uk_usuarios_dni");
+        doThrow(new DataIntegrityViolationException("no se pudo ejecutar la sentencia", causa))
+                .when(publicacionService).eliminar(1L);
+
+        mvc.perform(delete("/api/publicaciones/1")
+                        .header("Authorization", admin()))
+                .andExpect(status().isConflict())
+                .andExpect(content().string(not(containsString("12345678"))));
+
+        assertThat(salida.getAll()).contains("uk_usuarios_dni").doesNotContain("12345678");
     }
 
     @Test

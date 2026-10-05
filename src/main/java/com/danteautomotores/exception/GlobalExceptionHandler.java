@@ -1,6 +1,7 @@
 package com.danteautomotores.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
@@ -57,11 +58,41 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return error(HttpStatus.FORBIDDEN, "No tenés permiso para realizar esta acción.");
     }
 
-    // Nunca se devuelve el mensaje de la excepción: trae nombres de constraints y SQL.
+    // Cuenta autenticada pero no verificada (D-01): el front usa codigo y faltantes para llevar al usuario a completar
+    // sus datos. Solo informa los datos de la cuenta de quien consulta; no se loguea nada del usuario.
+    @ExceptionHandler(CuentaNoVerificadaException.class)
+    public ResponseEntity<Map<String, Object>> handleCuentaNoVerificada(CuentaNoVerificadaException ex) {
+        Map<String, Object> cuerpo = new LinkedHashMap<>();
+        cuerpo.put("error", "Completá tus datos y confirmá tu mail para poder hacer esto.");
+        cuerpo.put("codigo", CuentaNoVerificadaException.CODIGO);
+        cuerpo.put("faltantes", ex.getFaltantes().stream().map(Enum::name).toList());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(cuerpo);
+    }
+
+    @ExceptionHandler(LimiteDeIntentosException.class)
+    public ResponseEntity<Map<String, Object>> handleLimiteDeIntentos(LimiteDeIntentosException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getReintentarEnSegundos()))
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+    // Nunca se devuelve el mensaje de la excepción: trae nombres de constraints y SQL. Tampoco se loguea: el mensaje de
+    // Postgres incluye "Key (dni)=(...)" y la fila completa. Por la Ley 25.326 el DNI, el mail y el teléfono no van al
+    // log: solo el nombre de la restricción violada y la clase de la excepción.
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
-        log.warn("Violación de integridad de datos: {}", ex.getMostSpecificCause().getMessage());
+        log.warn("Violación de integridad de datos: restricción={} excepción={}",
+                nombreDeRestriccion(ex), ex.getMostSpecificCause().getClass().getName());
         return error(HttpStatus.CONFLICT, "No se pudo completar la operación porque hay datos relacionados.");
+    }
+
+    private static String nombreDeRestriccion(Throwable ex) {
+        for (Throwable causa = ex; causa != null; causa = causa.getCause() == causa ? null : causa.getCause()) {
+            if (causa instanceof ConstraintViolationException violacion && violacion.getConstraintName() != null) {
+                return violacion.getConstraintName();
+            }
+        }
+        return "desconocida";
     }
 
     // La fila de la publicación está bloqueada por otra operación sobre sus fotos y se agotó la espera (ver

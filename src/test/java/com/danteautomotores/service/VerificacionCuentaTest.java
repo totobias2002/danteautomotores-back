@@ -3,9 +3,12 @@ package com.danteautomotores.service;
 import com.danteautomotores.entity.Usuario;
 import com.danteautomotores.enums.DatoFaltante;
 import com.danteautomotores.enums.Rol;
+import com.danteautomotores.exception.CuentaNoVerificadaException;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** La regla de cuenta verificada (D-01): nombre, apellido, teléfono, DNI y mail confirmado. */
 class VerificacionCuentaTest {
@@ -111,6 +114,20 @@ class VerificacionCuentaTest {
 
         assertThat(verificacion.faltantes(admin)).isEmpty();
         assertThat(verificacion.estaVerificada(admin)).isTrue();
+    }
+
+    @Test
+    void exigirNoHaceNadaConUnaCuentaVerificada() {
+        assertThatCode(() -> verificacion.exigir(comprador().build())).doesNotThrowAnyException();
+    }
+
+    @Test
+    void exigirLanzaConLosFaltantesDeUnaCuentaIncompleta() {
+        Usuario incompleta = comprador().dni(null).emailConfirmado(false).build();
+
+        assertThatThrownBy(() -> verificacion.exigir(incompleta))
+                .isInstanceOfSatisfying(CuentaNoVerificadaException.class, ex ->
+                        assertThat(ex.getFaltantes()).containsExactly(DatoFaltante.DNI, DatoFaltante.EMAIL_SIN_CONFIRMAR));
     }
 
     @Test
