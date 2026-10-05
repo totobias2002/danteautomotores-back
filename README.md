@@ -36,12 +36,21 @@ Ver `src/main/resources/application.yml`. Para producción, sobreescribir `app.j
 | `APP_JWT_EXPIRATION_MS` | Duración del token en ms (opcional, default 24hs). |
 | `APP_CORS_ALLOWED_ORIGINS` | Orígenes permitidos separados por coma, ej: `https://mi-app.vercel.app`. |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | Credenciales de Cloudinary para las fotos. **Obligatorias fuera del modo desarrollo**: sin las tres el backend no arranca (solo se verifica que no estén vacías; una credencial mal escrita se detecta recién al subir una foto). |
+| `BREVO_API_KEY` | **Obligatoria fuera del modo desarrollo.** API key de Brevo (API REST transaccional, no SMTP: Railway bloquea SMTP en los planes bajos). Sin ella los mails no se mandan: solo se escriben en el log. Por eso, fuera del modo desarrollo el backend no arranca si falta. Nunca se commitea ni se pega en un chat. |
+| `MAIL_REMITENTE_EMAIL` | **Obligatoria fuera del modo desarrollo.** Dirección desde la que salen los mails; debe estar creada y validada como remitente en Brevo. |
+| `MAIL_REMITENTE_NOMBRE` | Nombre del remitente (opcional, por defecto `Dante Automotores`). |
+| `MAIL_RESPONDER_A` | Dirección de respuesta (`replyTo`) de los mails (opcional). |
+| `APP_FRONTEND_URL` | **Obligatoria fuera del modo desarrollo.** Origen exacto del front, con `https://` y sin barra final (por ejemplo `https://mi-app.vercel.app`); debe coincidir con uno de `APP_CORS_ALLOWED_ORIGINS`. Con ella se arman los links de los mails. El backend no arranca si no es https o apunta a localhost. En desarrollo vale `http://localhost:5173`. |
+| `GOOGLE_CLIENT_ID` | **Obligatoria fuera del modo desarrollo.** Client ID de OAuth de Google (no es un secreto, pero sin él no se puede entrar con Google). |
+| `BREVO_API_URL` | URL base de la API de Brevo (opcional, por defecto `https://api.brevo.com`). Solo se cambia en tests, para apuntar a un servidor local. |
 | `ADMIN_EMAIL` | Email de la cuenta admin (se recortan los espacios y se pasa a minúsculas; el log dice con qué email hay que ingresar). Solo se usa para crear la cuenta si no existe ningún admin; no puede ser el de una cuenta ya registrada. |
 | `ADMIN_PASSWORD` | Contraseña de la cuenta admin (mínimo 8 caracteres). Solo se usa para crear la cuenta si no existe ningún admin; cambiarla después no modifica la cuenta. |
 | `ADMIN_NOMBRE` | Nombre visible del admin (por ejemplo, Dante). Mismo uso que `ADMIN_EMAIL`. |
 | `SPRING_PROFILES_ACTIVE` | Perfil de Spring. El `Dockerfile` lo deja en `prod` por defecto. `SecretosGuard` y `DataSeeder` comparten el criterio de "modo desarrollo" (clase `EntornoDeDesarrollo`) y solo son permisivos (avisan en el log y arrancan) cuando **no hay ningún perfil activo** (desarrollo local con `mvn spring-boot:run` o el IDE, sin configurar nada; un `SPRING_PROFILES_DEFAULT` que no sea de desarrollo cuenta como producción) o cuando todos los perfiles activos son `dev`, `local` o `test`. Con cualquier otro perfil (`prod`, `production`, `railway`, `staging`...) o una mezcla como `prod,dev`, el backend no arranca si `APP_JWT_SECRET` falta, es el valor de ejemplo o tiene menos de 32 bytes, ni si `SPRING_DATASOURCE_PASSWORD` es la contraseña de desarrollo del repo. Si desplegás **sin el Dockerfile** (por ejemplo el build nativo de Railway), definí `SPRING_PROFILES_ACTIVE=prod`: sin perfil el guard queda en modo desarrollo. Además, fuera del modo desarrollo el backend tampoco arranca si faltan (o son inválidas) las variables del admin y todavía no existe ninguno. |
 
 El repo incluye un `Dockerfile` (build multi-stage con Maven + JDK 21) listo para deployar en Railway, Render o cualquier hosting que soporte contenedores.
+
+En desarrollo y en los tests (sin `BREVO_API_KEY`) los mails no se mandan: el back escribe una línea en el log con el destinatario, el asunto y el texto, que incluye el link de confirmación o de recuperación, para probar el flujo a mano.
 
 Al arrancar, si no hay ninguna agencia se crea "Dante Automotores" (el resto de sus datos se completa desde el panel). Las cuentas admin no se pueden crear desde la web: el registro público siempre crea compradores.
 
@@ -75,9 +84,11 @@ Variables del servicio en Railway (nombres exactos):
 - `APP_JWT_SECRET` (32 caracteres o más)
 - `APP_CORS_ALLOWED_ORIGINS` (orígenes exactos, separados por coma; por ejemplo el dominio de Vercel)
 - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+- `BREVO_API_KEY`, `MAIL_REMITENTE_EMAIL` (y, si se quiere, `MAIL_REMITENTE_NOMBRE`, `MAIL_RESPONDER_A`)
+- `APP_FRONTEND_URL` (https, sin barra final), `GOOGLE_CLIENT_ID`
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NOMBRE`: solo si la base todavía no tiene un admin.
 
-Con `prod`, el backend no arranca si falta o es inválido el secreto JWT, la contraseña de la base, alguna credencial de Cloudinary o (sin admin existente) las variables del admin.
+Con `prod`, el backend no arranca si falta o es inválido el secreto JWT, la contraseña de la base, alguna credencial de Cloudinary, `BREVO_API_KEY`, `MAIL_REMITENTE_EMAIL`, `GOOGLE_CLIENT_ID`, un `APP_FRONTEND_URL` que no sea https (o apunte a localhost) o (sin admin existente) las variables del admin.
 
 - **Healthcheck de Railway:** `/actuator/health`. Responde 200 `{"status":"UP"}` sin token y sin detalles; el resto de `/actuator` está cerrado.
 - **Front en Vercel:** `VITE_API_URL` es una variable de build; al cambiarla hay que redeployar.

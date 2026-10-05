@@ -21,6 +21,11 @@ class SecretosGuardTest {
 
     private static final String CLOUDINARY_VALIDO = "credencial-cloudinary-propia";
 
+    private static final String BREVO_VALIDO = "credencial-brevo-propia";
+    private static final String REMITENTE_VALIDO = "dante@example.com";
+    private static final String FRONT_VALIDO = "https://dante.example.com";
+    private static final String GOOGLE_VALIDO = "client-id-de-google-propio";
+
     private SecretosGuard guard(String jwtSecret, String dbPassword, String... perfiles) {
         return guardConCloudinary(CLOUDINARY_VALIDO, CLOUDINARY_VALIDO, CLOUDINARY_VALIDO, jwtSecret, dbPassword, perfiles);
     }
@@ -37,6 +42,21 @@ class SecretosGuardTest {
         ReflectionTestUtils.setField(guard, "cloudinaryCloudName", cloudName);
         ReflectionTestUtils.setField(guard, "cloudinaryApiKey", apiKey);
         ReflectionTestUtils.setField(guard, "cloudinaryApiSecret", apiSecret);
+        ReflectionTestUtils.setField(guard, "brevoApiKey", BREVO_VALIDO);
+        ReflectionTestUtils.setField(guard, "mailRemitenteEmail", REMITENTE_VALIDO);
+        ReflectionTestUtils.setField(guard, "frontendUrl", FRONT_VALIDO);
+        ReflectionTestUtils.setField(guard, "googleClientId", GOOGLE_VALIDO);
+        return guard;
+    }
+
+    /** Guard con todo en orden salvo los cuatro campos de mail e identidad, que se pisan. */
+    private SecretosGuard guardConMail(String brevo, String remitente, String frontUrl, String googleClientId,
+                                       String... perfiles) {
+        SecretosGuard guard = guard(SECRETO_PROPIO, DB_PROPIA, perfiles);
+        ReflectionTestUtils.setField(guard, "brevoApiKey", brevo);
+        ReflectionTestUtils.setField(guard, "mailRemitenteEmail", remitente);
+        ReflectionTestUtils.setField(guard, "frontendUrl", frontUrl);
+        ReflectionTestUtils.setField(guard, "googleClientId", googleClientId);
         return guard;
     }
 
@@ -199,5 +219,78 @@ class SecretosGuardTest {
         guard(SECRETO_PROPIO, DB_PROPIA).afterPropertiesSet();
 
         assertThat(output.getAll()).doesNotContain("CLOUDINARY");
+    }
+
+    @Test
+    void prodConMailEIdentidadCompletos_arranca() {
+        assertThatCode(() -> guardConMail(BREVO_VALIDO, REMITENTE_VALIDO, FRONT_VALIDO, GOOGLE_VALIDO, "prod")
+                .afterPropertiesSet())
+                .doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"BREVO_API_KEY", "MAIL_REMITENTE_EMAIL", "APP_FRONTEND_URL", "GOOGLE_CLIENT_ID"})
+    void prodSinUnaDeLasCuatroVariablesNuevas_noArrancaYElMensajeLaNombra(String variable) {
+        assertThatThrownBy(() -> guardConMail(
+                "BREVO_API_KEY".equals(variable) ? "" : BREVO_VALIDO,
+                "MAIL_REMITENTE_EMAIL".equals(variable) ? "  " : REMITENTE_VALIDO,
+                "APP_FRONTEND_URL".equals(variable) ? "" : FRONT_VALIDO,
+                "GOOGLE_CLIENT_ID".equals(variable) ? null : GOOGLE_VALIDO,
+                "prod").afterPropertiesSet())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(variable);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"http://localhost:5173", "https://localhost", "https://127.0.0.1:5173",
+            "http://dante.example.com", "dante.example.com", "HTTP://dante.example.com"})
+    void prodConFrontNoHttpsOLocalhost_noArranca(String url) {
+        assertThatThrownBy(() -> guardConMail(BREVO_VALIDO, REMITENTE_VALIDO, url, GOOGLE_VALIDO, "prod")
+                .afterPropertiesSet())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("APP_FRONTEND_URL");
+    }
+
+    @Test
+    void prodYDevMezcladosSinBrevo_noArranca() {
+        assertThatThrownBy(() -> guardConMail("", REMITENTE_VALIDO, FRONT_VALIDO, GOOGLE_VALIDO, "prod", "dev")
+                .afterPropertiesSet())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("BREVO_API_KEY");
+    }
+
+    @Test
+    void sinPerfilSinMailNiIdentidad_arrancaYAvisaDeCadaVariable(CapturedOutput output) {
+        assertThatCode(() -> guardConMail("", "", "http://localhost:5173", "").afterPropertiesSet())
+                .doesNotThrowAnyException();
+
+        assertThat(output.getAll()).contains("BREVO_API_KEY").contains("MAIL_REMITENTE_EMAIL")
+                .contains("APP_FRONTEND_URL").contains("GOOGLE_CLIENT_ID");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"dev", "local", "test"})
+    void perfilDeDesarrolloSinBrevo_arrancaYAvisa(String perfil, CapturedOutput output) {
+        assertThatCode(() -> guardConMail("", REMITENTE_VALIDO, FRONT_VALIDO, GOOGLE_VALIDO, perfil)
+                .afterPropertiesSet())
+                .doesNotThrowAnyException();
+
+        assertThat(output.getAll()).contains("BREVO_API_KEY");
+    }
+
+    @Test
+    void sinPerfilConMailEIdentidadCompletos_noAvisaDeEllos(CapturedOutput output) {
+        guard(SECRETO_PROPIO, DB_PROPIA).afterPropertiesSet();
+
+        assertThat(output.getAll()).doesNotContain("BREVO_API_KEY").doesNotContain("MAIL_REMITENTE_EMAIL")
+                .doesNotContain("APP_FRONTEND_URL").doesNotContain("GOOGLE_CLIENT_ID");
+    }
+
+    @Test
+    void elMensajeDeFallaNoFiltraElValorDeLaVariable() {
+        assertThatThrownBy(() -> guardConMail(BREVO_VALIDO, REMITENTE_VALIDO, "http://localhost:5173", GOOGLE_VALIDO,
+                "prod").afterPropertiesSet())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageNotContaining(BREVO_VALIDO);
     }
 }
