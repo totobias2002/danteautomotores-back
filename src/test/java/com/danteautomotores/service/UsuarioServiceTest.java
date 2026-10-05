@@ -1,10 +1,14 @@
 package com.danteautomotores.service;
 
+import com.danteautomotores.dto.auth.AuthResponse;
 import com.danteautomotores.dto.usuario.ActualizarPerfilRequest;
+import com.danteautomotores.dto.usuario.CambiarContrasenaRequest;
 import com.danteautomotores.dto.usuario.UsuarioResponse;
 import com.danteautomotores.entity.Usuario;
 import com.danteautomotores.enums.DatoFaltante;
 import com.danteautomotores.enums.Rol;
+import com.danteautomotores.enums.TipoTokenCuenta;
+import com.danteautomotores.exception.LimiteDeIntentosException;
 import com.danteautomotores.exception.ReglaDeNegocioException;
 import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.repository.UsuarioRepository;
@@ -16,9 +20,15 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.lang.reflect.Field;
 import java.sql.SQLException;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -28,8 +38,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,14 +50,26 @@ class UsuarioServiceTest {
 
     private static final String EMAIL = "ana@x.com";
 
+    private static final Clock RELOJ = Clock.fixed(Instant.parse("2026-10-05T12:00:00Z"), ZoneId.of("UTC"));
+
     @Mock
     private UsuarioRepository usuarioRepository;
+    @Mock
+    private AuthService authService;
+    @Mock
+    private TokenCuentaService tokenCuentaService;
+    @Mock
+    private NotificacionesService notificacionesService;
+
+    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(4);
 
     private UsuarioService usuarioService;
 
     @BeforeEach
     void prepararService() {
-        usuarioService = new UsuarioService(usuarioRepository, new VerificacionCuenta());
+        // El limitador y el codificador son los reales: los límites y la verificación de la contraseña se prueban de verdad.
+        usuarioService = new UsuarioService(usuarioRepository, new VerificacionCuenta(), passwordEncoder, authService,
+                tokenCuentaService, notificacionesService, new LimitadorDeIntentos(), RELOJ);
     }
 
     private Usuario comprador() {
@@ -312,5 +337,174 @@ class UsuarioServiceTest {
         UsuarioResponse perfil = usuarioService.obtenerPerfil(EMAIL);
 
         assertThat(perfil.toString()).doesNotContain("30123456").doesNotContain("5491112345678");
+    }
+
+    // ---- cambiarContrasena (AUTH-05, D-19) ----
+
+    private Usuario conContrasena(String actual) {
+        Usuario usuario = comprador();
+        usuario.setPasswordHash(passwordEncoder.encode(actual));
+        return usuario;
+    }
+
+    private CambiarContrasenaRequest cambio(String actual, String nueva) {
+        CambiarContrasenaRequest request = new CambiarContrasenaRequest();
+        request.setActual(actual);
+        request.setNueva(nueva);
+        return request;
+    }
+
+    @Test
+    void conLaContrasenaActualCorrectaCambiaElHashFijaElInstanteDescartaNotificaYDevuelveLaSesion() {
+        Usuario usuario = conContrasena("actual-1234");
+        cuentaExistente(usuario);
+        AuthResponse sesionNueva = AuthResponse.builder().token("jwt-nuevo").build();
+        when(authService.iniciarSesion(usuario)).thenReturn(sesionNueva);
+
+        AuthResponse respuesta = usuarioService.cambiarContrasena(EMAIL, cambio("actual-1234", "nueva-5678"));
+
+        assertThat(respuesta).isSameAs(sesionNueva);
+        assertThat(passwordEncoder.matches("nueva-5678", usuario.getPasswordHash())).isTrue();
+        assertThat(usuario.getPasswordCambiadaEn()).isEqualTo(LocalDateTime.of(2026, 10, 5, 12, 0, 0));
+        var orden = inOrder(usuarioRepository, tokenCuentaService, notificacionesService, authService);
+        orden.verify(usuarioRepository).save(usuario);
+        orden.verify(tokenCuentaService).descartarPendientes(7L);
+        orden.verify(notificacionesService).enviarContrasenaCambiada(usuario);
+        // La sesión se emite con la cuenta ya actualizada: su token lleva el pca nuevo.
+        orden.verify(authService).iniciarSesion(usuario);
+    }
+
+    @Test
+    void laContrasenaActualIncorrectaDaElMensajeNoCambiaNadaYRegistraElFallo() {
+        Usuario usuario = conContrasena("actual-1234");
+        String hashAntes = usuario.getPasswordHash();
+        cuentaExistente(usuario);
+
+        assertThatThrownBy(() -> usuarioService.cambiarContrasena(EMAIL, cambio("otra-cosa", "nueva-5678")))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("La contraseña actual no es correcta.");
+
+        assertThat(usuario.getPasswordHash()).isEqualTo(hashAntes);
+        assertThat(usuario.getPasswordCambiadaEn()).isNull();
+        verify(usuarioRepository, never()).save(any());
+        verifyNoInteractions(tokenCuentaService, notificacionesService, authService);
+    }
+
+    @Test
+    void unaCuentaSinContrasenaDeGoogleRecibeElMensajeQueLaMandaAOlvideMiContrasena() {
+        Usuario soloGoogle = comprador();
+        soloGoogle.setPasswordHash(null);
+        cuentaExistente(soloGoogle);
+
+        assertThatThrownBy(() -> usuarioService.cambiarContrasena(EMAIL, cambio("lo-que-sea", "nueva-5678")))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("Tu cuenta ingresa con Google: definí una contraseña desde \"Olvidé mi contraseña\".");
+
+        assertThat(soloGoogle.getPasswordHash()).isNull();
+        verify(usuarioRepository, never()).save(any());
+        verifyNoInteractions(authService, notificacionesService);
+    }
+
+    @Test
+    void elSextoIntentoConContrasenaActualIncorrectaEnLosQuinceMinutosDaLimiteDeIntentos() {
+        Usuario usuario = conContrasena("actual-1234");
+        cuentaExistente(usuario);
+
+        for (int i = 0; i < 5; i++) {
+            assertThatThrownBy(() -> usuarioService.cambiarContrasena(EMAIL, cambio("mal", "nueva-5678")))
+                    .isInstanceOf(ReglaDeNegocioException.class);
+        }
+        // Aun con la contraseña correcta, la cuenta ya está bloqueada.
+        assertThatThrownBy(() -> usuarioService.cambiarContrasena(EMAIL, cambio("actual-1234", "nueva-5678")))
+                .isInstanceOfSatisfying(LimiteDeIntentosException.class,
+                        e -> assertThat(e.getReintentarEnSegundos()).isEqualTo(900));
+
+        verify(usuarioRepository, never()).save(any());
+    }
+
+    @Test
+    void unaContrasenaNuevaDeMasDe72BytesSeRechazaSinCambiarNada() {
+        Usuario usuario = conContrasena("actual-1234");
+        String hashAntes = usuario.getPasswordHash();
+        cuentaExistente(usuario);
+
+        assertThatThrownBy(() -> usuarioService.cambiarContrasena(EMAIL, cambio("actual-1234", "ñ".repeat(40))))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessageContaining("72 bytes");
+
+        assertThat(usuario.getPasswordHash()).isEqualTo(hashAntes);
+        verify(usuarioRepository, never()).save(any());
+        verifyNoInteractions(authService);
+    }
+
+    @Test
+    void unCambioDeContrasenaNoRetrocedeNiRepiteElInstanteAnterior() {
+        Usuario usuario = conContrasena("actual-1234");
+        usuario.setPasswordCambiadaEn(LocalDateTime.of(2026, 10, 5, 12, 0, 0));
+        cuentaExistente(usuario);
+
+        usuarioService.cambiarContrasena(EMAIL, cambio("actual-1234", "nueva-5678"));
+
+        assertThat(usuario.getPasswordCambiadaEn()).isEqualTo(LocalDateTime.of(2026, 10, 5, 12, 0, 1));
+    }
+
+    @Test
+    void elToStringDelCambioDeContrasenaNoContieneNingunaContrasena() {
+        assertThat(cambio("actual-1234", "nueva-5678").toString())
+                .doesNotContain("actual-1234").doesNotContain("nueva-5678");
+    }
+
+    // ---- reenviarConfirmacion (D-21) ----
+
+    @Test
+    void reenviarConElMailSinConfirmarEmiteElTokenYEncolaElMail() {
+        Usuario usuario = comprador();
+        cuentaExistente(usuario);
+        when(tokenCuentaService.emitir(7L, TipoTokenCuenta.CONFIRMAR_EMAIL)).thenReturn("token-ficticio");
+
+        String mensaje = usuarioService.reenviarConfirmacion(EMAIL);
+
+        assertThat(mensaje).isEqualTo("Te mandamos un mail para confirmar tu cuenta. Revisá también la carpeta de spam.");
+        verify(notificacionesService).enviarConfirmacionEmail(usuario, "token-ficticio");
+    }
+
+    @Test
+    void reenviarConElMailYaConfirmadoNoEmiteNiMandaNada() {
+        Usuario usuario = comprador();
+        usuario.setEmailConfirmado(true);
+        cuentaExistente(usuario);
+
+        String mensaje = usuarioService.reenviarConfirmacion(EMAIL);
+
+        assertThat(mensaje).isEqualTo("Tu mail ya está confirmado.");
+        verifyNoInteractions(tokenCuentaService, notificacionesService);
+    }
+
+    @Test
+    void elCuartoReenvioEnLaHoraLanzaLimiteDeIntentos() {
+        cuentaExistente(comprador());
+        when(tokenCuentaService.emitir(anyLong(), any())).thenReturn("token-ficticio");
+
+        for (int i = 0; i < 3; i++) {
+            usuarioService.reenviarConfirmacion(EMAIL);
+        }
+        assertThatThrownBy(() -> usuarioService.reenviarConfirmacion(EMAIL))
+                .isInstanceOfSatisfying(LimiteDeIntentosException.class,
+                        e -> assertThat(e.getReintentarEnSegundos()).isEqualTo(3600));
+
+        verify(notificacionesService, times(3)).enviarConfirmacionEmail(any(), anyString());
+    }
+
+    @Test
+    void reenviarConElMailYaConfirmadoNoConsumeElCupoDeReenvios() {
+        Usuario usuario = comprador();
+        usuario.setEmailConfirmado(true);
+        cuentaExistente(usuario);
+
+        for (int i = 0; i < 10; i++) {
+            usuarioService.reenviarConfirmacion(EMAIL);
+        }
+
+        verifyNoInteractions(tokenCuentaService);
     }
 }

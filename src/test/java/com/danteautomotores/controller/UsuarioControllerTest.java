@@ -1,8 +1,11 @@
 package com.danteautomotores.controller;
 
+import com.danteautomotores.dto.auth.AuthResponse;
 import com.danteautomotores.dto.usuario.ActualizarPerfilRequest;
+import com.danteautomotores.dto.usuario.CambiarContrasenaRequest;
 import com.danteautomotores.dto.usuario.UsuarioResponse;
 import com.danteautomotores.enums.DatoFaltante;
+import com.danteautomotores.exception.LimiteDeIntentosException;
 import com.danteautomotores.exception.ReglaDeNegocioException;
 import com.danteautomotores.service.UsuarioService;
 import com.danteautomotores.support.SeguridadWebMvcTestBase;
@@ -25,7 +28,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -140,6 +145,106 @@ class UsuarioControllerTest extends SeguridadWebMvcTestBase {
         verify(usuarioService).actualizarPerfil(eq("comprador@x.com"), any());
         assertThat(Arrays.stream(ActualizarPerfilRequest.class.getDeclaredFields()).map(Field::getName))
                 .doesNotContain("email", "rol", "googleSub");
+    }
+
+    // ---- POST /me/contrasena y /me/reenviar-confirmacion (03-10) ----
+
+    private static final String CAMBIO_VALIDO = "{\"actual\":\"actual-1234\",\"nueva\":\"nueva-5678\"}";
+
+    @Test
+    void sinTokenLosDosPostDeCuentaResponden401() throws Exception {
+        mvc.perform(post("/api/usuarios/me/contrasena").contentType(MediaType.APPLICATION_JSON).content(CAMBIO_VALIDO))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").exists());
+        mvc.perform(post("/api/usuarios/me/reenviar-confirmacion"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").exists());
+
+        verifyNoInteractions(usuarioService);
+    }
+
+    @Test
+    void cambiarContrasenaConTokenDa200ConLaSesionNuevaYElMailDelToken() throws Exception {
+        when(usuarioService.cambiarContrasena(eq("comprador@x.com"), any()))
+                .thenReturn(AuthResponse.builder().token("jwt-nuevo").email("comprador@x.com").rol("COMPRADOR").build());
+
+        mvc.perform(post("/api/usuarios/me/contrasena")
+                        .header("Authorization", comprador())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CAMBIO_VALIDO))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").value("jwt-nuevo"));
+
+        ArgumentCaptor<CambiarContrasenaRequest> captor = ArgumentCaptor.forClass(CambiarContrasenaRequest.class);
+        verify(usuarioService).cambiarContrasena(eq("comprador@x.com"), captor.capture());
+        assertThat(captor.getValue().getActual()).isEqualTo("actual-1234");
+        assertThat(captor.getValue().getNueva()).isEqualTo("nueva-5678");
+    }
+
+    @Test
+    void cambiarContrasenaConLaNuevaCortaDa400ConCampos() throws Exception {
+        mvc.perform(post("/api/usuarios/me/contrasena")
+                        .header("Authorization", comprador())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"actual\":\"actual-1234\",\"nueva\":\"corta\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos.nueva").value("La contraseña debe tener entre 8 y 72 caracteres"));
+        mvc.perform(post("/api/usuarios/me/contrasena")
+                        .header("Authorization", comprador())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos.actual").exists())
+                .andExpect(jsonPath("$.campos.nueva").exists());
+
+        verifyNoInteractions(usuarioService);
+    }
+
+    @Test
+    void cambiarContrasenaConLaActualIncorrectaDa400ConElMensajeDelService() throws Exception {
+        when(usuarioService.cambiarContrasena(anyString(), any()))
+                .thenThrow(new ReglaDeNegocioException("La contraseña actual no es correcta."));
+
+        mvc.perform(post("/api/usuarios/me/contrasena")
+                        .header("Authorization", comprador())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CAMBIO_VALIDO))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("La contraseña actual no es correcta."));
+    }
+
+    @Test
+    void cambiarContrasenaExcedidoElLimiteDa429ConRetryAfter() throws Exception {
+        when(usuarioService.cambiarContrasena(anyString(), any()))
+                .thenThrow(new LimiteDeIntentosException("Demasiados intentos.", 900));
+
+        mvc.perform(post("/api/usuarios/me/contrasena")
+                        .header("Authorization", comprador())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(CAMBIO_VALIDO))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "900"));
+    }
+
+    @Test
+    void reenviarConfirmacionConTokenDa200ConElMensajeYElMailDelToken() throws Exception {
+        when(usuarioService.reenviarConfirmacion("comprador@x.com")).thenReturn("Tu mail ya está confirmado.");
+
+        mvc.perform(post("/api/usuarios/me/reenviar-confirmacion").header("Authorization", comprador()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mensaje").value("Tu mail ya está confirmado."));
+
+        verify(usuarioService).reenviarConfirmacion("comprador@x.com");
+    }
+
+    @Test
+    void reenviarConfirmacionExcedidoElLimiteDa429ConRetryAfter() throws Exception {
+        when(usuarioService.reenviarConfirmacion(anyString()))
+                .thenThrow(new LimiteDeIntentosException("Ya te mandamos varios mails.", 3600));
+
+        mvc.perform(post("/api/usuarios/me/reenviar-confirmacion").header("Authorization", comprador()))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "3600"));
     }
 
     @Test

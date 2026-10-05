@@ -1,6 +1,8 @@
 package com.danteautomotores.controller;
 
+import com.danteautomotores.dto.auth.AuthResponse;
 import com.danteautomotores.dto.usuario.ActualizarPerfilRequest;
+import com.danteautomotores.dto.usuario.CambiarContrasenaRequest;
 import com.danteautomotores.dto.usuario.UsuarioResponse;
 import com.danteautomotores.security.SecurityUtils;
 import com.danteautomotores.service.UsuarioService;
@@ -8,10 +10,13 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 /**
  * Perfil de la propia cuenta. Ningún endpoint recibe un id: la cuenta sale siempre del token, así que no hay forma
@@ -33,5 +38,17 @@ public class UsuarioController {
     @PutMapping("/me")
     public ResponseEntity<UsuarioResponse> actualizarPerfil(@Valid @RequestBody ActualizarPerfilRequest request) {
         return ResponseEntity.ok(usuarioService.actualizarPerfil(SecurityUtils.obtenerEmailAutenticado(), request));
+    }
+
+    /** Devuelve una sesión nueva: el token anterior (y el de toda otra sesión) deja de valer. */
+    @PostMapping("/me/contrasena")
+    public ResponseEntity<AuthResponse> cambiarContrasena(@Valid @RequestBody CambiarContrasenaRequest request) {
+        return ResponseEntity.ok(usuarioService.cambiarContrasena(SecurityUtils.obtenerEmailAutenticado(), request));
+    }
+
+    @PostMapping("/me/reenviar-confirmacion")
+    public ResponseEntity<Map<String, String>> reenviarConfirmacion() {
+        return ResponseEntity.ok(Map.of("mensaje",
+                usuarioService.reenviarConfirmacion(SecurityUtils.obtenerEmailAutenticado())));
     }
 }
