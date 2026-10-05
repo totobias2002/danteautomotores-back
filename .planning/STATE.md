@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Cuentas verificadas
 status: executing
-stopped_at: Completed 03-10-PLAN.md
-last_updated: "2026-10-05T19:45:46.638Z"
+stopped_at: Completed 03-11-PLAN.md
+last_updated: "2026-10-05T19:51:00.076Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 03 execution started
-state_head: 6f495312edff5b5380acc2ba2a9a70bbafe037b2
+state_head: 461c21fdeea5184cf602aedd850be23ee5109fce
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 30
-  completed_plans: 25
+  completed_plans: 26
   percent: 33
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-03)
 ## Current Position
 
 Phase: 03 (Cuentas verificadas) — EXECUTING
-Plan: 10 of 15
+Plan: 11 of 15
 Status: Ready to execute
 Last activity: 2026-10-05 — Phase 03 execution started
 
@@ -82,6 +82,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 03 P08 | 8 min | 2 tasks | 10 files |
 | Phase 03 P09 | 16 min | 2 tasks | 4 files |
 | Phase 03 P10 | 25 min | 3 tasks | 16 files |
+| Phase 03 P11 | 3 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -132,6 +133,7 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-09: el UNIQUE original del mail (V1) se traduce igual que uk_usuarios_email_lower porque Postgres puede informar cualquiera de los dos; el mensaje de DNI repetido es la constante de UsuarioService
 - [Phase 03]: 03-10: passwordCambiadaEn avanza siempre al menos un segundo sobre el valor anterior (el claim pca se compara en segundos) y los mails de cuenta se encolan despues del commit
 - [Phase 03]: 03-10: el Retry-After de los 429 es la duracion de la ventana (900 s o 3600 s); la recuperacion de contrasena usa claves propias y nunca la bloquea el contador de login
+- [Phase 03]: [03-11] useExigirCuenta devuelve true/false segun se ejecuto la accion y no opera si no puede refrescar la cuenta desconocida; el DNI solo viaja en el PUT de Completa tus datos si faltaba
 
 ### Pending Todos
 
@@ -162,8 +164,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-05T19:45:46.556Z
-Stopped at: Completed 03-10-PLAN.md
+Last session: 2026-10-05T19:51:00.002Z
+Stopped at: Completed 03-11-PLAN.md
 Seguridad: el 2026-10-05 se rotaron la clave de Postgres, APP_JWT_SECRET y las credenciales de Cloudinary (key dante-prod-3 con rol Master admin; el resto de las keys se borraron). Produccion verificada despues de rotar (health UP, 11 autos).
 Pendientes menores de produccion: bajarle a la key de Cloudinary el rol Master admin a uno acotado si Cloudinary lo permite; revisar 3 cuentas COMPRADOR de prueba en usuarios; confirmar el Healthcheck Path /actuator/health en Railway; apagar SPRING_FLYWAY_BASELINE_ON_MIGRATE.
 Fase 3: 03-CONTEXT y 03-RESEARCH listos; falta que el usuario responda 5 preguntas del research (union con Google que descarta la contrasena de cuentas sin mail confirmado, boton "Lo quiero", remitente Brevo/dominio, cierre de sesiones al cambiar clave, texto legal /privacidad) y planificar.
