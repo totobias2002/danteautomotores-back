@@ -47,7 +47,9 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/consultas/**").permitAll()
+                        // Consultar y cotizar exigen sesión de comprador; que la cuenta esté verificada lo decide
+                        // cada service con el estado actual de la base (VerificacionCuenta.exigir).
+                        .requestMatchers(HttpMethod.POST, "/api/consultas/**").hasRole("COMPRADOR")
                         .requestMatchers(HttpMethod.POST, "/api/solicitudes-venta/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/publicaciones/**", "/api/agencias/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/agencias/**", "/api/publicaciones/**").hasRole("ADMIN")

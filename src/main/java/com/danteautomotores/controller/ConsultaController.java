@@ -2,6 +2,7 @@ package com.danteautomotores.controller;
 
 import com.danteautomotores.dto.consulta.ConsultaRequest;
 import com.danteautomotores.dto.consulta.ConsultaResponse;
+import com.danteautomotores.security.SecurityUtils;
 import com.danteautomotores.service.ConsultaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,7 @@ public class ConsultaController {
 
     @PostMapping
     public ResponseEntity<ConsultaResponse> crear(@Valid @RequestBody ConsultaRequest request) {
-        return ResponseEntity.ok(consultaService.crear(request));
+        return ResponseEntity.ok(consultaService.crear(request, SecurityUtils.obtenerEmailAutenticado()));
     }
 
     @GetMapping("/publicacion/{publicacionId}")
