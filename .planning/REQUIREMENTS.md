@@ -24,9 +24,9 @@
 ### Cuentas
 
 - [x] **AUTH-01**: El usuario puede registrarse con nombre, apellido, mail, contraseña, teléfono y DNI (los dos últimos obligatorios)
-- [ ] **AUTH-02**: El usuario puede iniciar sesión con Google
+- [x] **AUTH-02**: El usuario puede iniciar sesión con Google
 - [x] **AUTH-03**: El usuario que entra con Google y no tiene teléfono o DNI debe completarlos antes de comprar o cotizar
-- [ ] **AUTH-04**: El usuario puede recuperar su contraseña con un link por mail
+- [x] **AUTH-04**: El usuario puede recuperar su contraseña con un link por mail
 - [ ] **AUTH-05**: El usuario puede ver y editar su perfil
 - [ ] **AUTH-06**: "Lo quiero", el cotizador y la mensajería exigen estar logueado; si no lo está, se lo lleva al login y después vuelve a donde estaba
 
@@ -113,9 +113,9 @@
 | ADM-05 | Phase 1 | Complete |
 | ADM-06 | Phase 5 | Pending |
 | AUTH-01 | Phase 3 | Complete |
-| AUTH-02 | Phase 3 | Pending |
+| AUTH-02 | Phase 3 | Complete |
 | AUTH-03 | Phase 3 | Complete |
-| AUTH-04 | Phase 3 | Pending |
+| AUTH-04 | Phase 3 | Complete |
 | AUTH-05 | Phase 3 | Pending |
 | AUTH-06 | Phase 3 | Pending |
 | MSG-01 | Phase 4 | Pending |

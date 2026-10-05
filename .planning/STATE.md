@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Cuentas verificadas
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-10-05T18:53:48.449Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-10-05T18:59:54.325Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 03 execution started
-state_head: b009a43b4ba16cdc91da7a497d68a1704cf33de1
+state_head: 7dd2e32790de8891c9e081236863fcdff32fc0e9
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 30
-  completed_plans: 17
+  completed_plans: 18
   percent: 33
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-03)
 ## Current Position
 
 Phase: 03 (Cuentas verificadas) — EXECUTING
-Plan: 3 of 15
+Plan: 4 of 15
 Status: Ready to execute
 Last activity: 2026-10-05 — Phase 03 execution started
 
@@ -74,6 +74,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 02 P08 | no registrado | 3 tasks | 0 files |
 | Phase 03 P01 | 4 min | 2 tasks | 17 files |
 | Phase 03 P02 | 5 min | 2 tasks | 8 files |
+| Phase 03 P03 | 6 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-07: solo el detalle de un VENDIDO pide y muestra Autos parecidos
 - [Phase 03]: [03-01] La migracion de la fase es V5 (V4 ya es solicitudes_venta); VerificacionCuenta es la regla unica de cuenta verificada y AuthResponse suma faltantes sin DNI ni telefono
 - [Phase 03]: 03-02: se acepta cualquier numero argentino valido para libphonenumber y se guarda como celular +549 (no distingue fijo de celular sin el 15 o el 9)
+- [Phase 03]: 03-03: el claim pca va siempre en el JWT (tambien con claims extra) y una cuenta sin contrasena usa el hash invalido '!'; el login rechaza cuentas sin contrasena con el 401 generico antes de llamar al AuthenticationManager
 
 ### Pending Todos
 
@@ -143,8 +145,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-05T18:53:48.377Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-10-05T18:59:54.246Z
+Stopped at: Completed 03-03-PLAN.md
 Seguridad: el 2026-10-05 se rotaron la clave de Postgres, APP_JWT_SECRET y las credenciales de Cloudinary (key dante-prod-3 con rol Master admin; el resto de las keys se borraron). Produccion verificada despues de rotar (health UP, 11 autos).
 Pendientes menores de produccion: bajarle a la key de Cloudinary el rol Master admin a uno acotado si Cloudinary lo permite; revisar 3 cuentas COMPRADOR de prueba en usuarios; confirmar el Healthcheck Path /actuator/health en Railway; apagar SPRING_FLYWAY_BASELINE_ON_MIGRATE.
 Fase 3: 03-CONTEXT y 03-RESEARCH listos; falta que el usuario responda 5 preguntas del research (union con Google que descarta la contrasena de cuentas sin mail confirmado, boton "Lo quiero", remitente Brevo/dominio, cierre de sesiones al cambiar clave, texto legal /privacidad) y planificar.
