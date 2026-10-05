@@ -97,6 +97,31 @@ class MailConfigTest {
     }
 
     @Test
+    void conLaColaLlenaElEnvioSeDescartaYSeLogueaSinLanzar(CapturedOutput salida) throws Exception {
+        ThreadPoolTaskExecutor pool = (ThreadPoolTaskExecutor) new AsyncConfig().mailExecutor();
+        pool.initialize();
+        java.util.concurrent.CountDownLatch bloqueo = new java.util.concurrent.CountDownLatch(1);
+        try {
+            // 4 hilos ocupados + 100 en cola = 104; el 105 se rechaza.
+            for (int i = 0; i < 104; i++) {
+                pool.execute(() -> {
+                    try {
+                        bloqueo.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                });
+            }
+
+            assertThatCode(() -> pool.execute(() -> { })).doesNotThrowAnyException();
+            assertThat(salida.getAll()).contains("cola de envío de mails está llena");
+        } finally {
+            bloqueo.countDown();
+            pool.shutdown();
+        }
+    }
+
+    @Test
     void unEnvioAsyncCorreEnElEjecutorDeMail() {
         new ApplicationContextRunner()
                 .withUserConfiguration(AsyncConfig.class, ConfiguracionDePrueba.class)
