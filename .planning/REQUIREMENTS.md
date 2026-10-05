@@ -62,9 +62,9 @@
 ### Producción
 
 - [x] **PROD-01**: Un token inválido o vencido devuelve 401, y los errores de la API tienen un formato uniforme (manejo global)
-- [ ] **PROD-02**: La app no arranca sin un secret JWT y credenciales de Cloudinary válidas; CORS acepta orígenes con espacios
+- [x] **PROD-02**: La app no arranca sin un secret JWT y credenciales de Cloudinary válidas; CORS acepta orígenes con espacios
 - [ ] **PROD-03**: Hay un servicio de envío de mails configurado (para recuperar contraseña y avisos)
-- [ ] **PROD-04**: Back y front quedan desplegados (Railway/Render + Vercel) con perfil de producción (sin `ddl-auto: update` ni `show-sql`)
+- [x] **PROD-04**: Back y front quedan desplegados (Railway/Render + Vercel) con perfil de producción (sin `ddl-auto: update` ni `show-sql`)
 
 ## v2 Requirements
 
@@ -139,9 +139,9 @@
 | UX-04 | Phase 6 | Pending |
 | UX-05 | Phase 6 | Pending |
 | PROD-01 | Phase 1 | Complete |
-| PROD-02 | Phase 2 | Pending |
+| PROD-02 | Phase 2 | Complete |
 | PROD-03 | Phase 3 | Pending |
-| PROD-04 | Phase 2 | Pending |
+| PROD-04 | Phase 2 | Complete |
 
 **Coverage:**
 - v1 requirements: 40 total

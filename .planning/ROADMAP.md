@@ -78,7 +78,7 @@ Plans:
   4. El back (Railway/Render) y el front (Vercel) están desplegados con perfil de producción (sin `ddl-auto: update` ni `show-sql`), y el sitio público funciona contra la API productiva
   5. El backend no arranca si falta el secret JWT o las credenciales de Cloudinary, y CORS acepta la lista de orígenes aunque tenga espacios
 
-**Plans**: 7/8 plans executed
+**Plans**: 8/8 plans executed
 
 Plans:
 **Wave 1**
@@ -99,7 +99,7 @@ Plans:
 - [x] 02-07-PLAN.md — Detalle real (vendido con aviso y parecidos, consulta rechazada si se vendió), front sin mocks y humo completo (ola 5)
 
 **Wave 6** *(blocked on Wave 5 completion; checkpoints humanos)*
-- [ ] 02-08-PLAN.md — Producción: backup y ensayo con copia, deploy de Railway y Vercel, carga de la demo (ola 6, no autónomo)
+- [x] 02-08-PLAN.md — Producción: backup y ensayo con copia, deploy de Railway y Vercel, carga de la demo (ola 6, no autónomo)
 
 **UI hint**: yes
 **Notes**: Al quitar `ddl-auto: update`, el esquema pasa a migraciones versionadas (por ejemplo, Flyway) con una línea base que incluye los cambios de la Fase 1. Desde acá, las fases siguientes agregan migraciones y se verifican también en producción.
@@ -180,7 +180,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Gestión del inventario por el admin | 7/7 | Complete    | 2026-10-03 |
-| 2. Catálogo público real en producción | 7/8 | In Progress|  |
+| 2. Catálogo público real en producción | 8/8 | In Progress|  |
 | 3. Cuentas verificadas | 0/TBD | Not started | - |
 | 4. Compra por conversación con la agencia | 0/TBD | Not started | - |
 | 5. Cotizador de usados | 0/TBD | Not started | - |
