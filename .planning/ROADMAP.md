@@ -117,14 +117,14 @@ Plans:
   4. El usuario ve y edita su perfil desde la web
   5. Un visitante sin sesión que toca "Lo quiero", "Cotizá tu usado" o "Mis mensajes" es llevado al login y, al terminar, vuelve a la página donde estaba
 
-**Plans**: 1/15 plans executed
+**Plans**: 2/15 plans executed
 
 Plans:
 **Wave 1**
 - [x] 03-01-PLAN.md — Tracer: migración V5 + regla de cuenta verificada + faltantes en login y registro + aviso en el front (ola 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 03-02-PLAN.md — Normalizador de teléfono y DNI y errores uniformes (403 de cuenta no verificada, 429 de límite) (ola 2)
+- [x] 03-02-PLAN.md — Normalizador de teléfono y DNI y errores uniformes (403 de cuenta no verificada, 429 de límite) (ola 2)
 - [ ] 03-03-PLAN.md — Sesión: cuentas sin contraseña, cierre de sesiones al cambiar la contraseña y limitador de intentos (ola 2)
 - [ ] 03-04-PLAN.md — Servicio de mail (Brevo por API REST, log en desarrollo), guard de arranque y variables (ola 2)
 
@@ -216,7 +216,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Gestión del inventario por el admin | 7/7 | Complete    | 2026-10-03 |
 | 2. Catálogo público real en producción | 8/8 | Complete    | 2026-10-05 |
-| 3. Cuentas verificadas | 1/15 | In Progress|  |
+| 3. Cuentas verificadas | 2/15 | In Progress|  |
 | 4. Compra por conversación con la agencia | 0/TBD | Not started | - |
 | 5. Cotizador de usados | 0/TBD | Not started | - |
 | 6. Experiencia visual pulida | 0/TBD | Not started | - |
