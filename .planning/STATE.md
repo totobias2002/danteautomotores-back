@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Cuentas verificadas
 status: executing
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-10-05T19:06:13.617Z"
+stopped_at: Completed 03-05-PLAN.md
+last_updated: "2026-10-05T19:11:43.957Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 03 execution started
-state_head: bbf3a6a0dd1eaa7f783bdab9504f3ea2accca025
+state_head: a14731cea0f7059602eead67500b90a078c38bfa
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 30
-  completed_plans: 19
+  completed_plans: 20
   percent: 33
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-03)
 ## Current Position
 
 Phase: 03 (Cuentas verificadas) — EXECUTING
-Plan: 5 of 15
+Plan: 6 of 15
 Status: Ready to execute
 Last activity: 2026-10-05 — Phase 03 execution started
 
@@ -76,6 +76,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 03 P02 | 5 min | 2 tasks | 8 files |
 | Phase 03 P03 | 6 min | 3 tasks | 9 files |
 | Phase 03 P04 | 14 min | 3 tasks | 13 files |
+| Phase 03 P05 | 4 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -117,6 +118,8 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-02: se acepta cualquier numero argentino valido para libphonenumber y se guarda como celular +549 (no distingue fijo de celular sin el 15 o el 9)
 - [Phase 03]: 03-03: el claim pca va siempre en el JWT (tambien con claims extra) y una cuenta sin contrasena usa el hash invalido '!'; el login rechaza cuentas sin contrasena con el 401 generico antes de llamar al AuthenticationManager
 - [Phase 03]: 03-04: la respuesta de Brevo se procesa con exchange() y la causa de una falla lleva solo el estado HTTP; mailExecutor desplaza al applicationTaskExecutor de Boot (sin uso hoy)
+- [Phase 03]: 03-05: un DNI en blanco en el pedido de una cuenta que ya tiene DNI no cambia nada; solo un valor distinto da 400 — el front del perfil no necesita reenviar el DNI inmutable
+- [Phase 03]: 03-05: solo uk_usuarios_dni se traduce al mensaje de D-04; otra violacion de integridad se relanza — el advice la responde 409 sin PII
 
 ### Pending Todos
 
@@ -147,8 +150,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-05T19:06:13.537Z
-Stopped at: Completed 03-04-PLAN.md
+Last session: 2026-10-05T19:11:43.889Z
+Stopped at: Completed 03-05-PLAN.md
 Seguridad: el 2026-10-05 se rotaron la clave de Postgres, APP_JWT_SECRET y las credenciales de Cloudinary (key dante-prod-3 con rol Master admin; el resto de las keys se borraron). Produccion verificada despues de rotar (health UP, 11 autos).
 Pendientes menores de produccion: bajarle a la key de Cloudinary el rol Master admin a uno acotado si Cloudinary lo permite; revisar 3 cuentas COMPRADOR de prueba en usuarios; confirmar el Healthcheck Path /actuator/health en Railway; apagar SPRING_FLYWAY_BASELINE_ON_MIGRATE.
 Fase 3: 03-CONTEXT y 03-RESEARCH listos; falta que el usuario responda 5 preguntas del research (union con Google que descarta la contrasena de cuentas sin mail confirmado, boton "Lo quiero", remitente Brevo/dominio, cierre de sesiones al cambiar clave, texto legal /privacidad) y planificar.
