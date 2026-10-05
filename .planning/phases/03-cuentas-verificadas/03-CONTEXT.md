@@ -37,6 +37,16 @@ Requisitos: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, AUTH-06, PROD-03.
 - **D-13:** **Sin dominio propio por ahora**: el remitente (dirección y nombre) es configurable por variable de entorno y se arranca con el que permita Brevo sin dominio verificado. Dejar en el runbook cómo pasar a un dominio propio (registros DNS) más adelante.
 - **D-14:** El link para **cambiar la contraseña dura 1 hora y es de un solo uso**. Pedirlo no revela si el mail tiene cuenta (respuesta siempre igual).
 
+### Decisiones tomadas tras el research (2026-10-05)
+- **D-15:** La **unión con Google borra la contraseña** de una cuenta cuyo mail no está confirmado (anti pre-hijacking). Quien quiera volver a usar mail y contraseña la restablece con "olvidé mi contraseña"; no pierde datos ni favoritos. Una cuenta con mail confirmado conserva su contraseña. (Resuelve Open Question 1 / A3.) — **Reversibility:** costly.
+- **D-16:** El botón de la ficha **"Reservar o agendar visita" se renombra a "Lo quiero"** y se agrega **"Mis mensajes"** al `Navbar` (usuarios con sesión) con la ruta `/mensajes` protegida y una página "Próximamente"; la Fase 4 la llena. (Open Question 2.)
+- **D-17:** Se **mantiene el mensaje "Ya existe una cuenta con ese email"** al registrarse, con límite de intentos por IP; queda anotado como deuda de seguridad (OWASP recomienda mensaje genérico). (Open Question 3.)
+- **D-18:** Remitente de Brevo con **casilla Gmail sin dominio propio**; se mide la entregabilidad y, si cae en spam, se pasa a dominio propio (ver D-13). (Open Question 4.)
+- **D-19:** **Cambiar o restablecer la contraseña cierra las demás sesiones** (claim `pca` en el JWT verificado en el filtro). (Open Question 5.) — **Reversibility:** costly.
+- **D-20:** El texto de **`/privacidad`** se publica como **borrador** con una leyenda simple; la **revisión legal y la inscripción ante la AAIP** (Ley 25.326) quedan como pendiente de la agencia, **fuera del código**. (Open Question 6.)
+- **D-21:** **No se manda mail masivo** a las cuentas viejas: el mail de confirmación se envía cuando el usuario toca "Reenviar mail de confirmación" en `/completar-datos`. (Open Question 7.)
+- **Checkpoints humanos (los hace el usuario, sin pegar secretos en el chat):** Client ID de Google Cloud, cuenta y API key de Brevo con remitente, variables en Railway y Vercel.
+
 ### Claude's Discretion
 - Diseño de "Completá tus datos", del perfil y de los mails (estilo del sitio; Kavak / Mercado Libre como referencia).
 - Qué se puede editar en el perfil: por defecto nombre, apellido y teléfono editables; **DNI no editable** una vez cargado (si está mal, lo corrige el admin) y **mail no editable** en esta fase (cambiarlo exigiría reconfirmar; queda como mejora). El planner puede ajustar si encuentra una razón fuerte, dejándolo anotado.
