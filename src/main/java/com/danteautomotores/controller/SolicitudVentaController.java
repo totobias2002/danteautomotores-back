@@ -3,6 +3,7 @@ package com.danteautomotores.controller;
 import com.danteautomotores.dto.solicitudventa.CambiarEstadoSolicitudRequest;
 import com.danteautomotores.dto.solicitudventa.SolicitudVentaRequest;
 import com.danteautomotores.dto.solicitudventa.SolicitudVentaResponse;
+import com.danteautomotores.security.SecurityUtils;
 import com.danteautomotores.service.SolicitudVentaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,7 @@ public class SolicitudVentaController {
 
     @PostMapping
     public ResponseEntity<SolicitudVentaResponse> crear(@Valid @RequestBody SolicitudVentaRequest request) {
-        return ResponseEntity.ok(solicitudVentaService.crear(request));
+        return ResponseEntity.ok(solicitudVentaService.crear(request, SecurityUtils.obtenerEmailAutenticado()));
     }
 
     @GetMapping

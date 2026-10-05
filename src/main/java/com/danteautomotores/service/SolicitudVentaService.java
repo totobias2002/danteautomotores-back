@@ -4,10 +4,12 @@ import com.danteautomotores.dto.solicitudventa.CambiarEstadoSolicitudRequest;
 import com.danteautomotores.dto.solicitudventa.SolicitudVentaRequest;
 import com.danteautomotores.dto.solicitudventa.SolicitudVentaResponse;
 import com.danteautomotores.entity.SolicitudVenta;
+import com.danteautomotores.entity.Usuario;
 import com.danteautomotores.enums.EstadoSolicitudVenta;
 import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.mapper.SolicitudVentaMapper;
 import com.danteautomotores.repository.SolicitudVentaRepository;
+import com.danteautomotores.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,8 +20,16 @@ import java.util.List;
 public class SolicitudVentaService {
 
     private final SolicitudVentaRepository solicitudVentaRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final VerificacionCuenta verificacionCuenta;
 
-    public SolicitudVentaResponse crear(SolicitudVentaRequest request) {
+    public SolicitudVentaResponse crear(SolicitudVentaRequest request, String email) {
+        // Cotizar exige cuenta verificada (D-01), decidido con el estado actual de la base. El contacto de la venta
+        // (nombreVendedor, telefonoVendedor) sigue saliendo del formulario: puede diferir de los datos de la cuenta.
+        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new ResourceNotFoundException("No existe la cuenta"));
+        verificacionCuenta.exigir(usuario);
+
         SolicitudVenta solicitud = SolicitudVenta.builder()
                 .marca(request.getMarca())
                 .modelo(request.getModelo())

@@ -50,7 +50,7 @@ public class SecurityConfig {
                         // Consultar y cotizar exigen sesión de comprador; que la cuenta esté verificada lo decide
                         // cada service con el estado actual de la base (VerificacionCuenta.exigir).
                         .requestMatchers(HttpMethod.POST, "/api/consultas/**").hasRole("COMPRADOR")
-                        .requestMatchers(HttpMethod.POST, "/api/solicitudes-venta/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/solicitudes-venta/**").hasRole("COMPRADOR")
                         .requestMatchers(HttpMethod.GET, "/api/publicaciones/**", "/api/agencias/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/agencias/**", "/api/publicaciones/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/agencias/**", "/api/publicaciones/**").hasRole("ADMIN")
