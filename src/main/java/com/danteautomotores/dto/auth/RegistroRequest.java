@@ -11,6 +11,8 @@ public class RegistroRequest {
     @NotBlank
     private String nombre;
 
+    private String apellido;
+
     @NotBlank
     @Email
     private String email;
@@ -20,4 +22,6 @@ public class RegistroRequest {
     private String password;
 
     private String telefono;
+
+    private String dni;
 }
