@@ -3,6 +3,7 @@ package com.danteautomotores.service;
 import com.danteautomotores.entity.Usuario;
 import com.danteautomotores.enums.DatoFaltante;
 import com.danteautomotores.enums.Rol;
+import com.danteautomotores.service.identidad.NormalizadorDeContacto;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -24,7 +25,8 @@ public class VerificacionCuenta {
         if (estaEnBlanco(usuario.getApellido())) {
             faltantes.add(DatoFaltante.APELLIDO);
         }
-        if (estaEnBlanco(usuario.getTelefono())) {
+        // Un teléfono viejo de texto libre que no es un celular válido cuenta como faltante: se vuelve a cargar (D-09).
+        if (estaEnBlanco(usuario.getTelefono()) || !NormalizadorDeContacto.esCelularValido(usuario.getTelefono())) {
             faltantes.add(DatoFaltante.TELEFONO);
         }
         if (estaEnBlanco(usuario.getDni())) {

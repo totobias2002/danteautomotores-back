@@ -48,6 +48,21 @@ class VerificacionCuentaTest {
     }
 
     @Test
+    void unTelefonoViejoDeTextoLibreInvalidoCuentaComoFaltante() {
+        Usuario usuario = comprador().telefono("abc").build();
+
+        assertThat(verificacion.faltantes(usuario)).containsExactly(DatoFaltante.TELEFONO);
+        assertThat(verificacion.estaVerificada(usuario)).isFalse();
+    }
+
+    @Test
+    void unTelefonoYaNormalizadoNoEsFaltante() {
+        Usuario usuario = comprador().telefono("+5491112345678").build();
+
+        assertThat(verificacion.faltantes(usuario)).isEmpty();
+    }
+
+    @Test
     void faltaElDni() {
         Usuario usuario = comprador().dni(null).build();
 
