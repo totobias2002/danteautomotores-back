@@ -93,10 +93,14 @@ class AuthServiceTest {
     }
 
     /** Deja el camino feliz del registro armado: mail y DNI libres, hash, guardado con id y token. */
-    private void prepararRegistroValido() {
+    private void prepararChequeosPrevios() {
         when(usuarioRepository.existsByEmailIgnoreCase("ana@x.com")).thenReturn(false);
         when(usuarioRepository.existsByDni("30111222")).thenReturn(false);
         when(passwordEncoder.encode("12345678")).thenReturn("hash");
+    }
+
+    private void prepararRegistroValido() {
+        prepararChequeosPrevios();
         when(usuarioRepository.saveAndFlush(any(Usuario.class))).thenAnswer(invocacion -> {
             Usuario guardado = invocacion.getArgument(0);
             guardado.setId(7L);
@@ -256,7 +260,7 @@ class AuthServiceTest {
 
     @Test
     void siSaveAndFlushChocaConElUniqueDelDniSeTraduceAlMensajeDelDni() {
-        prepararRegistroValido();
+        prepararChequeosPrevios();
         when(usuarioRepository.saveAndFlush(any(Usuario.class))).thenThrow(violacion("uk_usuarios_dni"));
 
         assertThatThrownBy(() -> authService.registrar(registro()))
@@ -268,7 +272,7 @@ class AuthServiceTest {
 
     @Test
     void siSaveAndFlushChocaConElUniqueDelMailSeTraduceAlMensajeDelMail() {
-        prepararRegistroValido();
+        prepararChequeosPrevios();
         when(usuarioRepository.saveAndFlush(any(Usuario.class))).thenThrow(violacion("uk_usuarios_email_lower"));
 
         assertThatThrownBy(() -> authService.registrar(registro()))
@@ -277,8 +281,19 @@ class AuthServiceTest {
     }
 
     @Test
+    void siSaveAndFlushChocaConElUniqueOriginalDelMailTambienSeTraduceAlMensajeDelMail() {
+        // Con el mismo mail exacto, Postgres puede informar el UNIQUE original en vez del índice sobre lower(email).
+        prepararChequeosPrevios();
+        when(usuarioRepository.saveAndFlush(any(Usuario.class))).thenThrow(violacion("ukkfsp0s1tflm1cwlj8idhqsad0"));
+
+        assertThatThrownBy(() -> authService.registrar(registro()))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage(MENSAJE_MAIL_REPETIDO);
+    }
+
+    @Test
     void otraViolacionDeIntegridadSeRelanza() {
-        prepararRegistroValido();
+        prepararChequeosPrevios();
         DataIntegrityViolationException otra = violacion("fk_otra_cosa");
         when(usuarioRepository.saveAndFlush(any(Usuario.class))).thenThrow(otra);
 
