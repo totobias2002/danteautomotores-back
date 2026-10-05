@@ -21,7 +21,7 @@ Cada fase es un corte vertical (back en `danteautomotores-back` + front en `dant
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Gestión del inventario por el admin** - La única cuenta admin gestiona autos, fotos, estados y destacados desde el panel contra la API real (completed 2026-10-03)
-- [ ] **Phase 2: Catálogo público real en producción** - El visitante navega el catálogo real (paginado, filtrado, con destacados y estados) en el sitio desplegado
+- [x] **Phase 2: Catálogo público real en producción** - El visitante navega el catálogo real (paginado, filtrado, con destacados y estados) en el sitio desplegado (completed 2026-10-05)
 - [ ] **Phase 3: Cuentas verificadas** - Registro con teléfono y DNI, login con Google con perfil completo, recuperación de contraseña y acciones protegidas
 - [ ] **Phase 4: Compra por conversación con la agencia** - "Lo quiero" abre una conversación de compra; usuario y admin conversan en bandejas con no leídos y avisos por mail
 - [ ] **Phase 5: Cotizador de usados** - El usuario cotiza su auto paso a paso, recibe un precio estimado y lo usa para vender o como parte de pago
@@ -78,7 +78,7 @@ Plans:
   4. El back (Railway/Render) y el front (Vercel) están desplegados con perfil de producción (sin `ddl-auto: update` ni `show-sql`), y el sitio público funciona contra la API productiva
   5. El backend no arranca si falta el secret JWT o las credenciales de Cloudinary, y CORS acepta la lista de orígenes aunque tenga espacios
 
-**Plans**: 8/8 plans executed
+**Plans**: 8/8 plans complete
 
 Plans:
 **Wave 1**
@@ -180,7 +180,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Gestión del inventario por el admin | 7/7 | Complete    | 2026-10-03 |
-| 2. Catálogo público real en producción | 8/8 | In Progress|  |
+| 2. Catálogo público real en producción | 8/8 | Complete    | 2026-10-05 |
 | 3. Cuentas verificadas | 0/TBD | Not started | - |
 | 4. Compra por conversación con la agencia | 0/TBD | Not started | - |
 | 5. Cotizador de usados | 0/TBD | Not started | - |
