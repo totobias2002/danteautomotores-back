@@ -45,6 +45,9 @@ Requisitos: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, AUTH-06, PROD-03.
 - **D-19:** **Cambiar o restablecer la contraseña cierra las demás sesiones** (claim `pca` en el JWT verificado en el filtro). (Open Question 5.) — **Reversibility:** costly.
 - **D-20:** El texto de **`/privacidad`** se publica como **borrador** con una leyenda simple; la **revisión legal y la inscripción ante la AAIP** (Ley 25.326) quedan como pendiente de la agencia, **fuera del código**. (Open Question 6.)
 - **D-21:** **No se manda mail masivo** a las cuentas viejas: el mail de confirmación se envía cuando el usuario toca "Reenviar mail de confirmación" en `/completar-datos`. (Open Question 7.)
+- **D-22:** El formulario interino **"Vender tu auto"** (`/vender` y `POST /api/solicitudes-venta`) **exige cuenta verificada**, en el back y en la ruta del front (coherente con D-01). Confirmado por el usuario el 2026-10-05.
+- **D-23:** **Una cuenta ADMIN no se une por Google**: el admin entra solo con mail y contraseña. Confirmado el 2026-10-05.
+- **D-24:** Tras el gate, **"Cotizá tu usado" conserva el link de WhatsApp** hasta que llegue el cotizador de la Fase 5. Confirmado el 2026-10-05.
 - **Checkpoints humanos (los hace el usuario, sin pegar secretos en el chat):** Client ID de Google Cloud, cuenta y API key de Brevo con remitente, variables en Railway y Vercel.
 
 ### Claude's Discretion
