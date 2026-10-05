@@ -117,9 +117,44 @@ Plans:
   4. El usuario ve y edita su perfil desde la web
   5. Un visitante sin sesión que toca "Lo quiero", "Cotizá tu usado" o "Mis mensajes" es llevado al login y, al terminar, vuelve a la página donde estaba
 
-**Plans**: TBD
+**Plans**: 0/15 plans complete
+
+Plans:
+**Wave 1**
+- [ ] 03-01-PLAN.md — Tracer: migración V5 + regla de cuenta verificada + faltantes en login y registro + aviso en el front (ola 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 03-02-PLAN.md — Normalizador de teléfono y DNI y errores uniformes (403 de cuenta no verificada, 429 de límite) (ola 2)
+- [ ] 03-03-PLAN.md — Sesión: cuentas sin contraseña, cierre de sesiones al cambiar la contraseña y limitador de intentos (ola 2)
+- [ ] 03-04-PLAN.md — Servicio de mail (Brevo por API REST, log en desarrollo), guard de arranque y variables (ola 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 03-05-PLAN.md — API del perfil: GET y PUT /api/usuarios/me para completar y editar los datos (ola 3)
+- [ ] 03-06-PLAN.md — Tokens de un solo uso y notificaciones por mail (ola 3)
+- [ ] 03-07-PLAN.md — Login con Google en el back: verificador del ID token y vinculación de cuentas (ola 3)
+- [ ] 03-08-PLAN.md — Gate del back: la consulta y Vender tu auto exigen cuenta verificada (ola 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 03-09-PLAN.md — Registro con apellido, teléfono y DNI y mail de confirmación (ola 4)
+- [ ] 03-10-PLAN.md — Endpoints de cuenta: confirmar mail, recuperar contraseña, Google, cambio de contraseña y reenvío (ola 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 03-11-PLAN.md — Front: lógica del gate, Completá tus datos y sesión rehidratada (ola 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 03-12-PLAN.md — Front: registro, login con Google y pantallas de recuperación y confirmación de mail (ola 6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 03-13-PLAN.md — Front: perfil, Lo quiero, Mis mensajes, privacidad y gate de los botones (ola 7)
+
+**Wave 8** *(blocked on Wave 7 completion; checkpoint humano)*
+- [ ] 03-14-PLAN.md — Humo completo, README y cuentas externas de Google Cloud y Brevo (ola 8, no autónomo)
+
+**Wave 9** *(blocked on Wave 8 completion; checkpoints humanos)*
+- [ ] 03-15-PLAN.md — Producción: backup, ensayo de V5 con copia, variables, deploy y prueba con casillas reales (ola 9, no autónomo)
+
 **UI hint**: yes
-**Notes**: DNI y teléfono son datos personales (Ley 25.326): exponerlos solo al propio usuario y al admin. Los botones de Google en `LoginPage.jsx` y `RegistroPage.jsx` hoy son TODOs.
+**Notes**: DNI y teléfono son datos personales (Ley 25.326): exponerlos solo al propio usuario y al admin. Los botones de Google en `LoginPage.jsx` y `RegistroPage.jsx` hoy son TODOs. La migración de la fase es V5 (V4 la ocupó "Vender tu auto"). Decisiones del plan sobre la integración posterior de "Vender tu auto": su alta también exige cuenta verificada (03-08) y la ruta `/vender` queda detrás del gate (03-13).
 
 ### Phase 4: Compra por conversación con la agencia
 
@@ -181,7 +216,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Gestión del inventario por el admin | 7/7 | Complete    | 2026-10-03 |
 | 2. Catálogo público real en producción | 8/8 | Complete    | 2026-10-05 |
-| 3. Cuentas verificadas | 0/TBD | Not started | - |
+| 3. Cuentas verificadas | 0/15 | Planned | - |
 | 4. Compra por conversación con la agencia | 0/TBD | Not started | - |
 | 5. Cotizador de usados | 0/TBD | Not started | - |
 | 6. Experiencia visual pulida | 0/TBD | Not started | - |
