@@ -141,7 +141,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 Last session: 2026-10-05T17:02:09.525Z
 Stopped at: Phase 2 complete, ready to plan Phase 03
-Pendientes de seguridad (claves expuestas en el chat): rotar la clave de Postgres, la API Key/Secret de Cloudinary (y borrar las 4 filas viejas) y APP_JWT_SECRET.
+Seguridad: el 2026-10-05 se rotaron la clave de Postgres, APP_JWT_SECRET y las credenciales de Cloudinary (key dante-prod-3 con rol Master admin; el resto de las keys se borraron). Produccion verificada despues de rotar (health UP, 11 autos).
+Pendientes menores de produccion: bajarle a la key de Cloudinary el rol Master admin a uno acotado si Cloudinary lo permite; revisar 3 cuentas COMPRADOR de prueba en usuarios; confirmar el Healthcheck Path /actuator/health en Railway; apagar SPRING_FLYWAY_BASELINE_ON_MIGRATE.
 Fase 3: 03-CONTEXT y 03-RESEARCH listos; falta que el usuario responda 5 preguntas del research (union con Google que descarta la contrasena de cuentas sin mail confirmado, boton "Lo quiero", remitente Brevo/dominio, cierre de sesiones al cambiar clave, texto legal /privacidad) y planificar.
 Integrado en esta sesion: la funcion "Vender tu auto" (solicitudes_venta) que estaba en GitHub desde el 29/09; migracion V4 creada.
 Resume file: None
