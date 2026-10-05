@@ -5,7 +5,10 @@ import com.danteautomotores.controller.PublicacionController;
 import com.danteautomotores.dto.auth.LoginRequest;
 import com.danteautomotores.enums.DatoFaltante;
 import com.danteautomotores.service.AuthService;
+import com.danteautomotores.service.GoogleAuthService;
+import com.danteautomotores.service.LimitadorDeIntentos;
 import com.danteautomotores.service.PublicacionService;
+import com.danteautomotores.service.RecuperacionCuentaService;
 import com.danteautomotores.support.SeguridadWebMvcTestBase;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
@@ -15,6 +18,7 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -48,6 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = {PublicacionController.class, AuthController.class})
 @ExtendWith(OutputCaptureExtension.class)
+@Import(LimitadorDeIntentos.class)
 class GlobalExceptionHandlerTest extends SeguridadWebMvcTestBase {
 
     private static final String MENSAJE_500 = "Ocurrió un error inesperado. Intentá de nuevo más tarde.";
@@ -57,6 +62,13 @@ class GlobalExceptionHandlerTest extends SeguridadWebMvcTestBase {
 
     @MockBean
     private AuthService authService;
+
+    // Dependencias de AuthController que estos tests no ejercitan; el limitador es el real.
+    @MockBean
+    private RecuperacionCuentaService recuperacionCuentaService;
+
+    @MockBean
+    private GoogleAuthService googleAuthService;
 
     private String admin() {
         return bearerPara("admin@dante.com", "ADMIN");
