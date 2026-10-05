@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Cuentas verificadas
-status: planning
-stopped_at: Phase 2 complete, ready to plan Phase 03
-last_updated: "2026-10-05T17:06:29.497Z"
+status: executing
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-10-05T18:49:36.168Z"
 last_activity: 2026-10-05
-last_activity_desc: Phase 2 complete, transitioned to Phase 03
-state_head: f1acac8b14cddc326cc338d605cf71531ad89333
+last_activity_desc: Phase 03 execution started
+state_head: ff7684a832a58fc219756f77df6980d732445afa
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 30
+  completed_plans: 16
   percent: 33
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-03)
 
 **Core value:** Un usuario registrado y verificado puede encontrar un auto y hablar con la agencia para comprarlo, o cotizar el suyo, todo dentro de la web, y el admin sabe al 100 % con quién está hablando.
-**Current focus:** Phase 02 — Catálogo público real en producción
+**Current focus:** Phase 03 — Cuentas verificadas
 
 ## Current Position
 
-Phase: 03 — Cuentas verificadas
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-10-05 — Phase 2 complete, transitioned to Phase 03
+Phase: 03 (Cuentas verificadas) — EXECUTING
+Plan: 2 of 15
+Status: Ready to execute
+Last activity: 2026-10-05 — Phase 03 execution started
 
 Progress: [███░░░░░░░] 33%
 
@@ -72,6 +72,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 02 P06 | 35min | 3 tasks | 6 files |
 | Phase 02 P07 | 28 min | 3 tasks | 21 files |
 | Phase 02 P08 | no registrado | 3 tasks | 0 files |
+| Phase 03 P01 | 4 min | 2 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -109,6 +110,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-07: similares = DISPONIBLES de la misma moneda, 70-130 % del precio, mismo tipo o marca (solo marca sin tipo), por cercania de precio; 4 por defecto, 1..8
 - [Phase 02]: 02-07: ConsultaService rechaza con 400 las consultas sobre VENDIDO (defensa en profundidad); RESERVADO se consulta
 - [Phase 02]: 02-07: solo el detalle de un VENDIDO pide y muestra Autos parecidos
+- [Phase 03]: [03-01] La migracion de la fase es V5 (V4 ya es solicitudes_venta); VerificacionCuenta es la regla unica de cuenta verificada y AuthResponse suma faltantes sin DNI ni telefono
 
 ### Pending Todos
 
@@ -139,8 +141,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-05T17:02:09.525Z
-Stopped at: Phase 2 complete, ready to plan Phase 03
+Last session: 2026-10-05T18:49:36.093Z
+Stopped at: Completed 03-01-PLAN.md
 Seguridad: el 2026-10-05 se rotaron la clave de Postgres, APP_JWT_SECRET y las credenciales de Cloudinary (key dante-prod-3 con rol Master admin; el resto de las keys se borraron). Produccion verificada despues de rotar (health UP, 11 autos).
 Pendientes menores de produccion: bajarle a la key de Cloudinary el rol Master admin a uno acotado si Cloudinary lo permite; revisar 3 cuentas COMPRADOR de prueba en usuarios; confirmar el Healthcheck Path /actuator/health en Railway; apagar SPRING_FLYWAY_BASELINE_ON_MIGRATE.
 Fase 3: 03-CONTEXT y 03-RESEARCH listos; falta que el usuario responda 5 preguntas del research (union con Google que descarta la contrasena de cuentas sin mail confirmado, boton "Lo quiero", remitente Brevo/dominio, cierre de sesiones al cambiar clave, texto legal /privacidad) y planificar.
