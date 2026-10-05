@@ -5,6 +5,7 @@ import com.danteautomotores.dto.auth.LoginRequest;
 import com.danteautomotores.dto.auth.RegistroRequest;
 import com.danteautomotores.entity.Usuario;
 import com.danteautomotores.exception.ReglaDeNegocioException;
+import com.danteautomotores.enums.DatoFaltante;
 import com.danteautomotores.enums.Rol;
 import com.danteautomotores.repository.UsuarioRepository;
 import com.danteautomotores.security.JwtService;
@@ -14,6 +15,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -22,6 +25,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final VerificacionCuenta verificacionCuenta;
 
     public AuthResponse registrar(RegistroRequest request) {
         if (usuarioRepository.existsByEmail(request.getEmail())) {
@@ -62,11 +66,18 @@ public class AuthService {
 
         String token = jwtService.generateToken(userDetails);
 
+        List<DatoFaltante> faltantes = verificacionCuenta.faltantes(usuario);
+
+        // Nunca DNI ni teléfono: solo qué datos faltan.
         return AuthResponse.builder()
                 .token(token)
                 .nombre(usuario.getNombre())
+                .apellido(usuario.getApellido())
                 .email(usuario.getEmail())
                 .rol(usuario.getRol().name())
+                .emailConfirmado(usuario.isEmailConfirmado())
+                .cuentaVerificada(faltantes.isEmpty())
+                .faltantes(faltantes)
                 .build();
     }
 }

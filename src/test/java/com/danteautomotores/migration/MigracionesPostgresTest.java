@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Las migraciones contra un PostgreSQL real, sin Spring. Cada test trabaja sobre sus propias bases test_* y las borra.
  * Lo que se prueba es lo que no se puede arreglar después en producción: una base creada por Hibernate sin historial
- * de Flyway queda marcada como V1, recibe solo V2 y V3 y no pierde ninguna fila.
+ * de Flyway queda marcada como V1, recibe de V2 a V5 y no pierde ninguna fila.
  */
 class MigracionesPostgresTest {
 
@@ -154,24 +154,24 @@ class MigracionesPostgresTest {
     // ---- Tests ----
 
     @Test
-    void baseVaciaAplicaLasTresMigraciones() throws SQLException {
+    void baseVaciaAplicaLasCincoMigraciones() throws SQLException {
         String base = baseNueva();
 
         MigrateResult resultado = flyway(base, true).migrate();
 
-        assertThat(resultado.migrationsExecuted).isEqualTo(4);
-        assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true");
+        assertThat(resultado.migrationsExecuted).isEqualTo(5);
+        assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true");
     }
 
     @Test
-    void produccionSimuladaQuedaEnBaselineV1RecibeV2YV3SinPerderFilas() throws SQLException {
+    void produccionSimuladaQuedaEnBaselineV1RecibeDeV2AV5SinPerderFilas() throws SQLException {
         String base = produccionSimulada();
         Map<String, Long> antes = conteos(base);
 
         MigrateResult resultado = flyway(base, true).migrate();
 
-        assertThat(resultado.migrationsExecuted).isEqualTo(3);
-        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true");
+        assertThat(resultado.migrationsExecuted).isEqualTo(4);
+        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true");
         assertThat(conteos(base)).isEqualTo(antes);
         assertThat(valor(base, "SELECT count(*) FROM publicaciones WHERE destacado = false")).isEqualTo("2");
         assertThat(valor(base, "SELECT fecha_vendido IS NOT NULL FROM publicaciones WHERE estado = 'VENDIDO'")).isEqualTo("t");
@@ -179,15 +179,51 @@ class MigracionesPostgresTest {
     }
 
     @Test
-    void desarrolloConLasColumnasDeLaFase1HaceBaselineV2SinErrorYV3() throws SQLException {
+    void desarrolloConLasColumnasDeLaFase1HaceBaselineV2SinErrorYLasSiguientes() throws SQLException {
         String base = desarrolloSimulada();
         Map<String, Long> antes = conteos(base);
 
         MigrateResult resultado = flyway(base, true).migrate();
 
-        assertThat(resultado.migrationsExecuted).isEqualTo(3);
-        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true");
+        assertThat(resultado.migrationsExecuted).isEqualTo(4);
+        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true");
         assertThat(conteos(base)).isEqualTo(antes);
+    }
+
+    @Test
+    void v5SobreProduccionSimuladaNoTocaFilasYDejaLasRestriccionesDeIdentidad() throws SQLException {
+        String base = produccionSimulada();
+        Map<String, Long> antes = conteos(base);
+
+        flyway(base, true).migrate();
+
+        assertThat(conteos(base)).isEqualTo(antes);
+        // D-09: las cuentas viejas quedan sin apellido ni DNI; la obligatoriedad vive en la regla de cuenta verificada.
+        assertThat(valor(base, "SELECT count(*) FROM usuarios WHERE dni IS NULL AND apellido IS NULL")).isEqualTo("2");
+        // D-10: los mails existentes no se dan por confirmados; el admin si.
+        assertThat(valor(base, "SELECT email_confirmado FROM usuarios WHERE rol = 'ADMIN'")).isEqualTo("t");
+        assertThat(valor(base, "SELECT email_confirmado FROM usuarios WHERE rol = 'COMPRADOR'")).isEqualTo("f");
+
+        try (Connection c = conexion(base); Statement st = c.createStatement()) {
+            // D-04: una cuenta por DNI.
+            st.execute("UPDATE usuarios SET dni = '30123456' WHERE rol = 'ADMIN'");
+            assertThatThrownBy(() -> st.execute("UPDATE usuarios SET dni = '30123456' WHERE rol = 'COMPRADOR'"))
+                    .isInstanceOf(SQLException.class).hasMessageContaining("uk_usuarios_dni");
+            // D-05: 7 u 8 digitos sin cero inicial.
+            assertThatThrownBy(() -> st.execute("UPDATE usuarios SET dni = '0123456' WHERE rol = 'COMPRADOR'"))
+                    .isInstanceOf(SQLException.class).hasMessageContaining("usuarios_dni_formato");
+            // Mails que difieren solo en mayusculas no pueden coexistir.
+            assertThatThrownBy(() -> st.execute("INSERT INTO usuarios (nombre, email, password_hash, rol) "
+                    + "VALUES ('Otro', 'COMPRADOR@dante.test', 'hash', 'COMPRADOR')"))
+                    .isInstanceOf(SQLException.class).hasMessageContaining("uk_usuarios_email_lower");
+            // Una cuenta solo-Google no tiene contrasena.
+            st.execute("INSERT INTO usuarios (nombre, email, rol, google_sub) "
+                    + "VALUES ('Sin clave', 'google@dante.test', 'COMPRADOR', 'sub-123')");
+        }
+
+        assertThat(valor(base, "SELECT count(*) FROM usuarios WHERE password_hash IS NULL")).isEqualTo("1");
+        assertThat(valor(base, "SELECT to_regclass('public.tokens_cuenta') IS NOT NULL")).isEqualTo("t");
+        assertThat(valor(base, "SELECT count(*) FROM pg_indexes WHERE indexname = 'idx_tokens_cuenta_usuario_tipo'")).isEqualTo("1");
     }
 
     @Test
@@ -229,8 +265,8 @@ class MigracionesPostgresTest {
                 total += futuro.get(60, TimeUnit.SECONDS); // si un migrate lanzara, get() propaga la excepcion
             }
 
-            assertThat(total).isEqualTo(4);
-            assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true");
+            assertThat(total).isEqualTo(5);
+            assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true");
         } finally {
             hilos.shutdownNow();
         }
