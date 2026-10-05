@@ -1,0 +1,31 @@
+package com.danteautomotores.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+
+import java.util.concurrent.Executor;
+
+/**
+ * Ejecutor propio y acotado para los envíos de mail ({@code @Async("mailExecutor")}): la respuesta HTTP no espera a
+ * Brevo y, como tarda lo mismo exista o no la cuenta, el tiempo de respuesta no delata si un mail está registrado.
+ * Núcleo 2, máximo 4 y cola de 100: si se llena, el envío se rechaza antes que acumular hilos sin límite.
+ */
+@Configuration
+@EnableAsync
+public class AsyncConfig {
+
+    @Bean(name = "mailExecutor")
+    public Executor mailExecutor() {
+        ThreadPoolTaskExecutor ejecutor = new ThreadPoolTaskExecutor();
+        ejecutor.setCorePoolSize(2);
+        ejecutor.setMaxPoolSize(4);
+        ejecutor.setQueueCapacity(100);
+        ejecutor.setThreadNamePrefix("mail-");
+        // Al apagar el back se deja terminar lo que ya está en cola (hasta 10 segundos).
+        ejecutor.setWaitForTasksToCompleteOnShutdown(true);
+        ejecutor.setAwaitTerminationSeconds(10);
+        return ejecutor;
+    }
+}
