@@ -94,7 +94,7 @@ class DataSeederTest {
     void sinAdminYVariablesCompletas_creaAdminConPasswordHasheada(CapturedOutput output) throws Exception {
         when(agenciaRepository.count()).thenReturn(1L);
         when(usuarioRepository.existsByRol(Rol.ADMIN)).thenReturn(false);
-        when(usuarioRepository.existsByEmail("dante@agencia.com")).thenReturn(false);
+        when(usuarioRepository.existsByEmailIgnoreCase("dante@agencia.com")).thenReturn(false);
         when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
 
         seederCompleto(true).run(null);
@@ -106,6 +106,7 @@ class DataSeederTest {
         assertThat(admin.getEmail()).isEqualTo("dante@agencia.com");
         assertThat(admin.getNombre()).isEqualTo("Dante");
         assertThat(admin.getPasswordHash()).isEqualTo(HASH);
+        assertThat(admin.isEmailConfirmado()).isTrue();
         assertThat(output.getAll()).doesNotContain(PASSWORD).doesNotContain(HASH);
     }
 
@@ -188,7 +189,7 @@ class DataSeederTest {
     void emailYaRegistradoConPerfilProd_lanzaYNuncaPromueve(CapturedOutput output) {
         when(agenciaRepository.count()).thenReturn(1L);
         when(usuarioRepository.existsByRol(Rol.ADMIN)).thenReturn(false);
-        when(usuarioRepository.existsByEmail("dante@agencia.com")).thenReturn(true);
+        when(usuarioRepository.existsByEmailIgnoreCase("dante@agencia.com")).thenReturn(true);
 
         assertThatThrownBy(() -> seederCompleto(true).run(null))
                 .isInstanceOf(IllegalStateException.class)
@@ -204,7 +205,7 @@ class DataSeederTest {
     void emailYaRegistradoSinPerfilProd_noGuardaNiPromueve(CapturedOutput output) throws Exception {
         when(agenciaRepository.count()).thenReturn(1L);
         when(usuarioRepository.existsByRol(Rol.ADMIN)).thenReturn(false);
-        when(usuarioRepository.existsByEmail("dante@agencia.com")).thenReturn(true);
+        when(usuarioRepository.existsByEmailIgnoreCase("dante@agencia.com")).thenReturn(true);
 
         seederCompleto(false).run(null);
 
@@ -217,7 +218,7 @@ class DataSeederTest {
     void emailConEspaciosYMayusculas_seNormalizaAntesDeValidarBuscarYGuardar(CapturedOutput output) {
         when(agenciaRepository.count()).thenReturn(1L);
         when(usuarioRepository.existsByRol(Rol.ADMIN)).thenReturn(false);
-        when(usuarioRepository.existsByEmail("admin@dante.com")).thenReturn(false);
+        when(usuarioRepository.existsByEmailIgnoreCase("admin@dante.com")).thenReturn(false);
         when(passwordEncoder.encode(PASSWORD)).thenReturn(HASH);
 
         assertThatCode(() -> seeder(true, "  Admin@Dante.com  ", PASSWORD, "Dante").run(null))
@@ -226,7 +227,7 @@ class DataSeederTest {
         ArgumentCaptor<Usuario> captor = ArgumentCaptor.forClass(Usuario.class);
         verify(usuarioRepository).save(captor.capture());
         assertThat(captor.getValue().getEmail()).isEqualTo("admin@dante.com");
-        verify(usuarioRepository).existsByEmail("admin@dante.com");
+        verify(usuarioRepository).existsByEmailIgnoreCase("admin@dante.com");
         assertThat(output.getAll()).contains("admin@dante.com").doesNotContain(PASSWORD).doesNotContain(HASH);
     }
 

@@ -83,7 +83,7 @@ public class DataSeeder implements ApplicationRunner {
             return;
         }
         // Nunca se promueve una cuenta existente (por ejemplo, un comprador) a admin.
-        if (usuarioRepository.existsByEmail(email)) {
+        if (usuarioRepository.existsByEmailIgnoreCase(email)) {
             fallarOAvisar("ADMIN_EMAIL ya pertenece a una cuenta que no es admin; usá otro email");
             return;
         }
@@ -93,6 +93,8 @@ public class DataSeeder implements ApplicationRunner {
                 .email(email)
                 .passwordHash(passwordEncoder.encode(adminPassword))
                 .rol(Rol.ADMIN)
+                // El admin no compra ni cotiza: con el mail confirmado el gate de cuenta verificada nunca lo molesta.
+                .emailConfirmado(true)
                 .build());
         log.info("Cuenta admin creada para {} (ingresá con ese email)", email);
     }
