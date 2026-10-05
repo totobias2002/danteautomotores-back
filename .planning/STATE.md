@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Cuentas verificadas
 status: executing
-stopped_at: Completed 03-06-PLAN.md
-last_updated: "2026-10-05T19:18:11.755Z"
+stopped_at: Completed 03-07-PLAN.md
+last_updated: "2026-10-05T19:23:45.634Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 03 execution started
-state_head: b2645ce38f15b47f1806e05fb33c4ecb3e8f1e85
+state_head: 655e215cb952c683448557045e53434209b5a856
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 30
-  completed_plans: 21
+  completed_plans: 22
   percent: 33
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-03)
 ## Current Position
 
 Phase: 03 (Cuentas verificadas) — EXECUTING
-Plan: 7 of 15
+Plan: 8 of 15
 Status: Ready to execute
 Last activity: 2026-10-05 — Phase 03 execution started
 
@@ -78,6 +78,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 03 P04 | 14 min | 3 tasks | 13 files |
 | Phase 03 P05 | 4 min | 2 tasks | 8 files |
 | Phase 03 P06 | 22 min | 2 tasks | 10 files |
+| Phase 03 P07 | 12 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -122,6 +123,8 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-05: un DNI en blanco en el pedido de una cuenta que ya tiene DNI no cambia nada; solo un valor distinto da 400 — el front del perfil no necesita reenviar el DNI inmutable
 - [Phase 03]: 03-05: solo uk_usuarios_dni se traduce al mensaje de D-04; otra violacion de integridad se relanza — el advice la responde 409 sin PII
 - [Phase 03]: 03-06: el rechazo por cola llena de mailExecutor se resuelve con un RejectedExecutionHandler que descarta y loguea, porque el proxy de @Async lanza al llamador antes de entrar al metodo
+- [Phase 03]: 03-07: el constructor de tests de GoogleIdTokenVerifier recibe NimbusJwtDecoder para ejercer la misma validacion (iss, aud, exp) que produccion
+- [Phase 03]: 03-07: GoogleAuthService no es @Transactional a proposito; la carrera se resuelve con saveAndFlush y una segunda busqueda por sub
 
 ### Pending Todos
 
@@ -152,8 +155,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-05T19:18:11.680Z
-Stopped at: Completed 03-06-PLAN.md
+Last session: 2026-10-05T19:23:45.565Z
+Stopped at: Completed 03-07-PLAN.md
 Seguridad: el 2026-10-05 se rotaron la clave de Postgres, APP_JWT_SECRET y las credenciales de Cloudinary (key dante-prod-3 con rol Master admin; el resto de las keys se borraron). Produccion verificada despues de rotar (health UP, 11 autos).
 Pendientes menores de produccion: bajarle a la key de Cloudinary el rol Master admin a uno acotado si Cloudinary lo permite; revisar 3 cuentas COMPRADOR de prueba en usuarios; confirmar el Healthcheck Path /actuator/health en Railway; apagar SPRING_FLYWAY_BASELINE_ON_MIGRATE.
 Fase 3: 03-CONTEXT y 03-RESEARCH listos; falta que el usuario responda 5 preguntas del research (union con Google que descarta la contrasena de cuentas sin mail confirmado, boton "Lo quiero", remitente Brevo/dominio, cierre de sesiones al cambiar clave, texto legal /privacidad) y planificar.

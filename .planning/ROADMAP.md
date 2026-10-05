@@ -117,7 +117,7 @@ Plans:
   4. El usuario ve y edita su perfil desde la web
   5. Un visitante sin sesión que toca "Lo quiero", "Cotizá tu usado" o "Mis mensajes" es llevado al login y, al terminar, vuelve a la página donde estaba
 
-**Plans**: 6/15 plans executed
+**Plans**: 7/15 plans executed
 
 Plans:
 **Wave 1**
@@ -131,7 +131,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 - [x] 03-05-PLAN.md — API del perfil: GET y PUT /api/usuarios/me para completar y editar los datos (ola 3)
 - [x] 03-06-PLAN.md — Tokens de un solo uso y notificaciones por mail (ola 3)
-- [ ] 03-07-PLAN.md — Login con Google en el back: verificador del ID token y vinculación de cuentas (ola 3)
+- [x] 03-07-PLAN.md — Login con Google en el back: verificador del ID token y vinculación de cuentas (ola 3)
 - [ ] 03-08-PLAN.md — Gate del back: la consulta y Vender tu auto exigen cuenta verificada (ola 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
@@ -216,7 +216,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Gestión del inventario por el admin | 7/7 | Complete    | 2026-10-03 |
 | 2. Catálogo público real en producción | 8/8 | Complete    | 2026-10-05 |
-| 3. Cuentas verificadas | 6/15 | In Progress|  |
+| 3. Cuentas verificadas | 7/15 | In Progress|  |
 | 4. Compra por conversación con la agencia | 0/TBD | Not started | - |
 | 5. Cotizador de usados | 0/TBD | Not started | - |
 | 6. Experiencia visual pulida | 0/TBD | Not started | - |
