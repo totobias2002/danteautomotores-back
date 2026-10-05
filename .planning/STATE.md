@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Cuentas verificadas
 status: executing
-stopped_at: Completed 03-08-PLAN.md
-last_updated: "2026-10-05T19:28:56.869Z"
+stopped_at: Completed 03-09-PLAN.md
+last_updated: "2026-10-05T19:35:37.175Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 03 execution started
-state_head: a82b6b860f6f94d526a69d23134424f8c14cd4f2
+state_head: bcb12b47786e3f538a74d44e304c2dd1541cb70f
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 30
-  completed_plans: 23
+  completed_plans: 24
   percent: 33
 ---
 
@@ -80,6 +80,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 03 P06 | 22 min | 2 tasks | 10 files |
 | Phase 03 P07 | 12 min | 2 tasks | 5 files |
 | Phase 03 P08 | 8 min | 2 tasks | 10 files |
+| Phase 03 P09 | 16 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -127,6 +128,7 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-07: el constructor de tests de GoogleIdTokenVerifier recibe NimbusJwtDecoder para ejercer la misma validacion (iss, aud, exp) que produccion
 - [Phase 03]: 03-07: GoogleAuthService no es @Transactional a proposito; la carrera se resuelve con saveAndFlush y una segunda busqueda por sub
 - [Phase 03]: 03-08: la cuenta se exige antes de buscar la publicacion (no se revela si el auto existe a quien no puede consultar); consultas y solicitudes de venta usan el estado actual de la base, sin claim en el JWT
+- [Phase 03]: 03-09: el UNIQUE original del mail (V1) se traduce igual que uk_usuarios_email_lower porque Postgres puede informar cualquiera de los dos; el mensaje de DNI repetido es la constante de UsuarioService
 
 ### Pending Todos
 
@@ -157,8 +159,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-05T19:28:56.792Z
-Stopped at: Completed 03-08-PLAN.md
+Last session: 2026-10-05T19:35:37.099Z
+Stopped at: Completed 03-09-PLAN.md
 Seguridad: el 2026-10-05 se rotaron la clave de Postgres, APP_JWT_SECRET y las credenciales de Cloudinary (key dante-prod-3 con rol Master admin; el resto de las keys se borraron). Produccion verificada despues de rotar (health UP, 11 autos).
 Pendientes menores de produccion: bajarle a la key de Cloudinary el rol Master admin a uno acotado si Cloudinary lo permite; revisar 3 cuentas COMPRADOR de prueba en usuarios; confirmar el Healthcheck Path /actuator/health en Railway; apagar SPRING_FLYWAY_BASELINE_ON_MIGRATE.
 Fase 3: 03-CONTEXT y 03-RESEARCH listos; falta que el usuario responda 5 preguntas del research (union con Google que descarta la contrasena de cuentas sin mail confirmado, boton "Lo quiero", remitente Brevo/dominio, cierre de sesiones al cambiar clave, texto legal /privacidad) y planificar.
