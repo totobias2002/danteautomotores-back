@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Cuentas verificadas
 status: executing
-stopped_at: Completed 03-14-PLAN.md
-last_updated: "2026-10-06T19:11:08.323Z"
+stopped_at: Completed 03-15-PLAN.md
+last_updated: "2026-10-06T20:44:09.431Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 03 execution started
-state_head: 66091ce45d8293971e38ea045420e58e60dcfa5f
+state_head: f62132d5bbabd21e2724a22fbd497dbfe8944400
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 30
-  completed_plans: 29
+  completed_plans: 30
   percent: 33
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-03)
 ## Current Position
 
 Phase: 03 (Cuentas verificadas) — EXECUTING
-Plan: 14 of 15
+Plan: 15 of 15
 Status: Ready to execute
 Last activity: 2026-10-05 — Phase 03 execution started
 
@@ -86,6 +86,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 03 P12 | 20 min | 3 tasks | 10 files |
 | Phase 03 P13 | 25 min | 3 tasks | 9 files |
 | Phase 03 P14 | 40min | 2 tasks | 3 files |
+| Phase 03 P15 | no registrado | 3 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -141,6 +142,7 @@ Recent decisions affecting current work:
 - [Phase 03]: [03-13] El perfil lee tieneContrasena y cuentaVerificada de GET /usuarios/me en el estado de la pantalla y la consulta de la ficha decide por evaluarAcceso (acceso, refresco o solo el mensaje)
 - [Phase 03]: [03-14] Los chequeos del humo se reescribieron al contrato actual del registro (apellido, telefono y DNI obligatorios)
 - [Phase 03]: [03-14] Google queda en estado Testing hasta tener dominio propio; documentado como pendiente conocido en el README
+- [Phase 03]: [03-15] La base de produccion paso a V5 con un backup logico verificado (Railway sin Backups) y un ensayo previo con una copia; Google sigue en Testing hasta tener dominio propio; Outlook sin medir
 
 ### Pending Todos
 
@@ -153,7 +155,7 @@ None yet.
 - [General]: Hay 172 tests de back (Fase 1), pero no hay tests de front ni de navegador; la verificación visual de cada fase sigue siendo UAT manual
 - [Phase 2]: El deploy (Railway/Vercel), el backup y la migración de la base de producción y la carga de la demo requieren credenciales del usuario: quedan como checkpoints humanos
 - [Local]: Solo hay JDK 17 instalado; el back se compila con -Djava.version=17
-- 03-15: rotar la API key de Brevo (se pego en el chat) antes de cargarla en Railway
+- 03-15: la API key de Brevo y la contrasena de la base se pegaron en el chat y ya se rotaron; Google sigue en Testing hasta tener dominio propio; falta medir la entregabilidad en Outlook; el push del quick task 261006-ohs del front esta pendiente
 
 ### Quick Tasks Completed
 
@@ -173,8 +175,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T19:11:08.251Z
-Stopped at: Completed 03-14-PLAN.md
+Last session: 2026-10-06T20:44:09.362Z
+Stopped at: Completed 03-15-PLAN.md
 Seguridad: el 2026-10-05 se rotaron la clave de Postgres, APP_JWT_SECRET y las credenciales de Cloudinary (key dante-prod-3 con rol Master admin; el resto de las keys se borraron). Produccion verificada despues de rotar (health UP, 11 autos).
 Pendientes menores de produccion: bajarle a la key de Cloudinary el rol Master admin a uno acotado si Cloudinary lo permite; revisar 3 cuentas COMPRADOR de prueba en usuarios; confirmar el Healthcheck Path /actuator/health en Railway; apagar SPRING_FLYWAY_BASELINE_ON_MIGRATE.
 Fase 3: 03-CONTEXT y 03-RESEARCH listos; falta que el usuario responda 5 preguntas del research (union con Google que descarta la contrasena de cuentas sin mail confirmado, boton "Lo quiero", remitente Brevo/dominio, cierre de sesiones al cambiar clave, texto legal /privacidad) y planificar.
