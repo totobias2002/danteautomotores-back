@@ -161,6 +161,7 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 261003-qde | Fix de los infos IN-03, IN-04 e IN-07 del code review de la Fase 2 | 2026-10-03 | b1ea2d6 | [261003-qde-fix-review-infos-in-03-in-04-in-07-de-la](./quick/261003-qde-fix-review-infos-in-03-in-04-in-07-de-la/) |
 | 261003-sfp | Fix de IN-01, IN-06, IN-09, IN-10 y la parte del front de WR-02 del code review de la Fase 2 | 2026-10-03 | c8097e5 | [261003-sfp-fix-review-in-01-in-06-in-09-in-10-y-wr-](./quick/261003-sfp-fix-review-in-01-in-06-in-09-in-10-y-wr-/) |
+| 261006-ohs | Boton "Seguir buscando autos" del mail confirmado lleva al home en vez de a /autos | 2026-10-06 | d95387f (front) | [261006-ohs-boton-seguir-buscando-autos-de-mail-conf](./quick/261006-ohs-boton-seguir-buscando-autos-de-mail-conf/) |
 
 ## Deferred Items
 
