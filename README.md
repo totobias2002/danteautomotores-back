@@ -58,8 +58,9 @@ Al arrancar, si no hay ninguna agencia se crea "Dante Automotores" (el resto de 
 
 El esquema lo crea y versiona Flyway desde `src/main/resources/db/migration`:
 
-- `V1` es el esquema previo a la Fase 1; `V2` y `V3` suman los cambios de las fases 1 y 2. Una base que ya existía sin historial de Flyway (por ejemplo la de producción, creada antes por Hibernate) se marca como V1 (baseline) y recibe solo las migraciones siguientes.
-- **Nunca se edita una migración ya aplicada.** Todo cambio de entidad va en una migración nueva (`V4__...`, `V5__...`).
+- `V1` es el esquema previo a la Fase 1; `V2` y `V3` suman los cambios de las fases 1 y 2, y `V4` es la de las solicitudes de venta. Una base que ya existía sin historial de Flyway (por ejemplo la de producción, creada antes por Hibernate) se marca como V1 (baseline) y recibe solo las migraciones siguientes.
+- `V5` es la migración de identidad de la Fase 3 (apellido, DNI único, mail confirmado, Google, tokens de cuenta y cierre de sesiones). Es aditiva: no borra ni reescribe datos de las cuentas existentes (solo da por confirmado el mail de los admins), que conviven con DNI y apellido vacíos hasta que completan sus datos. Como toda migración aplicada, no se edita. No tiene vuelta atrás de datos: no hay un script que deshaga el esquema, y una base ya migrada no se "des-migra". La vuelta atrás de un deploy es redeployar la versión anterior del back, que sigue funcionando contra el esquema nuevo porque ignora las columnas y tablas agregadas.
+- **Nunca se edita una migración ya aplicada.** Todo cambio de entidad va en una migración nueva (`V6__...`, `V7__...`).
 - Hibernate está en `ddl-auto: validate`: si una entidad y el esquema no coinciden, el arranque se frena con el error. No crea ni modifica tablas.
 - El SQL se puede loguear en local con `SPRING_JPA_SHOW_SQL=true` (por defecto está apagado).
 - Las migraciones y las consultas del catálogo se prueban contra un Postgres real. La sección "Tests" explica cuándo esos tests se saltean y cuándo son obligatorios.
@@ -74,6 +75,49 @@ El `.env` del front puede apuntar al backend de producción, así que para proba
 3. Front de prueba, en el repo `danteautomotores-front`: `VITE_API_URL=http://localhost:8080/api npm run dev -- --port 5174`.
 
 Para verificar el catálogo sin tocar la base de desarrollo: `bash scripts/verify/con-back-local.sh --copia-de <base> <base_descartable> node scripts/verify/catalogo-humo.js` levanta el back contra una copia (o con `--vacia`, contra una base vacía), corre el humo y lo apaga. Con `PUERTO_BACK=8081` se evita chocar con otro back en el 8080.
+
+## Cuentas, Google y mails
+
+**Flujo (Fase 3).** Para consultar un auto o cotizar el propio hace falta una cuenta verificada: nombre, apellido, mail confirmado, teléfono y DNI.
+
+- **Registro** con email y contraseña: pide además apellido, teléfono y DNI. El teléfono se guarda normalizado como celular argentino (`+549` más diez dígitos) y el DNI sin puntos (7 u 8 dígitos). Un mismo DNI no puede tener dos cuentas, y una vez cargado no se modifica desde la web.
+- **Confirmación del mail:** al registrarse sale un mail con un link que vale 24 horas y se usa una sola vez. Mientras no se confirme, la cuenta no puede consultar ni cotizar (el back responde 403 con `codigo: CUENTA_NO_VERIFICADA` y la lista de datos que faltan).
+- **Recuperación de contraseña:** link por mail que vale 1 hora y se usa una sola vez. Pedirlo responde siempre lo mismo, exista o no la cuenta. Restablecer no inicia sesión (el usuario va al login) y cierra todas las sesiones anteriores de la cuenta.
+- **Ingreso con Google:** un ID token de Google Identity Services. Si ya existe una cuenta con el mismo mail y Google lo informa como verificado, se une automáticamente a esa cuenta. Si esa cuenta tenía el mail sin confirmar, pierde su contraseña al unirse (quien la creó pudo no ser el dueño de la casilla) y sus sesiones anteriores se cierran. Una cuenta que entra con Google completa después teléfono y DNI.
+
+**Cómo se prueba en local.** El `.env` del front apunta a producción: se usa otra instancia del front en el puerto 5174 contra un back local.
+
+1. Back (con una base descartable copiada de la de desarrollo, que se borra al terminar): `APP_FRONTEND_URL=http://localhost:5174 bash scripts/verify/con-back-local.sh --copia-de <base> <base_descartable> sleep 7200`
+2. Front, en el repo `danteautomotores-front`: `VITE_API_URL=http://localhost:8080/api npm run dev -- --port 5174`
+3. Sin `BREVO_API_KEY` el back está en modo desarrollo: no manda mails, escribe cada uno en su log (`$TMP/dante-back-<base_descartable>.log`, con la línea `[MAIL SOLO LOG, no se envió]`) y ahí está el link de confirmación o de recuperación.
+4. El humo de punta a punta de la fase (registro, confirmación, gate, recuperación, límites y que el log no tenga datos personales) corre contra un back vacío con `bash scripts/verify/con-back-local.sh --vacia <base_descartable> node scripts/verify/cuentas-humo.js`; el script exporta `LOG_BACK` para que el humo lea los links de los mails.
+
+**Variables de Google y de Brevo.** Para probar con mails reales o con Google, en la terminal donde se levanta el back: `GOOGLE_CLIENT_ID`, `BREVO_API_KEY`, `MAIL_REMITENTE_EMAIL` y `APP_FRONTEND_URL`; en el `.env` del front (ignorado por git), `VITE_GOOGLE_CLIENT_ID`. La API key de Brevo es un secreto: **nunca se pega en un chat, un issue ni un commit**; se carga directo en la terminal o en el panel de Railway. Si se expuso, se revoca en Brevo y se genera otra. En Brevo hay que desactivar "Block unknown IP addresses" (Railway rota las IPs de salida y Brevo respondería 401).
+
+**Google en estado "Testing" (pendiente conocido).** Hoy no hay dominio propio, y Google exige que la página de inicio y la política de privacidad de la app estén en un dominio autorizado y propio (un `*.vercel.app` se rechaza). Por eso la app de Google Cloud sigue en estado Testing: el ingreso con Google solo funciona para los usuarios de prueba cargados en la consola (hasta 100). El registro con email y contraseña no se ve afectado. Para cerrarlo: comprar un dominio, agregarlo como dominio autorizado en Google Auth Platform, cargar las URLs de inicio y de privacidad de ese dominio y publicar la app (pasar de Testing a In production).
+
+### Pasar a un dominio propio para los mails (D-13)
+
+Con una casilla de Gmail como remitente, Brevo no puede autenticar el dominio y los mails salen desde `@brevosend.com`: pueden caer en spam o mostrar "vía brevosend.com". Es lo que permite arrancar sin dominio, y la entregabilidad se mide en el primer deploy (D-18). Cuando haya un dominio propio, sin cambiar código:
+
+1. Comprar el dominio.
+2. En Brevo: Domains → Add a domain.
+3. En el DNS del dominio, crear los registros que Brevo indica: el TXT "Brevo code", el DKIM y el DMARC (TXT en `_dmarc`).
+4. Tocar "Authenticate" en Brevo y esperar a que valide los registros.
+5. Cambiar `MAIL_REMITENTE_EMAIL` en Railway a una casilla del dominio (por ejemplo `no-responder@<dominio>`) y redeployar.
+
+### Deuda de seguridad conocida
+
+- El registro responde "Ya existe una cuenta con ese email", lo que revela que esa cuenta existe (D-17: elección de UX frente a un mensaje genérico). Se mitiga con un límite de registros por IP y con la confirmación del mail.
+- Los límites de intentos (login, registro, recuperación, reenvío de mails y tope diario de mails) viven en la memoria de una sola instancia y se reinician con cada deploy. Si el back se escala a más de una instancia, hay que moverlos a la base o a Redis.
+- La IP detrás del proxy de Railway es de mejor esfuerzo (puede ser compartida o falseada): el límite por mail es la defensa real y el de IP suma una capa.
+- El JWT se guarda en `localStorage` del front, expuesto a un XSS. Cambiar la contraseña cierra las sesiones anteriores, pero no hay cierre de sesión remoto desde el servidor.
+
+### Datos personales (Ley 25.326)
+
+- El DNI y el teléfono de una cuenta solo los devuelve `/api/usuarios/me` a su dueño y, en la Fase 4, se los mostrará al admin para atender las consultas. Las respuestas de login y registro nunca los incluyen.
+- No se loguean: ni el DNI, ni el teléfono, ni las contraseñas, ni los links de un solo uso en producción (en desarrollo el mail se escribe en el log a propósito, y `SecretosGuard` impide ese modo fuera de él). El humo de cuentas verifica que el log de una corrida completa no contenga esos datos.
+- La página `/privacidad` del front es un borrador. La revisión legal y la inscripción de la base de datos ante la AAIP (Agencia de Acceso a la Información Pública) son pendientes de la agencia, fuera del código (D-20).
 
 ## Producción
 
@@ -101,7 +145,8 @@ Con `prod`, el backend no arranca si falta o es inválido el secreto JWT, la con
 Hay dos grupos de tests:
 
 - La mayoría (unitarios y de controladores) corren sin Docker ni base de datos.
-- `MigracionesPostgresTest` (V1 a V3 contra `ddl-auto: validate`, incluida una base creada por Hibernate sin historial) y `CatalogoPostgresTest` (consultas reales del catálogo) usan el Postgres del `docker-compose.yml` en localhost:5433, en bases descartables `test_xxxxxxxx` que crean y borran solas. Nunca tocan la base `danteautomotores`.
+- `MigracionesPostgresTest` (V1 a V5 contra `ddl-auto: validate`, incluida una base creada por Hibernate sin historial) y `CatalogoPostgresTest` (consultas reales del catálogo) usan el Postgres del `docker-compose.yml` en localhost:5433, en bases descartables `test_xxxxxxxx` que crean y borran solas. Nunca tocan la base `danteautomotores`.
+- El front (repo `danteautomotores-front`) corre sus tests con `npm test`.
 
 Sin Postgres, esos dos tests se saltean: Maven los informa como "Skipped" y el build queda verde igual, así que un verde sin Postgres no prueba las migraciones.
 
