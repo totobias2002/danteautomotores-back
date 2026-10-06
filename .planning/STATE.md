@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Cuentas verificadas
 status: executing
-stopped_at: Completed 03-13-PLAN.md
-last_updated: "2026-10-06T14:41:35.700Z"
+stopped_at: Completed 03-14-PLAN.md
+last_updated: "2026-10-06T19:11:08.323Z"
 last_activity: 2026-10-05
 last_activity_desc: Phase 03 execution started
-state_head: e701be297bed33f3c4136af8dbea1111ceba4d7c
+state_head: 66091ce45d8293971e38ea045420e58e60dcfa5f
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 30
-  completed_plans: 28
+  completed_plans: 29
   percent: 33
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-03)
 ## Current Position
 
 Phase: 03 (Cuentas verificadas) — EXECUTING
-Plan: 13 of 15
+Plan: 14 of 15
 Status: Ready to execute
 Last activity: 2026-10-05 — Phase 03 execution started
 
@@ -85,6 +85,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 03 P11 | 3 min | 3 tasks | 10 files |
 | Phase 03 P12 | 20 min | 3 tasks | 10 files |
 | Phase 03 P13 | 25 min | 3 tasks | 9 files |
+| Phase 03 P14 | 40min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -138,6 +139,8 @@ Recent decisions affecting current work:
 - [Phase 03]: [03-11] useExigirCuenta devuelve true/false segun se ejecuto la accion y no opera si no puede refrescar la cuenta desconocida; el DNI solo viaja en el PUT de Completa tus datos si faltaba
 - [Phase 03]: [03-12] El token de un link de mail se guarda en una referencia y se saca de la URL con replace; la confirmacion de mail se guarda con useRef (no estado) y sin cancelacion en el efecto, por StrictMode
 - [Phase 03]: [03-13] El perfil lee tieneContrasena y cuentaVerificada de GET /usuarios/me en el estado de la pantalla y la consulta de la ficha decide por evaluarAcceso (acceso, refresco o solo el mensaje)
+- [Phase 03]: [03-14] Los chequeos del humo se reescribieron al contrato actual del registro (apellido, telefono y DNI obligatorios)
+- [Phase 03]: [03-14] Google queda en estado Testing hasta tener dominio propio; documentado como pendiente conocido en el README
 
 ### Pending Todos
 
@@ -150,6 +153,7 @@ None yet.
 - [General]: Hay 172 tests de back (Fase 1), pero no hay tests de front ni de navegador; la verificación visual de cada fase sigue siendo UAT manual
 - [Phase 2]: El deploy (Railway/Vercel), el backup y la migración de la base de producción y la carga de la demo requieren credenciales del usuario: quedan como checkpoints humanos
 - [Local]: Solo hay JDK 17 instalado; el back se compila con -Djava.version=17
+- 03-15: rotar la API key de Brevo (se pego en el chat) antes de cargarla en Railway
 
 ### Quick Tasks Completed
 
@@ -168,8 +172,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-06T14:41:35.634Z
-Stopped at: Completed 03-13-PLAN.md
+Last session: 2026-10-06T19:11:08.251Z
+Stopped at: Completed 03-14-PLAN.md
 Seguridad: el 2026-10-05 se rotaron la clave de Postgres, APP_JWT_SECRET y las credenciales de Cloudinary (key dante-prod-3 con rol Master admin; el resto de las keys se borraron). Produccion verificada despues de rotar (health UP, 11 autos).
 Pendientes menores de produccion: bajarle a la key de Cloudinary el rol Master admin a uno acotado si Cloudinary lo permite; revisar 3 cuentas COMPRADOR de prueba en usuarios; confirmar el Healthcheck Path /actuator/health en Railway; apagar SPRING_FLYWAY_BASELINE_ON_MIGRATE.
 Fase 3: 03-CONTEXT y 03-RESEARCH listos; falta que el usuario responda 5 preguntas del research (union con Google que descarta la contrasena de cuentas sin mail confirmado, boton "Lo quiero", remitente Brevo/dominio, cierre de sesiones al cambiar clave, texto legal /privacidad) y planificar.

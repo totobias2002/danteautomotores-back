@@ -117,7 +117,7 @@ Plans:
   4. El usuario ve y edita su perfil desde la web
   5. Un visitante sin sesión que toca "Lo quiero", "Cotizá tu usado" o "Mis mensajes" es llevado al login y, al terminar, vuelve a la página donde estaba
 
-**Plans**: 13/15 plans executed
+**Plans**: 14/15 plans executed
 
 Plans:
 **Wave 1**
@@ -148,7 +148,7 @@ Plans:
 - [x] 03-13-PLAN.md — Front: perfil, Lo quiero, Mis mensajes, privacidad y gate de los botones (ola 7)
 
 **Wave 8** *(blocked on Wave 7 completion; checkpoint humano)*
-- [ ] 03-14-PLAN.md — Humo completo, README y cuentas externas de Google Cloud y Brevo (ola 8, no autónomo)
+- [x] 03-14-PLAN.md — Humo completo, README y cuentas externas de Google Cloud y Brevo (ola 8, no autónomo)
 
 **Wave 9** *(blocked on Wave 8 completion; checkpoints humanos)*
 - [ ] 03-15-PLAN.md — Producción: backup, ensayo de V5 con copia, variables, deploy y prueba con casillas reales (ola 9, no autónomo)
@@ -216,7 +216,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Gestión del inventario por el admin | 7/7 | Complete    | 2026-10-03 |
 | 2. Catálogo público real en producción | 8/8 | Complete    | 2026-10-05 |
-| 3. Cuentas verificadas | 13/15 | In Progress|  |
+| 3. Cuentas verificadas | 14/15 | In Progress|  |
 | 4. Compra por conversación con la agencia | 0/TBD | Not started | - |
 | 5. Cotizador de usados | 0/TBD | Not started | - |
 | 6. Experiencia visual pulida | 0/TBD | Not started | - |
