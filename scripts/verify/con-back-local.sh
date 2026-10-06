@@ -7,7 +7,8 @@
 #   --vacia              crea <base> vacia y la borra al terminar (aborta si <base> ya existe)
 #   (sin flag)           usa la base <base> que ya existe y NUNCA la borra
 #
-# Al comando se le exporta API=http://localhost:$PUERTO_BACK/api para que apunte al back recien levantado.
+# Al comando se le exporta API=http://localhost:$PUERTO_BACK/api para que apunte al back recien levantado, y LOG_BACK con
+# la ruta del log del back (los humos de cuentas leen de ahi los links de los mails de desarrollo).
 # Variables: PUERTO_BACK (8080), PG_CONTENEDOR (danteautomotores-db), PG_PUERTO (5433), PG_USUARIO (dante),
 #            PG_CLAVE (dante_dev_password), SALTAR_BUILD (1 = no recompila el jar).
 # La base siempre es de localhost: el script no acepta otro host. Nunca crea ni borra la base "danteautomotores".
@@ -183,6 +184,11 @@ grep -iE "flyway|baselined|Migrating|migration|up to date" "$LOG" | sed 's/^/  /
 
 # ---- Comando ----
 export API="$URL_BACK/api"
+# Ruta del log del back para los humos que leen los mails (en desarrollo el back los escribe en el log). Node nativo de
+# Windows no entiende las rutas /tmp de Git Bash: se convierte con cygpath.
+LOG_BACK="$LOG"
+command -v cygpath >/dev/null 2>&1 && LOG_BACK="$(cygpath -m "$LOG")"
+export LOG_BACK
 "$@"
 CODIGO_COMANDO=$?
 exit "$CODIGO_COMANDO"
