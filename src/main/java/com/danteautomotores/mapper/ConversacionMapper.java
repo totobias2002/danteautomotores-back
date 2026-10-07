@@ -5,6 +5,7 @@ import com.danteautomotores.dto.conversacion.ConversacionResumenResponse;
 import com.danteautomotores.dto.conversacion.MensajeResponse;
 import com.danteautomotores.entity.Conversacion;
 import com.danteautomotores.entity.Mensaje;
+import com.danteautomotores.enums.AutorMensaje;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -20,7 +21,12 @@ public class ConversacionMapper {
 
     // Necesita una transacción abierta: el resumen del auto recorre agencia y fotos (open-in-view: false).
     public static ConversacionResumenResponse toResumen(Conversacion conversacion, Mensaje ultimoMensaje) {
+        return toResumen(conversacion, ultimoMensaje, 0);
+    }
+
+    public static ConversacionResumenResponse toResumen(Conversacion conversacion, Mensaje ultimoMensaje, long noLeidos) {
         return ConversacionResumenResponse.builder()
+                .noLeidos(noLeidos)
                 .id(conversacion.getId())
                 .tipo(conversacion.getTipo())
                 .estado(conversacion.getEstado())
@@ -47,8 +53,12 @@ public class ConversacionMapper {
     // Los mensajes llegan ya ordenados; el resumen usa el último como extracto.
     public static ConversacionDetalleResponse toDetalle(Conversacion conversacion, List<Mensaje> mensajes) {
         Mensaje ultimo = mensajes.isEmpty() ? null : mensajes.get(mensajes.size() - 1);
+        // Los no leídos salen del mismo hilo ya cargado: visto desde el comprador son los de la agencia sin abrir.
+        long noLeidos = mensajes.stream()
+                .filter(m -> m.getAutorTipo() == AutorMensaje.AGENCIA && m.getLeidoEn() == null)
+                .count();
         return ConversacionDetalleResponse.builder()
-                .conversacion(toResumen(conversacion, ultimo))
+                .conversacion(toResumen(conversacion, ultimo, noLeidos))
                 .mensajes(mensajes.stream().map(ConversacionMapper::toMensaje).toList())
                 .build();
     }

@@ -5,6 +5,7 @@ import com.danteautomotores.dto.conversacion.ConversacionRequest;
 import com.danteautomotores.dto.conversacion.ConversacionResumenResponse;
 import com.danteautomotores.dto.conversacion.MensajeRequest;
 import com.danteautomotores.dto.conversacion.MensajeResponse;
+import com.danteautomotores.dto.conversacion.NoLeidosResponse;
 import com.danteautomotores.entity.Conversacion;
 import com.danteautomotores.entity.Mensaje;
 import com.danteautomotores.entity.Publicacion;
@@ -12,6 +13,7 @@ import com.danteautomotores.entity.Usuario;
 import com.danteautomotores.enums.AutorMensaje;
 import com.danteautomotores.enums.EstadoConversacion;
 import com.danteautomotores.enums.EstadoPublicacion;
+import com.danteautomotores.enums.Rol;
 import com.danteautomotores.enums.TipoConversacion;
 import com.danteautomotores.exception.LimiteDeIntentosException;
 import com.danteautomotores.exception.ReglaDeNegocioException;
@@ -110,13 +112,53 @@ public class ConversacionService {
             return List.of();
         }
         // Una sola consulta para el último mensaje de todas, en vez de una por fila.
+        List<Long> ids = conversaciones.stream().map(Conversacion::getId).toList();
         Map<Long, Mensaje> ultimos = mensajeRepository
-                .findUltimosPorConversaciones(conversaciones.stream().map(Conversacion::getId).toList())
+                .findUltimosPorConversaciones(ids)
                 .stream()
                 .collect(Collectors.toMap(m -> m.getConversacion().getId(), Function.identity()));
+        // Y una sola más para los no leídos de todas (los mensajes de la agencia, visto desde el comprador).
+        Map<Long, Long> noLeidos = mensajeRepository.contarNoLeidosPorConversacion(ids, AutorMensaje.AGENCIA)
+                .stream()
+                .collect(Collectors.toMap(MensajeRepository.ConteoPorConversacion::getConversacionId,
+                        MensajeRepository.ConteoPorConversacion::getCantidad));
         return conversaciones.stream()
-                .map(c -> ConversacionMapper.toResumen(c, ultimos.get(c.getId())))
+                .map(c -> ConversacionMapper.toResumen(c, ultimos.get(c.getId()), noLeidos.getOrDefault(c.getId(), 0L)))
                 .toList();
+    }
+
+    /**
+     * El comprador abrió el hilo: marca como leídos los mensajes de la agencia de ESA conversación (nunca los suyos).
+     * Es una lectura, así que no exige cuenta verificada. Ajena e inexistente dan el mismo 404 (D-12, T-04-16).
+     */
+    public NoLeidosResponse marcarLeida(Long id, String email) {
+        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new ResourceNotFoundException("No existe la cuenta"));
+        Conversacion conversacion = buscarPropia(id, usuario);
+        LocalDateTime ahora = LocalDateTime.now(clock.withZone(ZoneOffset.UTC));
+        mensajeRepository.marcarLeidos(conversacion.getId(), AutorMensaje.AGENCIA, ahora);
+        return contarDelComprador(usuario);
+    }
+
+    /** Cuántos mensajes sin leer tiene quien pregunta: el admin los de los usuarios en toda la bandeja, el comprador los de la agencia (D-06). */
+    @Transactional(readOnly = true)
+    public NoLeidosResponse contarNoLeidos(String email) {
+        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new ResourceNotFoundException("No existe la cuenta"));
+        if (usuario.getRol() == Rol.ADMIN) {
+            return NoLeidosResponse.builder()
+                    .noLeidos(mensajeRepository.contarNoLeidos(AutorMensaje.USUARIO))
+                    .conversaciones(mensajeRepository.contarConversacionesConNoLeidos(AutorMensaje.USUARIO))
+                    .build();
+        }
+        return contarDelComprador(usuario);
+    }
+
+    private NoLeidosResponse contarDelComprador(Usuario usuario) {
+        return NoLeidosResponse.builder()
+                .noLeidos(mensajeRepository.contarNoLeidosDeUsuario(usuario.getId(), AutorMensaje.AGENCIA))
+                .conversaciones(mensajeRepository.contarConversacionesConNoLeidosDeUsuario(usuario.getId(), AutorMensaje.AGENCIA))
+                .build();
     }
 
     /** El hilo de una conversación propia, con los mensajes en orden. Ajena e inexistente dan el mismo 404 (D-12). */

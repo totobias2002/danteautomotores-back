@@ -53,6 +53,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/solicitudes-venta/**").hasRole("COMPRADOR")
                         // Las conversaciones del lado del comprador: sin token 401 y el admin 403. La bandeja del admin
                         // vive en /api/admin/** (D-17).
+                        // Excepción: el contador de no leídos contesta a cualquier sesión (el comprador cuenta lo suyo y el
+                        // admin la bandeja, D-06). Va antes de la regla general porque gana la primera que coincide.
+                        .requestMatchers(HttpMethod.GET, "/api/conversaciones/no-leidas").authenticated()
                         .requestMatchers("/api/conversaciones/**").hasRole("COMPRADOR")
                         .requestMatchers(HttpMethod.GET, "/api/publicaciones/**", "/api/agencias/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/agencias/**", "/api/publicaciones/**").hasRole("ADMIN")

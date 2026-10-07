@@ -28,4 +28,6 @@ public class ConversacionResumenResponse {
     private Instant ultimoMensajeEn;
     private String ultimoMensaje;
     private AutorMensaje ultimoMensajeAutor;
+    // Mensajes de la agencia que el comprador todavía no abrió (D-06).
+    private long noLeidos;
 }

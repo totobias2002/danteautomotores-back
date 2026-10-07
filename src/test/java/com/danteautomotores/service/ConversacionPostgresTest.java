@@ -5,6 +5,7 @@ import com.danteautomotores.dto.conversacion.ConversacionRequest;
 import com.danteautomotores.dto.conversacion.ConversacionResumenResponse;
 import com.danteautomotores.dto.conversacion.MensajeRequest;
 import com.danteautomotores.dto.conversacion.MensajeResponse;
+import com.danteautomotores.dto.conversacion.NoLeidosResponse;
 import com.danteautomotores.entity.Agencia;
 import com.danteautomotores.entity.Conversacion;
 import com.danteautomotores.entity.Mensaje;
@@ -297,5 +298,97 @@ class ConversacionPostgresTest extends PostgresLocalTestBase {
         assertThatThrownBy(() -> conversacionService.enviarMensaje(deAna.getId(), texto("tarde"), "ana@dante.test"))
                 .isInstanceOf(ReglaDeNegocioException.class);
         assertThat(jdbc.queryForObject("SELECT count(*) FROM mensajes", Integer.class)).isEqualTo(1);
+    }
+
+    // Ana tiene dos conversaciones; Beto una. Cada uno recibe mensajes de la agencia y escribe los suyos.
+    private Conversacion[] hilosConMensajesSinLeer() {
+        Conversacion deAnaCorolla = conversacion(ana, corolla, EstadoConversacion.ABIERTA);
+        Conversacion deAnaYaris = conversacion(ana, yaris, EstadoConversacion.ABIERTA);
+        Conversacion deBeto = conversacion(beto, corolla, EstadoConversacion.ABIERTA);
+        registroDeMensajes.agregar(deAnaCorolla, ana, AutorMensaje.USUARIO, "propio de Ana");
+        registroDeMensajes.agregar(deAnaCorolla, admin, AutorMensaje.AGENCIA, "agencia a Ana 1");
+        registroDeMensajes.agregar(deAnaCorolla, admin, AutorMensaje.AGENCIA, "agencia a Ana 2");
+        registroDeMensajes.agregar(deAnaYaris, admin, AutorMensaje.AGENCIA, "agencia a Ana 3");
+        registroDeMensajes.agregar(deBeto, beto, AutorMensaje.USUARIO, "propio de Beto");
+        registroDeMensajes.agregar(deBeto, admin, AutorMensaje.AGENCIA, "agencia a Beto");
+        em.flush();
+        em.clear();
+        return new Conversacion[]{deAnaCorolla, deAnaYaris, deBeto};
+    }
+
+    @Test
+    void tresMensajesDeLaAgenciaSinLeerEnDosConversacionesSumanTresYDosYNoMezclanUsuarios() {
+        hilosConMensajesSinLeer();
+
+        NoLeidosResponse deAna = conversacionService.contarNoLeidos("ana@dante.test");
+        NoLeidosResponse deBeto = conversacionService.contarNoLeidos("beto@dante.test");
+
+        // Los propios sin leer ("propio de Ana") no cuentan, ni los de Beto se suman a Ana.
+        assertThat(deAna.getNoLeidos()).isEqualTo(3);
+        assertThat(deAna.getConversaciones()).isEqualTo(2);
+        assertThat(deBeto.getNoLeidos()).isEqualTo(1);
+        assertThat(deBeto.getConversaciones()).isEqualTo(1);
+    }
+
+    @Test
+    void elAdminCuentaLosMensajesDeUsuariosDeTodaLaBandejaYNoLosDeLaAgencia() {
+        hilosConMensajesSinLeer();
+
+        NoLeidosResponse delAdmin = conversacionService.contarNoLeidos("admin@dante.test");
+
+        // "propio de Ana" y "propio de Beto": 2 mensajes en 2 conversaciones.
+        assertThat(delAdmin.getNoLeidos()).isEqualTo(2);
+        assertThat(delAdmin.getConversaciones()).isEqualTo(2);
+    }
+
+    @Test
+    void marcarLeidaDejaEnCeroSoloLaConversacionIndicadaYNoTocaLosPropiosNiLosAjenos() {
+        Conversacion[] hilos = hilosConMensajesSinLeer();
+        Conversacion deAnaCorolla = hilos[0];
+
+        NoLeidosResponse despues = conversacionService.marcarLeida(deAnaCorolla.getId(), "ana@dante.test");
+        em.flush();
+        em.clear();
+
+        // Quedó el de la otra conversación de Ana.
+        assertThat(despues.getNoLeidos()).isEqualTo(1);
+        assertThat(despues.getConversaciones()).isEqualTo(1);
+        List<Mensaje> hilo = mensajeRepository.findByConversacionIdOrderByIdAsc(deAnaCorolla.getId());
+        assertThat(hilo).filteredOn(m -> m.getAutorTipo() == AutorMensaje.AGENCIA)
+                .isNotEmpty().allMatch(m -> m.getLeidoEn() != null);
+        assertThat(hilo.get(0).getLeidoEn()).isNull(); // el propio de Ana sigue sin leer
+        assertThat(hilo.get(1).getLeidoEn()).isEqualTo(AHORA_UTC);
+        // La de Beto no se movió, ni los mensajes que Ana escribió cuentan para el admin.
+        assertThat(conversacionService.contarNoLeidos("beto@dante.test").getNoLeidos()).isEqualTo(1);
+        assertThat(conversacionService.contarNoLeidos("admin@dante.test").getNoLeidos()).isEqualTo(2);
+    }
+
+    @Test
+    void marcarLeidaDeUnaConversacionAjenaDa404YNoTocaNada() {
+        Conversacion[] hilos = hilosConMensajesSinLeer();
+        Conversacion deBeto = hilos[2];
+
+        assertThatThrownBy(() -> conversacionService.marcarLeida(deBeto.getId(), "ana@dante.test"))
+                .isInstanceOf(ResourceNotFoundException.class);
+        em.clear();
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensajes WHERE leido_en IS NOT NULL", Integer.class)).isZero();
+        assertThat(conversacionService.contarNoLeidos("beto@dante.test").getNoLeidos()).isEqualTo(1);
+    }
+
+    @Test
+    void listarMiasTraeLosNoLeidosPorConversacionConLaBaseReal() {
+        Conversacion[] hilos = hilosConMensajesSinLeer();
+
+        List<ConversacionResumenResponse> lista = conversacionService.listarMias("ana@dante.test");
+
+        assertThat(lista).hasSize(2);
+        assertThat(lista).filteredOn(c -> c.getId().equals(hilos[0].getId()))
+                .extracting(ConversacionResumenResponse::getNoLeidos).containsExactly(2L);
+        assertThat(lista).filteredOn(c -> c.getId().equals(hilos[1].getId()))
+                .extracting(ConversacionResumenResponse::getNoLeidos).containsExactly(1L);
+        // El detalle cuenta lo mismo desde el hilo cargado.
+        assertThat(conversacionService.obtenerMia(hilos[0].getId(), "ana@dante.test").getConversacion().getNoLeidos())
+                .isEqualTo(2);
     }
 }

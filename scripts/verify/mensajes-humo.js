@@ -2,8 +2,8 @@
 // Uso (ADMIN_EMAIL y ADMIN_PASSWORD son las del admin que siembra el back local):
 //   ADMIN_EMAIL=admin.humo@dante.test ADMIN_PASSWORD=... ADMIN_NOMBRE=AdminHumo \
 //     bash scripts/verify/con-back-local.sh --vacia dante_humo_mensajes node scripts/verify/mensajes-humo.js
-// Cubre "Lo quiero", la lista de Mis mensajes, el hilo del comprador (leer, escribir, aislamiento y límite de envío) y
-// sus casos negativos; los planes siguientes agregan el resto de la fase.
+// Cubre "Lo quiero", la lista de Mis mensajes, el hilo del comprador (leer, escribir, aislamiento y límite de envío), los
+// mensajes sin leer y sus casos negativos; los planes siguientes agregan el resto de la fase.
 const {
   exigir,
   revisar,
@@ -304,6 +304,56 @@ function clavesPresentes(valor, prohibidas, encontradas = new Set()) {
     const dueno = await pedir("GET", `/conversaciones/${conversacionId}`, undefined, comprador.token);
     exigir(dueno.cuerpo.mensajes.length === 2, `el hilo del dueño tiene ${dueno.cuerpo.mensajes.length} mensajes (esperaba 2)`);
     exigir(!dueno.cuerpo.mensajes.some((m) => m.texto === "intruso"), "el mensaje de la cuenta ajena quedó en el hilo");
+  });
+
+  // ---- Mensajes sin leer (MSG-05, D-06, D-12, T-04-15, T-04-16) ----
+  // Los casos con mensajes de la agencia sin leer los cubren los tests de Postgres hasta que 04-06 permita responder
+  // desde el admin; el humo de 04-06 los repite de punta a punta.
+  await revisar("GET /conversaciones/no-leidas da 401 sin token, ceros al comprador sin mensajes de la agencia y cuenta lo que nadie leyó al admin", async () => {
+    const sin = await pedir("GET", "/conversaciones/no-leidas");
+    exigir(sin.estado === 401, `sin token: estado ${sin.estado}`);
+
+    const propio = await pedir("GET", "/conversaciones/no-leidas", undefined, comprador.token);
+    exigir(propio.estado === 200, `del comprador: estado ${propio.estado}: ${propio.texto}`);
+    exigir(propio.cuerpo.noLeidos === 0 && propio.cuerpo.conversaciones === 0, `del comprador: ${propio.texto}`);
+    // Solo dos números: nada de ids ni texto (T-04-15).
+    exigir(Object.keys(propio.cuerpo).sort().join(",") === "conversaciones,noLeidos", `claves: ${Object.keys(propio.cuerpo)}`);
+
+    const delAdmin = await pedir("GET", "/conversaciones/no-leidas", undefined, admin.token);
+    exigir(delAdmin.estado === 200, `del admin: estado ${delAdmin.estado}: ${delAdmin.texto}`);
+    exigir(delAdmin.cuerpo.noLeidos >= 1 && delAdmin.cuerpo.conversaciones >= 1,
+      `el admin no cuenta los mensajes del comprador que nadie leyó: ${delAdmin.texto}`);
+
+    const lista = await pedir("GET", "/conversaciones", undefined, comprador.token);
+    exigir(lista.cuerpo.length > 0 && lista.cuerpo.every((c) => c.noLeidos === 0), `noLeidos en la lista: ${JSON.stringify(lista.cuerpo.map((c) => c.noLeidos))}`);
+  });
+
+  await revisar("POST /conversaciones/{id}/leida: el dueño recibe 200 con los conteos y sus propios mensajes siguen sin leer", async () => {
+    const dueno = await post(`/conversaciones/${conversacionId}/leida`, undefined, comprador.token);
+    exigir(dueno.estado === 200, `estado ${dueno.estado}: ${dueno.texto}`);
+    exigir(dueno.cuerpo.noLeidos === 0 && dueno.cuerpo.conversaciones === 0, `conteos: ${dueno.texto}`);
+    // Solo se marcan los de la agencia: lo que escribió el comprador sigue sin leer para la agencia.
+    const hilo = await pedir("GET", `/conversaciones/${conversacionId}`, undefined, comprador.token);
+    exigir(hilo.cuerpo.mensajes.length === 2 && hilo.cuerpo.mensajes.every((m) => m.autor === "USUARIO" && m.leido === false),
+      `mensajes propios: ${JSON.stringify(hilo.cuerpo.mensajes.map((m) => [m.autor, m.leido]))}`);
+    exigir(hilo.cuerpo.conversacion.noLeidos === 0, `noLeidos del hilo: ${hilo.cuerpo.conversacion.noLeidos}`);
+  });
+
+  await revisar("marcar como leída sin token da 401, con el admin 403 y una conversación ajena o inexistente 404 igual", async () => {
+    const sin = await post(`/conversaciones/${conversacionId}/leida`, undefined);
+    exigir(sin.estado === 401, `sin token: estado ${sin.estado}`);
+    const delAdmin = await post(`/conversaciones/${conversacionId}/leida`, undefined, admin.token);
+    exigir(delAdmin.estado === 403, `del admin: estado ${delAdmin.estado}`);
+
+    const otra = await registrarCuentaVerificada("leida");
+    const ajena = await post(`/conversaciones/${conversacionId}/leida`, undefined, otra.token);
+    exigir(ajena.estado === 404, `de otra cuenta: estado ${ajena.estado}`);
+    const inexistente = await post("/conversaciones/2000000000/leida", undefined, otra.token);
+    exigir(inexistente.estado === 404, `inexistente: estado ${inexistente.estado}`);
+    exigir(ajena.texto === inexistente.texto, `la ajena y la inexistente responden distinto: ${ajena.texto} / ${inexistente.texto}`);
+    // La del admin sigue viendo el mensaje del comprador: la cuenta ajena no pudo tocarlo.
+    const delAdminDespues = await pedir("GET", "/conversaciones/no-leidas", undefined, admin.token);
+    exigir(delAdminDespues.cuerpo.noLeidos >= 1, `el admin dejó de ver mensajes sin leer: ${delAdminDespues.texto}`);
   });
 
   await revisar("una cuenta descartable recibe 429 con Retry-After en el envío 21 y ese mensaje no queda en el hilo (D-10)", async () => {

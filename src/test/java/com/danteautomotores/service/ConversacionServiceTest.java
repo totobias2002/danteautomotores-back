@@ -5,6 +5,7 @@ import com.danteautomotores.dto.conversacion.ConversacionRequest;
 import com.danteautomotores.dto.conversacion.ConversacionResumenResponse;
 import com.danteautomotores.dto.conversacion.MensajeRequest;
 import com.danteautomotores.dto.conversacion.MensajeResponse;
+import com.danteautomotores.dto.conversacion.NoLeidosResponse;
 import com.danteautomotores.entity.Agencia;
 import com.danteautomotores.entity.Conversacion;
 import com.danteautomotores.entity.Mensaje;
@@ -45,6 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -516,5 +518,136 @@ class ConversacionServiceTest {
         }
 
         assertThat(servicio.enviarMensaje(50L, texto("Hola"), "otra@cuenta.com")).isNotNull();
+    }
+
+    private MensajeRepository.ConteoPorConversacion conteo(Long conversacionId, Long cantidad) {
+        return new MensajeRepository.ConteoPorConversacion() {
+            @Override
+            public Long getConversacionId() {
+                return conversacionId;
+            }
+
+            @Override
+            public Long getCantidad() {
+                return cantidad;
+            }
+        };
+    }
+
+    @Test
+    void listarMiasTraeLosNoLeidosDeCadaConversacionConUnaSolaConsultaAgrupada() {
+        Conversacion primera = abiertaExistente();
+        Conversacion segunda = abiertaExistente();
+        segunda.setId(51L);
+        existeLaCuenta(cuentaVerificada());
+        when(conversacionRepository.findByUsuarioIdOrderByUltimoMensajeEnDescIdDesc(3L))
+                .thenReturn(List.of(primera, segunda));
+        when(mensajeRepository.findUltimosPorConversaciones(List.of(50L, 51L))).thenReturn(List.of());
+        // Solo la primera tiene mensajes de la agencia sin leer: la segunda no aparece en el conteo y queda en cero.
+        when(mensajeRepository.contarNoLeidosPorConversacion(List.of(50L, 51L), AutorMensaje.AGENCIA))
+                .thenReturn(List.of(conteo(50L, 3L)));
+
+        List<ConversacionResumenResponse> lista = servicio.listarMias(EMAIL);
+
+        assertThat(lista).extracting(ConversacionResumenResponse::getNoLeidos).containsExactly(3L, 0L);
+        verify(mensajeRepository, times(1)).contarNoLeidosPorConversacion(anyCollection(), any());
+    }
+
+    @Test
+    void obtenerMiaCuentaLosNoLeidosDeLaAgenciaDelHilo() {
+        Conversacion conversacion = abiertaExistente();
+        Mensaje delUsuario = Mensaje.builder().id(900L).conversacion(conversacion).autorTipo(AutorMensaje.USUARIO)
+                .texto("Hola").creadoEn(AHORA_UTC.minusHours(3)).build();
+        Mensaje leido = Mensaje.builder().id(901L).conversacion(conversacion).autorTipo(AutorMensaje.AGENCIA)
+                .texto("Buenas").creadoEn(AHORA_UTC.minusHours(2)).leidoEn(AHORA_UTC.minusHours(1)).build();
+        Mensaje sinLeer = Mensaje.builder().id(902L).conversacion(conversacion).autorTipo(AutorMensaje.AGENCIA)
+                .texto("¿Venís hoy?").creadoEn(AHORA_UTC.minusHours(1)).build();
+        existeLaCuenta(cuentaVerificada());
+        when(conversacionRepository.findByIdAndUsuarioId(50L, 3L)).thenReturn(Optional.of(conversacion));
+        when(mensajeRepository.findByConversacionIdOrderByIdAsc(50L)).thenReturn(List.of(delUsuario, leido, sinLeer));
+
+        // Los propios sin leer no cuentan: el usuario no "lee" lo que escribió él.
+        assertThat(servicio.obtenerMia(50L, EMAIL).getConversacion().getNoLeidos()).isEqualTo(1);
+    }
+
+    @Test
+    void marcarLeidaMarcaSoloLosDeLaAgenciaDeLaConversacionPropiaConElInstanteUtcYDevuelveLosConteos() {
+        Conversacion conversacion = abiertaExistente();
+        existeLaCuenta(cuentaVerificada());
+        when(conversacionRepository.findByIdAndUsuarioId(50L, 3L)).thenReturn(Optional.of(conversacion));
+        when(mensajeRepository.contarNoLeidosDeUsuario(3L, AutorMensaje.AGENCIA)).thenReturn(1L);
+        when(mensajeRepository.contarConversacionesConNoLeidosDeUsuario(3L, AutorMensaje.AGENCIA)).thenReturn(1L);
+
+        NoLeidosResponse respuesta = servicio.marcarLeida(50L, EMAIL);
+
+        // Solo el autor AGENCIA de esa conversación, con el reloj del servicio en UTC.
+        verify(mensajeRepository).marcarLeidos(50L, AutorMensaje.AGENCIA, AHORA_UTC);
+        verify(mensajeRepository, never()).marcarLeidos(any(), eq(AutorMensaje.USUARIO), any());
+        assertThat(respuesta.getNoLeidos()).isEqualTo(1);
+        assertThat(respuesta.getConversaciones()).isEqualTo(1);
+    }
+
+    @Test
+    void marcarLeidaNoExigeCuentaVerificada() {
+        Usuario incompleta = cuentaVerificada();
+        incompleta.setDni(null);
+        incompleta.setEmailConfirmado(false);
+        existeLaCuenta(incompleta);
+        when(conversacionRepository.findByIdAndUsuarioId(50L, 3L)).thenReturn(Optional.of(abiertaExistente()));
+
+        assertThat(servicio.marcarLeida(50L, EMAIL).getNoLeidos()).isZero();
+
+        verify(mensajeRepository).marcarLeidos(50L, AutorMensaje.AGENCIA, AHORA_UTC);
+    }
+
+    @Test
+    void marcarLeidaSobreUnaConversacionAjenaOInexistenteDa404YNoTocaNingunMensaje() {
+        existeLaCuenta(cuentaVerificada());
+        when(conversacionRepository.findByIdAndUsuarioId(any(), any())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> servicio.marcarLeida(77L, EMAIL))
+                .isInstanceOf(ResourceNotFoundException.class).hasMessage("No existe la conversación");
+        assertThatThrownBy(() -> servicio.marcarLeida(9999L, EMAIL))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(conversacionRepository).findByIdAndUsuarioId(77L, 3L);
+        verify(mensajeRepository, never()).marcarLeidos(any(), any(), any());
+    }
+
+    @Test
+    void contarNoLeidosDelCompradorCuentaSoloLosDeLaAgenciaEnSusConversaciones() {
+        existeLaCuenta(cuentaVerificada());
+        when(mensajeRepository.contarNoLeidosDeUsuario(3L, AutorMensaje.AGENCIA)).thenReturn(5L);
+        when(mensajeRepository.contarConversacionesConNoLeidosDeUsuario(3L, AutorMensaje.AGENCIA)).thenReturn(2L);
+
+        NoLeidosResponse respuesta = servicio.contarNoLeidos(EMAIL);
+
+        assertThat(respuesta.getNoLeidos()).isEqualTo(5);
+        assertThat(respuesta.getConversaciones()).isEqualTo(2);
+        // Un comprador nunca cuenta la bandeja entera ni los mensajes de otras cuentas.
+        verify(mensajeRepository, never()).contarNoLeidos(any());
+        verify(mensajeRepository, never()).contarConversacionesConNoLeidos(any());
+    }
+
+    @Test
+    void contarNoLeidosDelAdminCuentaLosMensajesDeUsuariosDeTodaLaBandeja() {
+        Usuario admin = Usuario.builder().id(1L).nombre("Admin").email(EMAIL).rol(Rol.ADMIN).build();
+        existeLaCuenta(admin);
+        when(mensajeRepository.contarNoLeidos(AutorMensaje.USUARIO)).thenReturn(7L);
+        when(mensajeRepository.contarConversacionesConNoLeidos(AutorMensaje.USUARIO)).thenReturn(4L);
+
+        NoLeidosResponse respuesta = servicio.contarNoLeidos(EMAIL);
+
+        assertThat(respuesta.getNoLeidos()).isEqualTo(7);
+        assertThat(respuesta.getConversaciones()).isEqualTo(4);
+        verify(mensajeRepository, never()).contarNoLeidosDeUsuario(any(), any());
+    }
+
+    @Test
+    void contarNoLeidosDeUnaCuentaInexistenteDa404() {
+        when(usuarioRepository.findByEmailIgnoreCase(EMAIL)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> servicio.contarNoLeidos(EMAIL)).isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> servicio.marcarLeida(50L, EMAIL)).isInstanceOf(ResourceNotFoundException.class);
     }
 }

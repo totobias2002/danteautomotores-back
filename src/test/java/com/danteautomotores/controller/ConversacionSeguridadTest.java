@@ -5,6 +5,7 @@ import com.danteautomotores.dto.conversacion.ConversacionRequest;
 import com.danteautomotores.dto.conversacion.ConversacionResumenResponse;
 import com.danteautomotores.dto.conversacion.MensajeRequest;
 import com.danteautomotores.dto.conversacion.MensajeResponse;
+import com.danteautomotores.dto.conversacion.NoLeidosResponse;
 import com.danteautomotores.enums.AutorMensaje;
 import com.danteautomotores.enums.DatoFaltante;
 import com.danteautomotores.enums.EstadoConversacion;
@@ -28,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -348,5 +350,77 @@ class ConversacionSeguridadTest extends SeguridadWebMvcTestBase {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("CUENTA_NO_VERIFICADA"))
                 .andExpect(jsonPath("$.faltantes[0]").value("DNI"));
+    }
+
+    @Test
+    void noLeidasSinTokenDa401() throws Exception {
+        mvc.perform(get("/api/conversaciones/no-leidas"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").exists());
+
+        verifyNoInteractions(conversacionService);
+    }
+
+    @Test
+    void noLeidasContestaAlCompradorYNoSeConfundeConElId() throws Exception {
+        when(conversacionService.contarNoLeidos("comprador@x.com"))
+                .thenReturn(NoLeidosResponse.builder().noLeidos(3).conversaciones(2).build());
+
+        mvc.perform(get("/api/conversaciones/no-leidas").header("Authorization", comprador()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.noLeidos").value(3))
+                .andExpect(jsonPath("$.conversaciones").value(2));
+
+        verify(conversacionService).contarNoLeidos("comprador@x.com");
+        // No cayó en GET /{id}: "no-leidas" no es un id.
+        verify(conversacionService, never()).obtenerMia(any(), anyString());
+    }
+
+    @Test
+    void noLeidasTambienContestaAlAdminConLaCuentaDelToken() throws Exception {
+        when(conversacionService.contarNoLeidos("admin@x.com"))
+                .thenReturn(NoLeidosResponse.builder().noLeidos(9).conversaciones(4).build());
+
+        mvc.perform(get("/api/conversaciones/no-leidas").header("Authorization", admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.noLeidos").value(9))
+                .andExpect(jsonPath("$.conversaciones").value(4));
+
+        verify(conversacionService).contarNoLeidos("admin@x.com");
+    }
+
+    @Test
+    void marcarLeidaSinTokenDa401YElAdminDa403() throws Exception {
+        mvc.perform(post("/api/conversaciones/50/leida"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").exists());
+        mvc.perform(post("/api/conversaciones/50/leida").header("Authorization", admin()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").exists());
+
+        verifyNoInteractions(conversacionService);
+    }
+
+    @Test
+    void marcarLeidaDa200ConLosConteosYElMailDelToken() throws Exception {
+        when(conversacionService.marcarLeida(50L, "comprador@x.com"))
+                .thenReturn(NoLeidosResponse.builder().noLeidos(0).conversaciones(0).build());
+
+        mvc.perform(post("/api/conversaciones/50/leida").header("Authorization", comprador()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.noLeidos").value(0))
+                .andExpect(jsonPath("$.conversaciones").value(0));
+
+        verify(conversacionService).marcarLeida(50L, "comprador@x.com");
+    }
+
+    @Test
+    void marcarLeidaDeUnaConversacionAjenaDa404() throws Exception {
+        when(conversacionService.marcarLeida(eq(77L), anyString()))
+                .thenThrow(new ResourceNotFoundException("No existe la conversación"));
+
+        mvc.perform(post("/api/conversaciones/77/leida").header("Authorization", comprador()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("No existe la conversación"));
     }
 }

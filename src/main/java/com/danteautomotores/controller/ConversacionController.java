@@ -5,6 +5,7 @@ import com.danteautomotores.dto.conversacion.ConversacionRequest;
 import com.danteautomotores.dto.conversacion.ConversacionResumenResponse;
 import com.danteautomotores.dto.conversacion.MensajeRequest;
 import com.danteautomotores.dto.conversacion.MensajeResponse;
+import com.danteautomotores.dto.conversacion.NoLeidosResponse;
 import com.danteautomotores.security.SecurityUtils;
 import com.danteautomotores.service.ConversacionService;
 import jakarta.validation.Valid;
@@ -30,6 +31,17 @@ public class ConversacionController {
     @GetMapping
     public ResponseEntity<List<ConversacionResumenResponse>> listarMias() {
         return ResponseEntity.ok(conversacionService.listarMias(SecurityUtils.obtenerEmailAutenticado()));
+    }
+
+    // El literal tiene prioridad sobre /{id}. Contesta a cualquier sesión: el comprador cuenta lo suyo y el admin la bandeja.
+    @GetMapping("/no-leidas")
+    public ResponseEntity<NoLeidosResponse> contarNoLeidos() {
+        return ResponseEntity.ok(conversacionService.contarNoLeidos(SecurityUtils.obtenerEmailAutenticado()));
+    }
+
+    @PostMapping("/{id}/leida")
+    public ResponseEntity<NoLeidosResponse> marcarLeida(@PathVariable Long id) {
+        return ResponseEntity.ok(conversacionService.marcarLeida(id, SecurityUtils.obtenerEmailAutenticado()));
     }
 
     @GetMapping("/{id}")
