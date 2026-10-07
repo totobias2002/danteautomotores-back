@@ -21,6 +21,7 @@ import com.danteautomotores.repository.UsuarioRepository;
 import com.danteautomotores.repository.spec.ConversacionSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -62,7 +63,18 @@ public class ConversacionAdminService {
         Page<Conversacion> conversaciones =
                 conversacionRepository.findAll(ConversacionSpecification.bandeja(tipo, estado, soloNoLeidas), pageable);
 
-        List<Long> ids = conversaciones.getContent().stream().map(Conversacion::getId).toList();
+        List<ConversacionResumenResponse> filas = resumir(conversaciones.getContent());
+        return PaginaResponse.de(new PageImpl<>(filas, conversaciones.getPageable(), conversaciones.getTotalElements()));
+    }
+
+    /**
+     * Arma los resúmenes de la agencia de una lista de conversaciones, en el mismo orden: con el usuario, el último
+     * mensaje y los no leídos (los del usuario que la agencia no leyó). Una consulta agrupada cada uno, no una por
+     * fila. Lo comparten la bandeja y la ficha del usuario. Necesita una transacción abierta.
+     */
+    @Transactional(readOnly = true)
+    public List<ConversacionResumenResponse> resumir(List<Conversacion> conversaciones) {
+        List<Long> ids = conversaciones.stream().map(Conversacion::getId).toList();
         Map<Long, Mensaje> ultimos = Map.of();
         Map<Long, Long> noLeidos = Map.of();
         if (!ids.isEmpty()) {
@@ -75,8 +87,10 @@ public class ConversacionAdminService {
         }
         Map<Long, Mensaje> ultimosPorId = ultimos;
         Map<Long, Long> noLeidosPorId = noLeidos;
-        return PaginaResponse.de(conversaciones.map(c -> ConversacionMapper.toResumenParaAdmin(
-                c, ultimosPorId.get(c.getId()), noLeidosPorId.getOrDefault(c.getId(), 0L))));
+        return conversaciones.stream()
+                .map(c -> ConversacionMapper.toResumenParaAdmin(
+                        c, ultimosPorId.get(c.getId()), noLeidosPorId.getOrDefault(c.getId(), 0L)))
+                .toList();
     }
 
     /** El hilo de cualquier conversación, visto desde la agencia: con el usuario y sus mensajes sin leer. */
