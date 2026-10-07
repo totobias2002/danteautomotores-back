@@ -169,7 +169,7 @@ Plans:
   4. El admin ve en el panel una bandeja con todas las conversaciones, la filtra por tipo, estado y no leídas, y puede cerrar o reabrir cada conversación
   5. Desde una conversación, el admin abre la ficha del usuario (nombre, teléfono, DNI, mail) con su historial de conversaciones
 
-**Plans**: 8/11 plans executed
+**Plans**: 9/11 plans executed
 
 Plans:
 **Wave 1**
@@ -197,7 +197,7 @@ Plans:
 - [x] 04-08-PLAN.md — Ficha del usuario para el admin con su historial de conversaciones y pasada de privacidad (ola 8)
 
 **Wave 9** *(blocked on Wave 8 completion)*
-- [ ] 04-09-PLAN.md — V7: las consultas viejas pasan a la bandeja, borrar un auto cuenta y borra conversaciones, y se retira el modelo de consultas (ola 9)
+- [x] 04-09-PLAN.md — V7: las consultas viejas pasan a la bandeja, borrar un auto cuenta y borra conversaciones, y se retira el modelo de consultas (ola 9)
 
 **Wave 10** *(blocked on Wave 9 completion)*
 - [ ] 04-10-PLAN.md — README de los dos repos y verificación final de punta a punta (suites, humos y recorrido en navegador) (ola 10)
@@ -252,6 +252,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Gestión del inventario por el admin | 7/7 | Complete    | 2026-10-03 |
 | 2. Catálogo público real en producción | 8/8 | Complete    | 2026-10-05 |
 | 3. Cuentas verificadas | 15/15 | Complete    | 2026-10-06 |
-| 4. Compra por conversación con la agencia | 8/11 | In Progress|  |
+| 4. Compra por conversación con la agencia | 9/11 | In Progress|  |
 | 5. Cotizador de usados | 0/TBD | Not started | - |
 | 6. Experiencia visual pulida | 0/TBD | Not started | - |

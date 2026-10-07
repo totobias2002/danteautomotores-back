@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: 4
 current_phase_name: Compra por conversación con la agencia
-current_plan: 9
+current_plan: 10
 status: executing
-stopped_at: Completed 04-08-PLAN.md
-last_updated: "2026-10-07T20:00:14.329Z"
+stopped_at: Completed 04-09-PLAN.md
+last_updated: "2026-10-07T20:11:18.669Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 03 complete, transitioned to Phase 4
-state_head: 6e34bd703804da8b132709bd40dd7f24824e4825
+state_head: 2ce4f983d20bfa0c16ac3283393a6b8b9fb4881a
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 41
-  completed_plans: 38
+  completed_plans: 39
   percent: 50
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-03)
 ## Current Position
 
 Phase: 4 — Compra por conversación con la agencia
-Current Plan: 9
+Current Plan: 10
 Total Plans in Phase: 11
 Status: Ready to execute
 Last activity: 2026-10-07 — Completed 04-06 (el admin atiende una conversación)
@@ -98,6 +98,7 @@ Progress: [█████░░░░░] 50%
 | Phase 04 P06 | 40min | 1 tasks | 11 files |
 | Phase 4 P07 | 35min | 2 tasks | 10 files |
 | Phase 04 P08 | retomado | 2 tasks | 16 files |
+| Phase 04 P09 | 1 sesion | 2 tasks | 24 files |
 
 ## Accumulated Context
 
@@ -164,6 +165,7 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-06: cerrar y reabrir son idempotentes; reabrir una compra con auto se rechaza con 400 si el usuario ya tiene otra abierta por el mismo auto (el indice unico parcial de V6 es la ultima defensa)
 - [Phase 4]: 04-07: el aviso de mensaje nuevo se engancha solo en RegistroDeMensajes.agregar, despues del commit, con ventana de 10 minutos antes del tope diario
 - [Phase 04]: 04-08: la ficha del usuario (GET /api/admin/usuarios/{id}) es la unica respuesta con DNI y telefono de otra persona; cuenta admin e id inexistente dan el mismo 404; DTOs de mensajeria con @ToString.Exclude en textos y mails
+- [Phase 04]: 04-09: V7 aditiva copia las consultas con cuenta a conversaciones y deja consultas intacta; solo carga mensajes en conversaciones sin mensajes
 
 ### Pending Todos
 
@@ -196,8 +198,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T20:00:14.230Z
-Stopped at: Completed 04-08-PLAN.md
+Last session: 2026-10-07T20:11:18.573Z
+Stopped at: Completed 04-09-PLAN.md
 Seguridad: el 2026-10-05 se rotaron la clave de Postgres, APP_JWT_SECRET y las credenciales de Cloudinary (key dante-prod-3 con rol Master admin; el resto de las keys se borraron). Produccion verificada despues de rotar (health UP, 11 autos).
 Pendientes menores de produccion: bajarle a la key de Cloudinary el rol Master admin a uno acotado si Cloudinary lo permite; revisar 3 cuentas COMPRADOR de prueba en usuarios; confirmar el Healthcheck Path /actuator/health en Railway; apagar SPRING_FLYWAY_BASELINE_ON_MIGRATE.
 Fase 3: 03-CONTEXT y 03-RESEARCH listos; falta que el usuario responda 5 preguntas del research (union con Google que descarta la contrasena de cuentas sin mail confirmado, boton "Lo quiero", remitente Brevo/dominio, cierre de sesiones al cambiar clave, texto legal /privacidad) y planificar.
