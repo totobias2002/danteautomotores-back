@@ -231,23 +231,23 @@ function exigirCodigoDeCuentaNoVerificada(cuerpo) {
     exigir(releido.cuerpo.dni === DNI_NORMALIZADO, "el DNI cambió");
   });
 
-  // ---- Gate: una cuenta con el mail sin confirmar no puede consultar ni vender ----
-  const consultaInexistente = { publicacionId: 999999999, mensaje: "Consulta del humo" };
+  // ---- Gate: una cuenta con el mail sin confirmar no puede abrir una conversación ni vender ----
+  const conversacionInexistente = { publicacionId: 999999999, mensaje: "Mensaje del humo" };
   const solicitudDeVenta = {
     marca: "Marca", modelo: "Humo", anio: 2020, kilometraje: 1000,
     nombreVendedor: "Humo Prueba", telefonoVendedor: "11 5555-0000",
   };
 
-  await revisar("POST /consultas y /solicitudes-venta sin token responden 401", async () => {
-    const consulta = await pedir("POST", "/consultas", consultaInexistente);
-    exigir(consulta.estado === 401, `consultas: estado ${consulta.estado}`);
+  await revisar("POST /conversaciones y /solicitudes-venta sin token responden 401", async () => {
+    const conversacion = await pedir("POST", "/conversaciones", conversacionInexistente);
+    exigir(conversacion.estado === 401, `conversaciones: estado ${conversacion.estado}`);
     const venta = await pedir("POST", "/solicitudes-venta", solicitudDeVenta);
     exigir(venta.estado === 401, `solicitudes-venta: estado ${venta.estado}`);
   });
 
-  await revisar("POST /consultas de una cuenta incompleta da 403 CUENTA_NO_VERIFICADA (antes de mirar la publicación)", async () => {
+  await revisar("POST /conversaciones de una cuenta incompleta da 403 CUENTA_NO_VERIFICADA (antes de mirar la publicación)", async () => {
     exigir(tokenRegistro, "no hay token del registro");
-    const { estado, cuerpo } = await pedir("POST", "/consultas", consultaInexistente, tokenRegistro);
+    const { estado, cuerpo } = await pedir("POST", "/conversaciones", conversacionInexistente, tokenRegistro);
     exigir(estado === 403, `estado ${estado}: ${JSON.stringify(cuerpo)}`);
     exigirCodigoDeCuentaNoVerificada(cuerpo);
   });
@@ -284,13 +284,13 @@ function exigirCodigoDeCuentaNoVerificada(cuerpo) {
     exigirFaltantes(cuerpo, []);
   });
 
-  await revisar("una cuenta verificada pasa el gate: /consultas da 404 por la publicación y /solicitudes-venta da 200", async () => {
+  await revisar("una cuenta verificada pasa el gate: /conversaciones da 404 por la publicación y /solicitudes-venta da 200", async () => {
     exigirLog();
     exigir(tokenDeConfirmacion, "no hay token de confirmación");
     const login = await post("/auth/login", { email, password: passwordInicial });
     exigir(login.estado === 200, `login: estado ${login.estado}`);
-    const consulta = await pedir("POST", "/consultas", consultaInexistente, login.cuerpo.token);
-    exigir(consulta.estado === 404, `consultas: estado ${consulta.estado}: ${JSON.stringify(consulta.cuerpo)}`);
+    const conversacion = await pedir("POST", "/conversaciones", conversacionInexistente, login.cuerpo.token);
+    exigir(conversacion.estado === 404, `conversaciones: estado ${conversacion.estado}: ${JSON.stringify(conversacion.cuerpo)}`);
     const venta = await pedir("POST", "/solicitudes-venta", solicitudDeVenta, login.cuerpo.token);
     exigir(venta.estado === 200, `solicitudes-venta: estado ${venta.estado}: ${JSON.stringify(venta.cuerpo)}`);
   });

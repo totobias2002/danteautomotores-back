@@ -47,9 +47,8 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        // Consultar y cotizar exigen sesión de comprador; que la cuenta esté verificada lo decide
+                        // Cotizar exige sesión de comprador; que la cuenta esté verificada lo decide
                         // cada service con el estado actual de la base (VerificacionCuenta.exigir).
-                        .requestMatchers(HttpMethod.POST, "/api/consultas/**").hasRole("COMPRADOR")
                         .requestMatchers(HttpMethod.POST, "/api/solicitudes-venta/**").hasRole("COMPRADOR")
                         // Las conversaciones del lado del comprador: sin token 401 y el admin 403. La bandeja del admin
                         // vive en /api/admin/** (D-17).
@@ -62,7 +61,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/agencias/**", "/api/publicaciones/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/agencias/**", "/api/publicaciones/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/agencias/**", "/api/publicaciones/**").hasRole("ADMIN")
-                        .requestMatchers("/api/consultas/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // Railway activa un deploy recién cuando el healthcheck responde 2xx. Es lo único de actuator
                         // que se abre; el resto sigue cerrado y la exposición está limitada a health (application.yml).

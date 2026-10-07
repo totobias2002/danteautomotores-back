@@ -24,7 +24,7 @@ public class AdminPublicacionController {
         return ResponseEntity.ok(publicacionService.listarParaAdmin());
     }
 
-    // Cuántas consultas y favoritos se borran junto con el auto; el panel lo muestra antes de confirmar.
+    // Cuántas conversaciones y favoritos se borran junto con el auto; el panel lo muestra antes de confirmar.
     @GetMapping("/{id}/impacto-eliminacion")
     public ResponseEntity<ImpactoEliminacionResponse> impactoEliminacion(@PathVariable Long id) {
         return ResponseEntity.ok(publicacionService.obtenerImpactoEliminacion(id));

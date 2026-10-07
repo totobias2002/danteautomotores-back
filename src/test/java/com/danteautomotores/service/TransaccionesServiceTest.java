@@ -33,7 +33,7 @@ class TransaccionesServiceTest {
 
     @Test
     void todosLosMetodosPublicosDeLosServicesQueMapeanEntidadesSonTransaccionales() {
-        for (Class<?> service : List.of(PublicacionService.class, FavoritoService.class, ConsultaService.class,
+        for (Class<?> service : List.of(PublicacionService.class, FavoritoService.class,
                 ConversacionService.class, ConversacionAdminService.class, UsuarioAdminService.class)) {
             List<Method> sinTransaccion = Arrays.stream(service.getDeclaredMethods())
                     .filter(m -> Modifier.isPublic(m.getModifiers()) && !m.isSynthetic())
