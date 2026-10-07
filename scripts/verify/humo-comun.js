@@ -91,16 +91,17 @@ function dniAleatorio() {
 }
 
 // Registra una cuenta con datos falsos, confirma el mail con el link que sale en el log, inicia sesion y la devuelve
-// lista para operar (cuenta verificada). Devuelve email, contrasena y token.
+// lista para operar (cuenta verificada). Devuelve email, contrasena, dni y token.
 async function registrarCuentaVerificada(prefijo) {
   const sufijo = sufijoUnico();
   const email = `${prefijo}.${sufijo}@dante.test`;
   const password = `Humo-${sufijo}-x`;
+  const dni = dniAleatorio();
   const registro = await post("/auth/registro", {
     nombre: "Humo",
     apellido: "Prueba",
     telefono: "011 15 1234-5678",
-    dni: dniAleatorio(),
+    dni,
     email,
     password,
   });
@@ -110,7 +111,7 @@ async function registrarCuentaVerificada(prefijo) {
   exigir(confirmacion.estado === 200, `confirmar mail de ${prefijo}: estado ${confirmacion.estado}`);
   const login = await post("/auth/login", { email, password });
   exigir(login.estado === 200 && login.cuerpo && login.cuerpo.token, `login de ${prefijo}: estado ${login.estado}`);
-  return { email, password, token: login.cuerpo.token };
+  return { email, password, dni, token: login.cuerpo.token };
 }
 
 // Inicia sesion con la cuenta admin que el back siembra a partir de ADMIN_EMAIL y ADMIN_PASSWORD. Nunca imprime la clave.

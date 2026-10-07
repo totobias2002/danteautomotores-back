@@ -9,14 +9,13 @@
 const {
   exigir,
   revisar,
-  pedir,
-  post,
+  pedir: pedirSinRegistro,
   dormir,
   exigirLog,
   leerLog,
   sufijoUnico,
   dniAleatorio,
-  registrarCuentaVerificada,
+  registrarCuentaVerificada: registrarCuentaSinRegistro,
   iniciarSesionAdmin,
   cerrar,
 } = require("./humo-comun.js");
@@ -33,6 +32,29 @@ function clavesPresentes(valor, prohibidas, encontradas = new Set()) {
   }
   return [...encontradas];
 }
+
+// Privacidad (D-11, Ley 25.326): se guardan las respuestas de la mensajería del comprador y de la bandeja del admin para
+// revisarlas al final, y las cuentas y datos usados para buscarlos en el log del back. La ficha del usuario
+// (/admin/usuarios/{id}) es la única respuesta que lleva DNI y teléfono y queda afuera de la revisión.
+const CLAVES_PERSONALES = ["dni", "telefono", "password", "passwordHash", "password_hash", "googleSub"];
+const respuestasDeMensajeria = [];
+const pedir = async (metodo, ruta, cuerpo, token) => {
+  const respuesta = await pedirSinRegistro(metodo, ruta, cuerpo, token);
+  if (/^\/(admin\/)?conversaciones/.test(ruta) && respuesta.cuerpo) {
+    respuestasDeMensajeria.push({ metodo, ruta, cuerpo: respuesta.cuerpo });
+  }
+  return respuesta;
+};
+const post = (ruta, cuerpo, token) => pedir("POST", ruta, cuerpo, token);
+const cuentasDeLaCorrida = [];
+const registrarCuentaVerificada = async (prefijo) => {
+  const cuenta = await registrarCuentaSinRegistro(prefijo);
+  cuentasDeLaCorrida.push(cuenta);
+  return cuenta;
+};
+const TELEFONO_SUCIO = "011 15 1234-5678";
+const TELEFONO_NORMALIZADO = "+5491112345678";
+const conPuntos = (dni) => dni.replace(/\B(?=(\d{3})+$)/g, ".");
 
 (async () => {
   const sufijo = sufijoUnico();
@@ -128,11 +150,13 @@ function clavesPresentes(valor, prohibidas, encontradas = new Set()) {
   await revisar("una cuenta con el mail sin confirmar recibe 403 CUENTA_NO_VERIFICADA y no se crea nada", async () => {
     const sinConfirmar = `sinconfirmar.${sufijo}@dante.test`;
     const clave = `Humo-${sufijo}-y`;
+    const dniSinConfirmar = dniAleatorio();
+    cuentasDeLaCorrida.push({ password: clave, dni: dniSinConfirmar });
     const registro = await post("/auth/registro", {
       nombre: "Humo",
       apellido: "SinConfirmar",
-      telefono: "011 15 1234-5678",
-      dni: dniAleatorio(),
+      telefono: TELEFONO_SUCIO,
+      dni: dniSinConfirmar,
       email: sinConfirmar,
       password: clave,
     });
@@ -700,6 +724,78 @@ function clavesPresentes(valor, prohibidas, encontradas = new Set()) {
     }
   });
 
+  // ---- La ficha del usuario (MSG-09, D-11, D-15, T-04-30, T-04-31) ----
+  // Es la única respuesta con DNI y teléfono de otra persona: el pedir() de arriba no la guarda (solo guarda /conversaciones
+  // y /admin/conversaciones), así que queda afuera de la revisión de claves personales.
+  const idDe = async (token) => {
+    const yo = await pedir("GET", "/usuarios/me", undefined, token);
+    exigir(yo.estado === 200 && yo.cuerpo && Number.isInteger(yo.cuerpo.id), `GET /usuarios/me: estado ${yo.estado}`);
+    return yo.cuerpo.id;
+  };
+  const compradorId = await idDe(comprador.token);
+  const adminId = await idDe(admin.token);
+  const fichaDe = (id, token) => pedir("GET", `/admin/usuarios/${id}`, undefined, token);
+
+  await revisar("la ficha da 401 sin token y 403 al comprador, aunque pida la suya", async () => {
+    const sin = await fichaDe(compradorId);
+    exigir(sin.estado === 401, `sin token: estado ${sin.estado}`);
+    const propia = await fichaDe(compradorId, comprador.token);
+    exigir(propia.estado === 403, `del comprador sobre su propia ficha: estado ${propia.estado}`);
+    const ajena = await fichaDe(adminId, comprador.token);
+    exigir(ajena.estado === 403, `del comprador sobre otra ficha: estado ${ajena.estado}`);
+    exigir(!propia.texto.includes(comprador.dni) && !ajena.texto.includes(TELEFONO_NORMALIZADO), "el rechazo repite datos personales");
+  });
+
+  await revisar("el admin pide la ficha del comprador: contacto normalizado, cuenta verificada e historial con su conversación", async () => {
+    const { estado, cuerpo } = await fichaDe(compradorId, admin.token);
+    exigir(estado === 200, `estado ${estado}: ${JSON.stringify(cuerpo)}`);
+    exigir(cuerpo.id === compradorId && cuerpo.nombre === "Humo" && cuerpo.apellido === "Prueba", `nombre: ${cuerpo.nombre} ${cuerpo.apellido}`);
+    exigir(cuerpo.email === comprador.email.toLowerCase(), "el mail de la ficha no es el de la cuenta");
+    exigir(cuerpo.telefono === TELEFONO_NORMALIZADO, `telefono ${JSON.stringify(cuerpo.telefono)}`);
+    exigir(cuerpo.dni === comprador.dni && !cuerpo.dni.includes("."), `dni ${JSON.stringify(cuerpo.dni)}`);
+    exigir(cuerpo.emailConfirmado === true && cuerpo.cuentaVerificada === true, `confirmado ${cuerpo.emailConfirmado}, verificada ${cuerpo.cuentaVerificada}`);
+    exigir(Array.isArray(cuerpo.faltantes) && cuerpo.faltantes.length === 0, `faltantes ${JSON.stringify(cuerpo.faltantes)}`);
+    exigir(/^\d{4}-\d{2}-\d{2}$/.test(cuerpo.fechaRegistro), `fechaRegistro ${JSON.stringify(cuerpo.fechaRegistro)} (debe ser una fecha sin hora)`);
+    exigir(Array.isArray(cuerpo.conversaciones) && cuerpo.conversaciones.some((c) => c.id === conversacionId),
+      "el historial no trae la conversación del comprador");
+    // El historial es exactamente el de la cuenta, con el último mensaje más reciente primero.
+    const propias = await pedir("GET", "/conversaciones", undefined, comprador.token);
+    const idsPropios = propias.cuerpo.map((c) => c.id).sort((a, b) => a - b);
+    const idsFicha = cuerpo.conversaciones.map((c) => c.id).sort((a, b) => a - b);
+    exigir(JSON.stringify(idsFicha) === JSON.stringify(idsPropios), `historial ${JSON.stringify(idsFicha)} / conversaciones de la cuenta ${JSON.stringify(idsPropios)}`);
+    exigir(cuerpo.conversaciones.every((c) => c.usuario && c.usuario.id === compradorId), "hay conversaciones de otra cuenta");
+    const fechas = cuerpo.conversaciones.map((c) => c.ultimoMensajeEn);
+    exigir(fechas.every((f, i) => i === 0 || Date.parse(f) <= Date.parse(fechas[i - 1])), `orden del historial: ${JSON.stringify(fechas)}`);
+    const delHilo = cuerpo.conversaciones.find((c) => c.id === conversacionId);
+    exigir(delHilo.publicacion && delHilo.publicacion.marca === marca && typeof delHilo.ultimoMensaje === "string", "la fila no trae el auto ni el último mensaje");
+    // Las filas del historial no repiten el DNI ni el teléfono: solo el encabezado de la ficha los lleva.
+    const prohibidas = clavesPresentes(cuerpo.conversaciones, CLAVES_PERSONALES);
+    exigir(prohibidas.length === 0, `el historial expone: ${prohibidas.join(", ")}`);
+  });
+
+  await revisar("la ficha de una segunda cuenta no incluye las conversaciones de la primera", async () => {
+    const otra = await registrarCuentaVerificada("ficha");
+    const otraId = await idDe(otra.token);
+    const abierta = await post("/conversaciones", { publicacionId }, otra.token);
+    exigir(abierta.estado === 200, `Lo quiero de la segunda cuenta: estado ${abierta.estado}`);
+    const { estado, cuerpo } = await fichaDe(otraId, admin.token);
+    exigir(estado === 200 && cuerpo.id === otraId, `estado ${estado}`);
+    exigir(cuerpo.dni === otra.dni && cuerpo.dni !== comprador.dni, "el DNI de la ficha no es el de la segunda cuenta");
+    exigir(cuerpo.conversaciones.length === 1 && cuerpo.conversaciones[0].id === abierta.cuerpo.id, `historial: ${JSON.stringify(cuerpo.conversaciones.map((c) => c.id))}`);
+    exigir(!cuerpo.conversaciones.some((c) => c.id === conversacionId), "aparece la conversación de la primera cuenta");
+  });
+
+  await revisar("el id del propio admin y un id inexistente dan el mismo 404, y un id no numérico da 400", async () => {
+    const delAdmin = await fichaDe(adminId, admin.token);
+    exigir(delAdmin.estado === 404, `id del admin: estado ${delAdmin.estado}`);
+    const inexistente = await fichaDe(2000000000, admin.token);
+    exigir(inexistente.estado === 404, `id inexistente: estado ${inexistente.estado}`);
+    exigir(delAdmin.texto === inexistente.texto, `responden distinto: ${delAdmin.texto} / ${inexistente.texto}`);
+    exigir(!delAdmin.texto.includes(admin.email), "el 404 repite el mail del admin");
+    const noNumerico = await pedir("GET", "/admin/usuarios/abc", undefined, admin.token);
+    exigir(noNumerico.estado === 400, `id no numérico: estado ${noNumerico.estado}`);
+  });
+
   // ---- Limpieza de los autos de prueba (la base es descartable, pero el humo no deja basura si se reusa) ----
   await revisar("el admin borra los autos de prueba y se lleva sus conversaciones", async () => {
     for (const id of autosCreados) {
@@ -708,6 +804,38 @@ function clavesPresentes(valor, prohibidas, encontradas = new Set()) {
     }
     const despues = await pedir("GET", "/conversaciones", undefined, comprador.token);
     exigir(despues.cuerpo.length === 0, `quedaron ${despues.cuerpo.length} conversaciones`);
+  });
+
+  // ---- Datos personales: ninguna respuesta de mensajería los lleva y el log del back no los tiene (D-11, Ley 25.326) ----
+  await revisar("ninguna respuesta de mensajería del comprador ni de la bandeja del admin tiene dni, telefono ni contraseñas", async () => {
+    exigir(respuestasDeMensajeria.length >= 40, `se guardaron solo ${respuestasDeMensajeria.length} respuestas para revisar`);
+    const conClaves = respuestasDeMensajeria
+      .map((r) => ({ r, claves: clavesPresentes(r.cuerpo, CLAVES_PERSONALES) }))
+      .filter((x) => x.claves.length > 0)
+      .map((x) => `${x.r.metodo} ${x.r.ruta}: ${x.claves.join(", ")}`);
+    exigir(conClaves.length === 0, `respuestas con datos personales: ${conClaves.join(" | ")}`);
+  });
+
+  await revisar("el log del back no contiene el DNI, el teléfono, las contraseñas ni el texto de los mensajes de la corrida", async () => {
+    exigirLog();
+    const log = leerLog();
+    const prohibidos = {
+      "el teléfono normalizado": TELEFONO_NORMALIZADO.replace("+", ""),
+      "el teléfono como lo escribió el usuario": TELEFONO_SUCIO,
+      "la contraseña del admin": process.env.ADMIN_PASSWORD,
+      "el marcador del texto de los mensajes": marcador,
+      "un mensaje del comprador": "voy ma",
+      "un mensaje de la agencia": "cuando quieras",
+    };
+    cuentasDeLaCorrida.forEach((cuenta, i) => {
+      prohibidos[`la contraseña de la cuenta ${i + 1}`] = cuenta.password;
+      prohibidos[`el DNI normalizado de la cuenta ${i + 1}`] = cuenta.dni;
+      prohibidos[`el DNI con puntos de la cuenta ${i + 1}`] = conPuntos(cuenta.dni);
+    });
+    const encontrados = Object.entries(prohibidos)
+      .filter(([, valor]) => valor && log.includes(valor))
+      .map(([nombre]) => nombre);
+    exigir(encontrados.length === 0, `el log contiene: ${encontrados.join(", ")}`);
   });
 
   cerrar();

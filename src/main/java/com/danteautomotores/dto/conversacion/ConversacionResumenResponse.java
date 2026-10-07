@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.time.Instant;
 
@@ -27,11 +28,14 @@ public class ConversacionResumenResponse {
     private PublicacionResumenResponse publicacion;
     private Instant creadaEn;
     private Instant ultimoMensajeEn;
+    // Fuera del toString: el texto de un mensaje y los datos del usuario no deben llegar a un log (D-11).
+    @ToString.Exclude
     private String ultimoMensaje;
     private AutorMensaje ultimoMensajeAutor;
     // Mensajes de la agencia que el comprador todavía no abrió (D-06).
     private long noLeidos;
     // Quién es el usuario: solo lo llenan las respuestas de la bandeja del admin (D-05); al comprador no le viaja.
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    @ToString.Exclude
     private UsuarioDeConversacionResponse usuario;
 }
