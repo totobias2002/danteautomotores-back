@@ -1,6 +1,10 @@
 package com.danteautomotores.service;
 
+import com.danteautomotores.dto.conversacion.ConversacionDetalleResponse;
 import com.danteautomotores.dto.conversacion.ConversacionResumenResponse;
+import com.danteautomotores.dto.conversacion.MensajeRequest;
+import com.danteautomotores.dto.conversacion.MensajeResponse;
+import com.danteautomotores.dto.conversacion.NoLeidosResponse;
 import com.danteautomotores.dto.publicacion.PaginaResponse;
 import com.danteautomotores.entity.Agencia;
 import com.danteautomotores.entity.Conversacion;
@@ -12,7 +16,10 @@ import com.danteautomotores.enums.EstadoConversacion;
 import com.danteautomotores.enums.Rol;
 import com.danteautomotores.enums.TipoConversacion;
 import com.danteautomotores.repository.ConversacionRepository;
+import com.danteautomotores.exception.ReglaDeNegocioException;
+import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.repository.MensajeRepository;
+import com.danteautomotores.repository.UsuarioRepository;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Path;
@@ -33,15 +40,22 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Optional;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -55,12 +69,19 @@ class ConversacionAdminServiceTest {
     private ConversacionRepository conversacionRepository;
     @Mock
     private MensajeRepository mensajeRepository;
+    @Mock
+    private UsuarioRepository usuarioRepository;
+    @Mock
+    private RegistroDeMensajes registroDeMensajes;
 
     private ConversacionAdminService servicio;
 
     @BeforeEach
     void armarElServicio() {
-        servicio = new ConversacionAdminService(conversacionRepository, mensajeRepository);
+        // El reloj del servidor en otra zona a propósito: las fechas guardadas tienen que salir en UTC.
+        Clock reloj = Clock.fixed(Instant.parse("2026-10-07T15:30:00Z"), ZoneId.of("America/Argentina/Buenos_Aires"));
+        servicio = new ConversacionAdminService(conversacionRepository, mensajeRepository, usuarioRepository,
+                registroDeMensajes, reloj);
     }
 
     private Conversacion conversacion(Long id, String nombre, String apellido) {
@@ -254,5 +275,187 @@ class ConversacionAdminServiceTest {
         assertThat(pagina.totalElementos()).isZero();
         verify(mensajeRepository, never()).findUltimosPorConversaciones(anyCollection());
         verify(mensajeRepository, never()).contarNoLeidosPorConversacion(anyCollection(), any());
+    }
+
+    // ---- El hilo de la agencia: obtener, responder, marcarLeida, cerrar y reabrir (04-06) ----
+
+    private static final String EMAIL_ADMIN = "admin@dante.test";
+
+    private Usuario admin() {
+        return Usuario.builder().id(1L).nombre("Admin").email(EMAIL_ADMIN).rol(Rol.ADMIN).build();
+    }
+
+    private Mensaje deLaAgencia(Conversacion conversacion, Long id, String texto) {
+        return Mensaje.builder().id(id).conversacion(conversacion).autorTipo(AutorMensaje.AGENCIA).texto(texto)
+                .creadoEn(AHORA_UTC).build();
+    }
+
+    private Mensaje delUsuario(Conversacion conversacion, Long id, String texto, LocalDateTime leidoEn) {
+        return Mensaje.builder().id(id).conversacion(conversacion).autorTipo(AutorMensaje.USUARIO).texto(texto)
+                .creadoEn(AHORA_UTC).leidoEn(leidoEn).build();
+    }
+
+    @Test
+    void obtenerDevuelveElHiloConElUsuarioYLosNoLeidosDelLadoDeLaAgencia() {
+        Conversacion c = conversacion(7L, "Ana", "Lopez");
+        when(conversacionRepository.findById(7L)).thenReturn(Optional.of(c));
+        when(mensajeRepository.findByConversacionIdOrderByIdAsc(7L)).thenReturn(List.of(
+                delUsuario(c, 1L, "Hola", null),
+                delUsuario(c, 2L, "Sigue?", null),
+                delUsuario(c, 3L, "Ya leido", AHORA_UTC),
+                deLaAgencia(c, 4L, "Si")));
+
+        ConversacionDetalleResponse detalle = servicio.obtener(7L);
+
+        assertThat(detalle.getConversacion().getUsuario().getNombre()).isEqualTo("Ana");
+        assertThat(detalle.getConversacion().getUsuario().getEmail()).isEqualTo("ana@x.com");
+        // Solo cuentan los del usuario sin leer; el de la agencia sin leer no es de la agencia.
+        assertThat(detalle.getConversacion().getNoLeidos()).isEqualTo(2);
+        assertThat(detalle.getMensajes()).hasSize(4);
+        assertThat(detalle.getConversacion().getUltimoMensajeAutor()).isEqualTo(AutorMensaje.AGENCIA);
+    }
+
+    @Test
+    void obtenerDaNotFoundParaUnIdInexistente() {
+        when(conversacionRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> servicio.obtener(99L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("No existe la conversación");
+    }
+
+    @Test
+    void responderGuardaConAutorAgenciaLaCuentaAdminYElTextoRecortado() {
+        Conversacion c = conversacion(7L, "Ana", "Lopez");
+        Usuario admin = admin();
+        when(usuarioRepository.findByEmailIgnoreCase(EMAIL_ADMIN)).thenReturn(Optional.of(admin));
+        when(conversacionRepository.findById(7L)).thenReturn(Optional.of(c));
+        when(registroDeMensajes.agregar(any(), any(), any(), any())).thenReturn(deLaAgencia(c, 50L, "Claro, pasen"));
+        MensajeRequest request = new MensajeRequest();
+        request.setTexto("   Claro, pasen  ");
+
+        MensajeResponse respuesta = servicio.responder(7L, request, EMAIL_ADMIN);
+
+        verify(registroDeMensajes).agregar(c, admin, AutorMensaje.AGENCIA, "Claro, pasen");
+        assertThat(respuesta.getAutor()).isEqualTo(AutorMensaje.AGENCIA);
+        assertThat(respuesta.getId()).isEqualTo(50L);
+    }
+
+    @Test
+    void responderEnUnaConversacionCerradaDa400SinGuardar() {
+        Conversacion c = conversacion(7L, "Ana", "Lopez");
+        c.setEstado(EstadoConversacion.CERRADA);
+        when(usuarioRepository.findByEmailIgnoreCase(EMAIL_ADMIN)).thenReturn(Optional.of(admin()));
+        when(conversacionRepository.findById(7L)).thenReturn(Optional.of(c));
+        MensajeRequest request = new MensajeRequest();
+        request.setTexto("Hola");
+
+        assertThatThrownBy(() -> servicio.responder(7L, request, EMAIL_ADMIN))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("Esta conversación está cerrada. Reabrila para responder.");
+
+        verify(registroDeMensajes, never()).agregar(any(), any(), any(), any());
+    }
+
+    @Test
+    void responderEnUnaConversacionInexistenteDaNotFound() {
+        when(usuarioRepository.findByEmailIgnoreCase(EMAIL_ADMIN)).thenReturn(Optional.of(admin()));
+        when(conversacionRepository.findById(99L)).thenReturn(Optional.empty());
+        MensajeRequest request = new MensajeRequest();
+        request.setTexto("Hola");
+
+        assertThatThrownBy(() -> servicio.responder(99L, request, EMAIL_ADMIN))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(registroDeMensajes, never()).agregar(any(), any(), any(), any());
+    }
+
+    @Test
+    void marcarLeidaMarcaSoloLosMensajesDelUsuarioConElInstanteUtcYDevuelveLosConteosDeLaAgencia() {
+        Conversacion c = conversacion(7L, "Ana", "Lopez");
+        when(conversacionRepository.findById(7L)).thenReturn(Optional.of(c));
+        when(mensajeRepository.contarNoLeidos(AutorMensaje.USUARIO)).thenReturn(3L);
+        when(mensajeRepository.contarConversacionesConNoLeidos(AutorMensaje.USUARIO)).thenReturn(2L);
+
+        NoLeidosResponse respuesta = servicio.marcarLeida(7L);
+
+        verify(mensajeRepository).marcarLeidos(7L, AutorMensaje.USUARIO, AHORA_UTC);
+        verify(mensajeRepository, never()).marcarLeidos(anyLong(), eq(AutorMensaje.AGENCIA), any());
+        assertThat(respuesta.getNoLeidos()).isEqualTo(3L);
+        assertThat(respuesta.getConversaciones()).isEqualTo(2L);
+    }
+
+    @Test
+    void cerrarFijaElEstadoYCerradaEnEnUtcYEsIdempotente() {
+        Conversacion c = conversacion(7L, "Ana", "Lopez");
+        when(conversacionRepository.findById(7L)).thenReturn(Optional.of(c));
+
+        ConversacionResumenResponse resumen = servicio.cerrar(7L);
+
+        assertThat(c.getEstado()).isEqualTo(EstadoConversacion.CERRADA);
+        assertThat(c.getCerradaEn()).isEqualTo(AHORA_UTC);
+        assertThat(resumen.getEstado()).isEqualTo(EstadoConversacion.CERRADA);
+        assertThat(resumen.getUsuario().getNombre()).isEqualTo("Ana");
+
+        // Una segunda vez no cambia nada: ni el instante.
+        LocalDateTime original = LocalDateTime.of(2026, 1, 1, 10, 0);
+        c.setCerradaEn(original);
+        servicio.cerrar(7L);
+        assertThat(c.getEstado()).isEqualTo(EstadoConversacion.CERRADA);
+        assertThat(c.getCerradaEn()).isEqualTo(original);
+    }
+
+    @Test
+    void reabrirLimpiaCerradaEnYEsIdempotenteSobreUnaAbierta() {
+        Conversacion c = conversacion(7L, "Ana", "Lopez");
+        c.setEstado(EstadoConversacion.CERRADA);
+        c.setCerradaEn(AHORA_UTC);
+        when(conversacionRepository.findById(7L)).thenReturn(Optional.of(c));
+        when(conversacionRepository.existsByUsuarioIdAndPublicacionIdAndTipoAndEstadoAndIdNot(
+                70L, 5L, TipoConversacion.COMPRA, EstadoConversacion.ABIERTA, 7L)).thenReturn(false);
+
+        ConversacionResumenResponse resumen = servicio.reabrir(7L);
+
+        assertThat(c.getEstado()).isEqualTo(EstadoConversacion.ABIERTA);
+        assertThat(c.getCerradaEn()).isNull();
+        assertThat(resumen.getEstado()).isEqualTo(EstadoConversacion.ABIERTA);
+
+        // Reabrir una abierta no consulta nada ni cambia nada.
+        servicio.reabrir(7L);
+        assertThat(c.getEstado()).isEqualTo(EstadoConversacion.ABIERTA);
+        verify(conversacionRepository, times(1)).existsByUsuarioIdAndPublicacionIdAndTipoAndEstadoAndIdNot(
+                anyLong(), anyLong(), any(), any(), anyLong());
+    }
+
+    @Test
+    void reabrirRechazaCon400CuandoElUsuarioYaTieneOtraAbiertaPorElMismoAuto() {
+        Conversacion c = conversacion(7L, "Ana", "Lopez");
+        c.setEstado(EstadoConversacion.CERRADA);
+        c.setCerradaEn(AHORA_UTC);
+        when(conversacionRepository.findById(7L)).thenReturn(Optional.of(c));
+        when(conversacionRepository.existsByUsuarioIdAndPublicacionIdAndTipoAndEstadoAndIdNot(
+                70L, 5L, TipoConversacion.COMPRA, EstadoConversacion.ABIERTA, 7L)).thenReturn(true);
+
+        assertThatThrownBy(() -> servicio.reabrir(7L))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("El usuario ya tiene otra conversación abierta por este auto.");
+
+        assertThat(c.getEstado()).isEqualTo(EstadoConversacion.CERRADA);
+        assertThat(c.getCerradaEn()).isEqualTo(AHORA_UTC);
+    }
+
+    @Test
+    void reabrirUnaCotizacionNoMiraOtrasAbiertasPorAuto() {
+        Conversacion c = conversacion(7L, "Ana", "Lopez");
+        c.setTipo(TipoConversacion.COTIZACION);
+        c.setPublicacion(null);
+        c.setEstado(EstadoConversacion.CERRADA);
+        when(conversacionRepository.findById(7L)).thenReturn(Optional.of(c));
+
+        servicio.reabrir(7L);
+
+        assertThat(c.getEstado()).isEqualTo(EstadoConversacion.ABIERTA);
+        verify(conversacionRepository, never()).existsByUsuarioIdAndPublicacionIdAndTipoAndEstadoAndIdNot(
+                anyLong(), anyLong(), any(), any(), anyLong());
     }
 }

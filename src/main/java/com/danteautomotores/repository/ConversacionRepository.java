@@ -30,4 +30,9 @@ public interface ConversacionRepository extends JpaRepository<Conversacion, Long
     // Toda búsqueda del lado del comprador va por id y dueño: una conversación ajena es igual a una inexistente (D-12).
     @EntityGraph(attributePaths = {"publicacion", "publicacion.agencia"})
     Optional<Conversacion> findByIdAndUsuarioId(Long id, Long usuarioId);
+
+    // Reabrir una compra no puede dejar dos abiertas del mismo usuario por el mismo auto (D-08): se mira cualquier otra
+    // conversación abierta distinta de la que se reabre.
+    boolean existsByUsuarioIdAndPublicacionIdAndTipoAndEstadoAndIdNot(
+            Long usuarioId, Long publicacionId, TipoConversacion tipo, EstadoConversacion estado, Long id);
 }

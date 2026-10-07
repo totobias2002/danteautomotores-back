@@ -1,6 +1,9 @@
 package com.danteautomotores.service;
 
+import com.danteautomotores.dto.conversacion.ConversacionDetalleResponse;
 import com.danteautomotores.dto.conversacion.ConversacionResumenResponse;
+import com.danteautomotores.dto.conversacion.MensajeRequest;
+import com.danteautomotores.dto.conversacion.MensajeResponse;
 import com.danteautomotores.dto.publicacion.PaginaResponse;
 import com.danteautomotores.entity.Agencia;
 import com.danteautomotores.entity.Conversacion;
@@ -12,6 +15,7 @@ import com.danteautomotores.enums.EstadoConversacion;
 import com.danteautomotores.enums.Rol;
 import com.danteautomotores.enums.TipoConversacion;
 import com.danteautomotores.repository.AgenciaRepository;
+import com.danteautomotores.exception.ReglaDeNegocioException;
 import com.danteautomotores.repository.ConversacionRepository;
 import com.danteautomotores.repository.MensajeRepository;
 import com.danteautomotores.repository.PublicacionRepository;
@@ -20,25 +24,45 @@ import com.danteautomotores.support.PostgresLocalTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * La bandeja del admin contra un PostgreSQL real: cada combinación de filtros, el EXISTS de "solo no leídas", el orden,
  * la paginación de a 20 y el conteo de la página.
  */
-@Import(ConversacionAdminService.class)
+@Import({ConversacionAdminService.class, ConversacionService.class, RegistroDeMensajes.class, VerificacionCuenta.class,
+        LimitadorDeIntentos.class, ConversacionAdminPostgresTest.RelojFijo.class})
 class ConversacionAdminPostgresTest extends PostgresLocalTestBase {
 
     private static final LocalDateTime BASE = LocalDateTime.of(2026, 10, 7, 12, 0);
+    private static final Instant INSTANTE = Instant.parse("2026-10-07T15:30:00Z");
+    private static final LocalDateTime AHORA_UTC = LocalDateTime.of(2026, 10, 7, 15, 30);
+
+    @TestConfiguration
+    static class RelojFijo {
+        @Bean
+        Clock clock() {
+            // El reloj del servidor en otra zona: lo guardado tiene que salir en UTC igual.
+            return Clock.fixed(INSTANTE, ZoneId.of("America/Argentina/Buenos_Aires"));
+        }
+    }
 
     @Autowired
     private ConversacionAdminService servicio;
+    @Autowired
+    private ConversacionService servicioDelComprador;
     @Autowired
     private ConversacionRepository conversacionRepository;
     @Autowired
@@ -300,5 +324,143 @@ class ConversacionAdminPostgresTest extends PostgresLocalTestBase {
         assertThat(pagina.contenido()).isEmpty();
         assertThat(pagina.totalElementos()).isZero();
         assertThat(pagina.pagina()).isEqualTo(1);
+    }
+
+    // ---- El hilo de la agencia (04-06): responder, cerrar y reabrir contra la base real ----
+
+    private MensajeRequest pedido(String texto) {
+        MensajeRequest request = new MensajeRequest();
+        request.setTexto(texto);
+        return request;
+    }
+
+    private long abiertasDe(Usuario usuario, Publicacion auto) {
+        return conversacionRepository.findAll().stream()
+                .filter(c -> c.getUsuario().getId().equals(usuario.getId()) && c.getPublicacion() != null
+                        && c.getPublicacion().getId().equals(auto.getId())
+                        && c.getTipo() == TipoConversacion.COMPRA && c.getEstado() == EstadoConversacion.ABIERTA)
+                .count();
+    }
+
+    @Test
+    void unMensajeDeLaAgenciaSumaALosNoLeidosDelCompradorYSuMarcarLeidaLoDejaEnCero() {
+        Conversacion c = conversacion(ana, corolla, TipoConversacion.COMPRA, EstadoConversacion.ABIERTA, BASE);
+        mensaje(c, AutorMensaje.USUARIO, "Lo quiero", false);
+
+        MensajeResponse respuesta = servicio.responder(c.getId(), pedido("  Pasen cuando quieran  "), "admin@dante.test");
+
+        assertThat(respuesta.getAutor()).isEqualTo(AutorMensaje.AGENCIA);
+        assertThat(respuesta.getTexto()).isEqualTo("Pasen cuando quieran");
+        assertThat(respuesta.isLeido()).isFalse();
+        // La cuenta admin que escribió queda registrada (D-05) y la conversación se mueve al instante UTC del reloj.
+        Mensaje guardado = mensajeRepository.findById(respuesta.getId()).orElseThrow();
+        assertThat(guardado.getAutor().getId()).isEqualTo(admin.getId());
+        assertThat(guardado.getAutorTipo()).isEqualTo(AutorMensaje.AGENCIA);
+        assertThat(guardado.getCreadoEn()).isEqualTo(AHORA_UTC);
+        assertThat(conversacionRepository.findById(c.getId()).orElseThrow().getUltimoMensajeEn()).isEqualTo(AHORA_UTC);
+
+        // El comprador lo ve sin leer y el contador de la agencia no cambia por un mensaje propio.
+        assertThat(servicioDelComprador.contarNoLeidos("ana@dante.test").getNoLeidos()).isEqualTo(1);
+        assertThat(servicioDelComprador.listarMias("ana@dante.test").get(0).getNoLeidos()).isEqualTo(1);
+
+        assertThat(servicioDelComprador.marcarLeida(c.getId(), "ana@dante.test").getNoLeidos()).isZero();
+        assertThat(servicioDelComprador.contarNoLeidos("ana@dante.test").getNoLeidos()).isZero();
+        // Lo que escribió el comprador sigue sin leer para la agencia.
+        assertThat(servicioDelComprador.contarNoLeidos("admin@dante.test").getNoLeidos()).isEqualTo(1);
+    }
+
+    @Test
+    void laAgenciaAbreElHiloYSuMarcarLeidaBajaSuContadorSinTocarLosMensajesDeLaAgencia() {
+        Conversacion c = conversacion(ana, corolla, TipoConversacion.COMPRA, EstadoConversacion.ABIERTA, BASE);
+        mensaje(c, AutorMensaje.USUARIO, "Uno", false);
+        mensaje(c, AutorMensaje.USUARIO, "Dos", false);
+        mensaje(c, AutorMensaje.AGENCIA, "Respuesta", false);
+        Conversacion otra = conversacion(beto, yaris, TipoConversacion.COMPRA, EstadoConversacion.ABIERTA, BASE);
+        mensaje(otra, AutorMensaje.USUARIO, "De otro", false);
+
+        ConversacionDetalleResponse antes = servicio.obtener(c.getId());
+        assertThat(antes.getConversacion().getNoLeidos()).isEqualTo(2);
+        assertThat(antes.getConversacion().getUsuario().getEmail()).isEqualTo("ana@dante.test");
+        assertThat(antes.getMensajes()).extracting(m -> m.getTexto()).containsExactly("Uno", "Dos", "Respuesta");
+
+        var conteo = servicio.marcarLeida(c.getId());
+
+        // Solo bajó la de Ana: el mensaje de Beto sigue contando.
+        assertThat(conteo.getNoLeidos()).isEqualTo(1);
+        assertThat(conteo.getConversaciones()).isEqualTo(1);
+        ConversacionDetalleResponse despues = servicio.obtener(c.getId());
+        assertThat(despues.getConversacion().getNoLeidos()).isZero();
+        assertThat(despues.getMensajes()).filteredOn(m -> m.getAutor() == AutorMensaje.USUARIO).allMatch(m -> m.isLeido());
+        // El de la agencia no se marcó: lo tiene que abrir el comprador.
+        assertThat(despues.getMensajes()).filteredOn(m -> m.getAutor() == AutorMensaje.AGENCIA).noneMatch(m -> m.isLeido());
+    }
+
+    @Test
+    void cerrarYReabrirPersistenAEstadoYCerradaEn() {
+        Conversacion c = conversacion(ana, corolla, TipoConversacion.COMPRA, EstadoConversacion.ABIERTA, BASE);
+        mensaje(c, AutorMensaje.USUARIO, "Hola", true);
+
+        ConversacionResumenResponse cerrada = servicio.cerrar(c.getId());
+        conversacionRepository.flush();
+
+        assertThat(cerrada.getEstado()).isEqualTo(EstadoConversacion.CERRADA);
+        Conversacion enBase = conversacionRepository.findById(c.getId()).orElseThrow();
+        assertThat(enBase.getEstado()).isEqualTo(EstadoConversacion.CERRADA);
+        assertThat(enBase.getCerradaEn()).isEqualTo(AHORA_UTC);
+
+        // Cerrar otra vez no mueve el instante.
+        servicio.cerrar(c.getId());
+        assertThat(conversacionRepository.findById(c.getId()).orElseThrow().getCerradaEn()).isEqualTo(AHORA_UTC);
+
+        ConversacionResumenResponse reabierta = servicio.reabrir(c.getId());
+        conversacionRepository.flush();
+
+        assertThat(reabierta.getEstado()).isEqualTo(EstadoConversacion.ABIERTA);
+        Conversacion reabiertaEnBase = conversacionRepository.findById(c.getId()).orElseThrow();
+        assertThat(reabiertaEnBase.getEstado()).isEqualTo(EstadoConversacion.ABIERTA);
+        assertThat(reabiertaEnBase.getCerradaEn()).isNull();
+    }
+
+    @Test
+    void reabrirUnaCerradaConOtraAbiertaPorElMismoAutoYUsuarioSeRechazaYNoDejaDosAbiertas() {
+        Conversacion cerrada = conversacion(ana, corolla, TipoConversacion.COMPRA, EstadoConversacion.CERRADA, BASE);
+        Conversacion abierta = conversacion(ana, corolla, TipoConversacion.COMPRA, EstadoConversacion.ABIERTA, BASE.plusMinutes(5));
+
+        assertThatThrownBy(() -> servicio.reabrir(cerrada.getId()))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("El usuario ya tiene otra conversación abierta por este auto.");
+
+        assertThat(conversacionRepository.findById(cerrada.getId()).orElseThrow().getEstado()).isEqualTo(EstadoConversacion.CERRADA);
+        assertThat(conversacionRepository.findById(abierta.getId()).orElseThrow().getEstado()).isEqualTo(EstadoConversacion.ABIERTA);
+        assertThat(abiertasDe(ana, corolla)).isEqualTo(1);
+    }
+
+    @Test
+    void reabrirSeAceptaCuandoLaOtraAbiertaEsDeOtroUsuarioOPorOtroAuto() {
+        Conversacion cerrada = conversacion(ana, corolla, TipoConversacion.COMPRA, EstadoConversacion.CERRADA, BASE);
+        conversacion(beto, corolla, TipoConversacion.COMPRA, EstadoConversacion.ABIERTA, BASE);
+        conversacion(ana, yaris, TipoConversacion.COMPRA, EstadoConversacion.ABIERTA, BASE);
+
+        ConversacionResumenResponse reabierta = servicio.reabrir(cerrada.getId());
+        conversacionRepository.flush();
+
+        assertThat(reabierta.getEstado()).isEqualTo(EstadoConversacion.ABIERTA);
+        assertThat(abiertasDe(ana, corolla)).isEqualTo(1);
+    }
+
+    @Test
+    void unaCerradaNoRecibeMensajesDeNadie() {
+        Conversacion c = conversacion(ana, corolla, TipoConversacion.COMPRA, EstadoConversacion.ABIERTA, BASE);
+        mensaje(c, AutorMensaje.USUARIO, "Hola", true);
+        servicio.cerrar(c.getId());
+
+        assertThatThrownBy(() -> servicio.responder(c.getId(), pedido("Hola"), "admin@dante.test"))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("Esta conversación está cerrada. Reabrila para responder.");
+        assertThatThrownBy(() -> servicioDelComprador.enviarMensaje(c.getId(), pedido("Hola"), "ana@dante.test"))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("Esta conversación está cerrada.");
+
+        assertThat(mensajeRepository.findByConversacionIdOrderByIdAsc(c.getId())).hasSize(1);
     }
 }

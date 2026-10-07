@@ -3,7 +3,8 @@
 //   ADMIN_EMAIL=admin.humo@dante.test ADMIN_PASSWORD=... ADMIN_NOMBRE=AdminHumo \
 //     bash scripts/verify/con-back-local.sh --vacia dante_humo_mensajes node scripts/verify/mensajes-humo.js
 // Cubre "Lo quiero", la lista de Mis mensajes, el hilo del comprador (leer, escribir, aislamiento y límite de envío), los
-// mensajes sin leer, la bandeja del admin con sus filtros y los casos negativos; los planes siguientes agregan el resto.
+// mensajes sin leer, la bandeja del admin con sus filtros, el hilo de la agencia (responder, marcar leída, cerrar y
+// reabrir, con el contador del comprador y el del admin) y los casos negativos; los planes siguientes agregan el resto.
 const {
   exigir,
   revisar,
@@ -307,8 +308,7 @@ function clavesPresentes(valor, prohibidas, encontradas = new Set()) {
   });
 
   // ---- Mensajes sin leer (MSG-05, D-06, D-12, T-04-15, T-04-16) ----
-  // Los casos con mensajes de la agencia sin leer los cubren los tests de Postgres hasta que 04-06 permita responder
-  // desde el admin; el humo de 04-06 los repite de punta a punta.
+  // Los casos con mensajes de la agencia sin leer se recorren de punta a punta más abajo, en el bloque del hilo de la agencia.
   await revisar("GET /conversaciones/no-leidas da 401 sin token, ceros al comprador sin mensajes de la agencia y cuenta lo que nadie leyó al admin", async () => {
     const sin = await pedir("GET", "/conversaciones/no-leidas");
     exigir(sin.estado === 401, `sin token: estado ${sin.estado}`);
@@ -420,6 +420,164 @@ function clavesPresentes(valor, prohibidas, encontradas = new Set()) {
   await revisar("una cuenta comprador no puede usar los filtros de la bandeja (403 con cualquier parámetro)", async () => {
     const r = await pedir("GET", "/admin/conversaciones?soloNoLeidas=true&tipo=COMPRA", undefined, comprador.token);
     exigir(r.estado === 403, `estado ${r.estado}`);
+  });
+
+  // ---- El hilo de la agencia (MSG-04, MSG-05, MSG-08, D-05, D-06, D-08, D-12, T-04-22, T-04-23, T-04-24) ----
+  // Presupuesto del límite de envío de la cuenta principal (20 cada 10 minutos, D-10): hasta acá lleva 11; este bloque suma
+  // 4 más (el mensaje de después de la respuesta, el intento sobre la cerrada, el de después de reabrir y el segundo
+  // "Lo quiero"), o sea 15 de 20.
+  const hiloAdmin = (sufijoDeRuta = "") => `/admin/conversaciones/${conversacionId}${sufijoDeRuta}`;
+  const contadorDelAdmin = async () => {
+    const r = await pedir("GET", "/conversaciones/no-leidas", undefined, admin.token);
+    exigir(r.estado === 200, `contador del admin: estado ${r.estado}`);
+    return r.cuerpo.noLeidos;
+  };
+
+  await revisar("el hilo de la agencia da 401 sin token y 403 al comprador en cada endpoint", async () => {
+    for (const [metodo, ruta, cuerpo] of [
+      ["GET", hiloAdmin(), undefined],
+      ["POST", hiloAdmin("/mensajes"), { texto: "intruso" }],
+      ["POST", hiloAdmin("/leida"), undefined],
+      ["POST", hiloAdmin("/cerrar"), undefined],
+      ["POST", hiloAdmin("/reabrir"), undefined],
+    ]) {
+      const sin = await pedir(metodo, ruta, cuerpo);
+      exigir(sin.estado === 401, `${metodo} ${ruta} sin token: estado ${sin.estado}`);
+      const delComprador = await pedir(metodo, ruta, cuerpo, comprador.token);
+      exigir(delComprador.estado === 403, `${metodo} ${ruta} del comprador: estado ${delComprador.estado}`);
+    }
+    const hilo = await pedir("GET", `/conversaciones/${conversacionId}`, undefined, comprador.token);
+    exigir(!hilo.cuerpo.mensajes.some((m) => m.texto === "intruso"), "el comprador escribió como la agencia");
+  });
+
+  await revisar("el admin abre el hilo con el usuario y sus mensajes sin leer, sin dni ni telefono, y una inexistente da 404", async () => {
+    const { estado, cuerpo } = await pedir("GET", hiloAdmin(), undefined, admin.token);
+    exigir(estado === 200, `estado ${estado}: ${JSON.stringify(cuerpo)}`);
+    exigir(cuerpo.conversacion.id === conversacionId && cuerpo.conversacion.estado === "ABIERTA", "no trae la conversación abierta");
+    const usuario = cuerpo.conversacion.usuario;
+    exigir(usuario && usuario.nombre === "Humo" && usuario.apellido === "Prueba" && usuario.email, `usuario: ${JSON.stringify(usuario)}`);
+    exigir(cuerpo.conversacion.noLeidos === 2, `noLeidos ${cuerpo.conversacion.noLeidos} (esperaba los 2 mensajes del comprador)`);
+    exigir(cuerpo.mensajes.length === 2 && cuerpo.mensajes.every((m) => m.autor === "USUARIO" && m.leido === false),
+      `mensajes: ${JSON.stringify(cuerpo.mensajes.map((m) => [m.autor, m.leido]))}`);
+    const prohibidas = clavesPresentes(cuerpo, ["dni", "telefono", "passwordHash", "password", "password_hash"]);
+    exigir(prohibidas.length === 0, `el hilo expone: ${prohibidas.join(", ")}`);
+    const inexistente = await pedir("GET", "/admin/conversaciones/2000000000", undefined, admin.token);
+    exigir(inexistente.estado === 404, `inexistente: estado ${inexistente.estado}`);
+  });
+
+  let adminAntesDeLeer = 0;
+  await revisar("el admin responde (autor AGENCIA, texto recortado) y un texto vacío o de 2001 caracteres da 400 con campos.texto", async () => {
+    adminAntesDeLeer = await contadorDelAdmin();
+    for (const texto of ["", "     ", "a".repeat(2001)]) {
+      const rechazo = await post(hiloAdmin("/mensajes"), { texto }, admin.token);
+      exigir(rechazo.estado === 400 && rechazo.cuerpo && rechazo.cuerpo.campos && rechazo.cuerpo.campos.texto,
+        `texto de ${texto.length} caracteres: estado ${rechazo.estado}: ${rechazo.texto}`);
+    }
+    const respuesta = await post(hiloAdmin("/mensajes"), { texto: "   Hola, pasá cuando quieras.   " }, admin.token);
+    exigir(respuesta.estado === 200, `estado ${respuesta.estado}: ${respuesta.texto}`);
+    exigir(respuesta.cuerpo.autor === "AGENCIA", `autor ${respuesta.cuerpo.autor}`);
+    exigir(respuesta.cuerpo.texto === "Hola, pasá cuando quieras.", `texto: ${JSON.stringify(respuesta.cuerpo.texto)}`);
+    exigir(typeof respuesta.cuerpo.creadoEn === "string" && respuesta.cuerpo.creadoEn.endsWith("Z"), `creadoEn ${respuesta.cuerpo.creadoEn}`);
+    // Escribir no es leer: el contador del admin sigue igual hasta que abra el hilo.
+    exigir((await contadorDelAdmin()) === adminAntesDeLeer, "el contador del admin cambió al responder");
+  });
+
+  await revisar("el admin marca leída: su contador baja, los mensajes del usuario quedan leídos y el de la agencia no", async () => {
+    const { estado, cuerpo } = await post(hiloAdmin("/leida"), undefined, admin.token);
+    exigir(estado === 200, `estado ${estado}: ${JSON.stringify(cuerpo)}`);
+    exigir(Object.keys(cuerpo).sort().join(",") === "conversaciones,noLeidos", `claves: ${Object.keys(cuerpo)}`);
+    exigir(cuerpo.noLeidos === adminAntesDeLeer - 2, `noLeidos ${cuerpo.noLeidos} (esperaba ${adminAntesDeLeer - 2})`);
+    exigir((await contadorDelAdmin()) === cuerpo.noLeidos, "el contador no coincide con la respuesta");
+    const hilo = await pedir("GET", hiloAdmin(), undefined, admin.token);
+    exigir(hilo.cuerpo.conversacion.noLeidos === 0, `noLeidos del hilo ${hilo.cuerpo.conversacion.noLeidos}`);
+    exigir(hilo.cuerpo.mensajes.filter((m) => m.autor === "USUARIO").every((m) => m.leido === true), "quedaron mensajes del usuario sin leer");
+    exigir(hilo.cuerpo.mensajes.filter((m) => m.autor === "AGENCIA").every((m) => m.leido === false), "se marcó un mensaje de la agencia");
+  });
+
+  await revisar("el comprador ve la respuesta sin leer en su contador, en la lista y en el hilo, y al abrirlo vuelve a cero", async () => {
+    const contador = await pedir("GET", "/conversaciones/no-leidas", undefined, comprador.token);
+    exigir(contador.estado === 200 && contador.cuerpo.noLeidos >= 1 && contador.cuerpo.conversaciones >= 1,
+      `contador del comprador: ${contador.texto}`);
+    const lista = await pedir("GET", "/conversaciones", undefined, comprador.token);
+    const fila = lista.cuerpo.find((c) => c.id === conversacionId);
+    exigir(fila && fila.noLeidos === 1 && fila.ultimoMensajeAutor === "AGENCIA", `fila: ${JSON.stringify(fila)}`);
+    const hilo = await pedir("GET", `/conversaciones/${conversacionId}`, undefined, comprador.token);
+    const ultimo = hilo.cuerpo.mensajes[hilo.cuerpo.mensajes.length - 1];
+    exigir(ultimo.autor === "AGENCIA" && ultimo.leido === false && ultimo.texto === "Hola, pasá cuando quieras.",
+      `último mensaje: ${JSON.stringify(ultimo)}`);
+    exigir(hilo.cuerpo.conversacion.noLeidos === 1, `noLeidos del hilo ${hilo.cuerpo.conversacion.noLeidos}`);
+    // El comprador no ve quién de la agencia escribió: el mensaje no trae autor de cuenta.
+    const prohibidas = clavesPresentes(hilo.cuerpo, ["autorId", "usuarioId", "email", "dni", "telefono"]);
+    exigir(prohibidas.length === 0, `el hilo del comprador expone: ${prohibidas.join(", ")}`);
+
+    const leida = await post(`/conversaciones/${conversacionId}/leida`, undefined, comprador.token);
+    exigir(leida.estado === 200 && leida.cuerpo.noLeidos === 0 && leida.cuerpo.conversaciones === 0, `leída: ${leida.texto}`);
+    const despues = await pedir("GET", "/conversaciones/no-leidas", undefined, comprador.token);
+    exigir(despues.cuerpo.noLeidos === 0, `contador después de leer: ${despues.texto}`);
+    const hiloDespues = await pedir("GET", `/conversaciones/${conversacionId}`, undefined, comprador.token);
+    exigir(hiloDespues.cuerpo.mensajes[hiloDespues.cuerpo.mensajes.length - 1].leido === true, "el mensaje de la agencia sigue sin leer");
+  });
+
+  await revisar("cuando el comprador vuelve a escribir, el contador del admin sube", async () => {
+    const antes = await contadorDelAdmin();
+    const enviado = await post(`/conversaciones/${conversacionId}/mensajes`, { texto: "Perfecto, voy mañana." }, comprador.token);
+    exigir(enviado.estado === 200, `estado ${enviado.estado}: ${enviado.texto}`);
+    exigir((await contadorDelAdmin()) === antes + 1, `el contador del admin no subió (antes ${antes})`);
+  });
+
+  await revisar("el admin cierra: nadie escribe en la cerrada, cerrar de nuevo no falla y la bandeja la ve como CERRADA", async () => {
+    const cerrada = await post(hiloAdmin("/cerrar"), undefined, admin.token);
+    exigir(cerrada.estado === 200 && cerrada.cuerpo.estado === "CERRADA" && cerrada.cuerpo.id === conversacionId,
+      `cerrar: estado ${cerrada.estado}: ${cerrada.texto}`);
+    exigir(cerrada.cuerpo.usuario && cerrada.cuerpo.usuario.nombre === "Humo", "el resumen no trae el usuario");
+
+    const delComprador = await post(`/conversaciones/${conversacionId}/mensajes`, { texto: "¿Siguen ahí?" }, comprador.token);
+    exigir(delComprador.estado === 400 && delComprador.cuerpo.error === "Esta conversación está cerrada.",
+      `el comprador escribió en la cerrada: estado ${delComprador.estado}: ${delComprador.texto}`);
+    const delAdmin = await post(hiloAdmin("/mensajes"), { texto: "Hola de nuevo" }, admin.token);
+    exigir(delAdmin.estado === 400 && delAdmin.cuerpo.error === "Esta conversación está cerrada. Reabrila para responder.",
+      `el admin respondió en la cerrada: estado ${delAdmin.estado}: ${delAdmin.texto}`);
+
+    const otraVez = await post(hiloAdmin("/cerrar"), undefined, admin.token);
+    exigir(otraVez.estado === 200 && otraVez.cuerpo.estado === "CERRADA", `cerrar de nuevo: estado ${otraVez.estado}`);
+    const bandeja = await pedir("GET", "/admin/conversaciones?estado=CERRADA", undefined, admin.token);
+    exigir(bandeja.cuerpo.contenido.some((c) => c.id === conversacionId), "la cerrada no aparece entre las cerradas");
+    const hilo = await pedir("GET", `/conversaciones/${conversacionId}`, undefined, comprador.token);
+    exigir(hilo.cuerpo.conversacion.estado === "CERRADA", "el comprador no ve la conversación cerrada");
+    exigir(!hilo.cuerpo.mensajes.some((m) => m.texto === "¿Siguen ahí?" || m.texto === "Hola de nuevo"), "quedó un mensaje en la cerrada");
+  });
+
+  await revisar("el admin reabre: la conversación vuelve a abierta y el comprador vuelve a escribir", async () => {
+    const reabierta = await post(hiloAdmin("/reabrir"), undefined, admin.token);
+    exigir(reabierta.estado === 200 && reabierta.cuerpo.estado === "ABIERTA", `reabrir: estado ${reabierta.estado}: ${reabierta.texto}`);
+    const otraVez = await post(hiloAdmin("/reabrir"), undefined, admin.token);
+    exigir(otraVez.estado === 200 && otraVez.cuerpo.estado === "ABIERTA", `reabrir una abierta: estado ${otraVez.estado}`);
+    const enviado = await post(`/conversaciones/${conversacionId}/mensajes`, { texto: "Ya estoy de vuelta." }, comprador.token);
+    exigir(enviado.estado === 200, `el comprador no pudo escribir tras reabrir: estado ${enviado.estado}: ${enviado.texto}`);
+    const respuesta = await post(hiloAdmin("/mensajes"), { texto: "Te esperamos." }, admin.token);
+    exigir(respuesta.estado === 200, `el admin no pudo responder tras reabrir: estado ${respuesta.estado}`);
+    const sinLeer = await post(hiloAdmin("/leida"), undefined, admin.token);
+    exigir(sinLeer.estado === 200, `leída: estado ${sinLeer.estado}`);
+  });
+
+  await revisar("Lo quiero sobre una cerrada crea una nueva abierta y reabrir la anterior da 400 (una sola abierta por usuario y auto)", async () => {
+    const cerrada = await post(hiloAdmin("/cerrar"), undefined, admin.token);
+    exigir(cerrada.estado === 200 && cerrada.cuerpo.estado === "CERRADA", `cerrar: estado ${cerrada.estado}`);
+
+    const nueva = await post("/conversaciones", { publicacionId }, comprador.token);
+    exigir(nueva.estado === 200, `Lo quiero sobre la cerrada: estado ${nueva.estado}: ${nueva.texto}`);
+    exigir(nueva.cuerpo.id !== conversacionId && nueva.cuerpo.estado === "ABIERTA", `nueva: ${JSON.stringify(nueva.cuerpo)}`);
+
+    const rechazo = await post(hiloAdmin("/reabrir"), undefined, admin.token);
+    exigir(rechazo.estado === 400 && rechazo.cuerpo.error === "El usuario ya tiene otra conversación abierta por este auto.",
+      `reabrir con otra abierta: estado ${rechazo.estado}: ${rechazo.texto}`);
+
+    const anterior = await pedir("GET", hiloAdmin(), undefined, admin.token);
+    exigir(anterior.cuerpo.conversacion.estado === "CERRADA", "la anterior quedó abierta");
+    const lista = await pedir("GET", "/conversaciones", undefined, comprador.token);
+    const abiertasDelAuto = lista.cuerpo.filter((c) => c.publicacion && c.publicacion.id === publicacionId && c.estado === "ABIERTA");
+    exigir(abiertasDelAuto.length === 1 && abiertasDelAuto[0].id === nueva.cuerpo.id,
+      `abiertas del auto: ${JSON.stringify(abiertasDelAuto.map((c) => c.id))}`);
   });
 
   await revisar("una cuenta descartable recibe 429 con Retry-After en el envío 21 y ese mensaje no queda en el hilo (D-10)", async () => {

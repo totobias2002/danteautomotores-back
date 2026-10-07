@@ -58,6 +58,21 @@ public class ConversacionMapper {
         return resumen;
     }
 
+    /**
+     * El hilo visto desde la agencia: con el usuario, y con los no leídos del lado de la agencia (los mensajes del usuario
+     * que todavía no abrió), calculados del mismo hilo ya cargado.
+     */
+    public static ConversacionDetalleResponse toDetalleParaAdmin(Conversacion conversacion, List<Mensaje> mensajes) {
+        Mensaje ultimo = mensajes.isEmpty() ? null : mensajes.get(mensajes.size() - 1);
+        long noLeidos = mensajes.stream()
+                .filter(m -> m.getAutorTipo() == AutorMensaje.USUARIO && m.getLeidoEn() == null)
+                .count();
+        return ConversacionDetalleResponse.builder()
+                .conversacion(toResumenParaAdmin(conversacion, ultimo, noLeidos))
+                .mensajes(mensajes.stream().map(ConversacionMapper::toMensaje).toList())
+                .build();
+    }
+
     public static MensajeResponse toMensaje(Mensaje mensaje) {
         return MensajeResponse.builder()
                 .id(mensaje.getId())
