@@ -68,6 +68,8 @@ class ConversacionServiceTest {
     private PublicacionRepository publicacionRepository;
     @Mock
     private UsuarioRepository usuarioRepository;
+    @Mock
+    private NotificacionesService notificaciones;
     // La regla real: así el test falla si cambia lo que significa "verificada".
     @Spy
     private VerificacionCuenta verificacionCuenta = new VerificacionCuenta();
@@ -82,7 +84,7 @@ class ConversacionServiceTest {
         // El limitador real: el test del mensaje 21 prueba el límite de verdad, no un mock.
         limitador = new LimitadorDeIntentos();
         servicio = new ConversacionService(conversacionRepository, mensajeRepository, publicacionRepository,
-                usuarioRepository, verificacionCuenta, new RegistroDeMensajes(mensajeRepository, reloj), limitador, reloj);
+                usuarioRepository, verificacionCuenta, new RegistroDeMensajes(mensajeRepository, reloj, usuarioRepository, notificaciones), limitador, reloj);
     }
 
     private ConversacionRequest pedido(Long publicacionId, String mensaje) {

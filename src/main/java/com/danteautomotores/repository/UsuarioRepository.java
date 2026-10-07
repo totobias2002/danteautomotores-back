@@ -4,6 +4,7 @@ import com.danteautomotores.entity.Usuario;
 import com.danteautomotores.enums.Rol;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
@@ -19,4 +20,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     boolean existsByDniAndIdNot(String dni, Long id);
 
     Optional<Usuario> findByGoogleSub(String googleSub);
+
+    // Todas las cuentas de un rol: los avisos de mensaje nuevo van a cada cuenta admin.
+    List<Usuario> findByRol(Rol rol);
 }

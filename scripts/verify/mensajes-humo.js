@@ -4,12 +4,16 @@
 //     bash scripts/verify/con-back-local.sh --vacia dante_humo_mensajes node scripts/verify/mensajes-humo.js
 // Cubre "Lo quiero", la lista de Mis mensajes, el hilo del comprador (leer, escribir, aislamiento y límite de envío), los
 // mensajes sin leer, la bandeja del admin con sus filtros, el hilo de la agencia (responder, marcar leída, cerrar y
-// reabrir, con el contador del comprador y el del admin) y los casos negativos; los planes siguientes agregan el resto.
+// reabrir, con el contador del comprador y el del admin), los avisos por mail que salen en el log del back (uno por
+// ventana de 10 minutos, sin el texto del mensaje) y los casos negativos; los planes siguientes agregan el resto.
 const {
   exigir,
   revisar,
   pedir,
   post,
+  dormir,
+  exigirLog,
+  leerLog,
   sufijoUnico,
   dniAleatorio,
   registrarCuentaVerificada,
@@ -614,6 +618,86 @@ function clavesPresentes(valor, prohibidas, encontradas = new Set()) {
     // También frena otro "Lo quiero": el límite es de la cuenta, no de la conversación.
     const otroLoQuiero = await post("/conversaciones", { publicacionId: autoLimiteId }, descartable.token);
     exigir(otroLoQuiero.estado === 429, `Lo quiero con el límite agotado: estado ${otroLoQuiero.estado}`);
+  });
+
+  // ---- Avisos por mail (MSG-06, D-09, D-11, T-04-25, T-04-26, T-04-27) ----
+  // En desarrollo los mails no salen: LogEmailSender los escribe en el log del back, una línea por mail.
+  const mailsA = (destinatario, ruta) => {
+    const patron = new RegExp(`${ruta}(?![0-9])`);
+    return leerLog().split(/\r?\n/).filter((l) => l.includes("[MAIL SOLO LOG")
+      && l.toLowerCase().includes(`para=${destinatario.toLowerCase()} `) && patron.test(l));
+  };
+  // El envío es asíncrono: se espera hasta 10 segundos a que aparezca la línea.
+  const esperarMails = async (destinatario, ruta, cantidad) => {
+    const limite = Date.now() + 10000;
+    for (;;) {
+      const lineas = mailsA(destinatario, ruta);
+      if (lineas.length >= cantidad) return lineas;
+      if (Date.now() > limite) throw new Error(`no apareció en el log el mail para ${ruta} (hay ${lineas.length}, esperaba ${cantidad})`);
+      await dormir(250);
+    }
+  };
+  const marcador = `MARCADOR${sufijo}`;
+  const rutaAdmin = (id) => `/admin/mensajes/${id}`;
+  const rutaUsuario = (id) => `(?<!admin)/mensajes/${id}`;
+
+  await revisar("el Lo quiero del comprador dejó un mail para la cuenta admin con el nombre del comprador y el link de la bandeja", async () => {
+    exigirLog();
+    const [linea] = await esperarMails(admin.email, rutaAdmin(conversacionId), 1);
+    exigir(linea.includes("asunto=Mensaje nuevo en la bandeja de Dante Automotores"), "el asunto no es el fijo de la agencia");
+    exigir(linea.includes("Humo Prueba"), "el mail no nombra al comprador");
+    exigir(linea.includes(marca), "el mail no nombra el auto");
+  });
+
+  await revisar("la respuesta de la agencia dejó un mail para el comprador con el link a su conversación y el asunto fijo", async () => {
+    exigirLog();
+    const [linea] = await esperarMails(comprador.email, rutaUsuario(conversacionId), 1);
+    // El log del back puede no ser UTF-8: del asunto fijo solo se compara la parte ASCII.
+    exigir(/asunto=Ten.{1,2}s un mensaje nuevo en Dante Automotores texto=/.test(linea), "el asunto no es el fijo del usuario");
+  });
+
+  await revisar("varios mensajes dentro de los 10 minutos mandan un solo mail por conversación y destinatario, y cerrar y reabrir no mandan ninguno", async () => {
+    exigirLog();
+    const avisos = await registrarCuentaVerificada("avisos");
+    const autoAvisosId = await crearAuto("Avisos", "Auto del humo para los avisos por mail");
+    const abierta = await post("/conversaciones", { publicacionId: autoAvisosId }, avisos.token);
+    exigir(abierta.estado === 200, `Lo quiero de la cuenta de avisos: estado ${abierta.estado}`);
+    const id = abierta.cuerpo.id;
+    await esperarMails(admin.email, rutaAdmin(id), 1);
+
+    for (const n of [1, 2]) {
+      const enviado = await post(`/conversaciones/${id}/mensajes`, { texto: `${marcador} del comprador ${n}` }, avisos.token);
+      exigir(enviado.estado === 200, `mensaje ${n} del comprador: estado ${enviado.estado}`);
+    }
+    for (const n of [1, 2]) {
+      const respuesta = await post(`/admin/conversaciones/${id}/mensajes`, { texto: `${marcador} de la agencia ${n}` }, admin.token);
+      exigir(respuesta.estado === 200, `respuesta ${n} de la agencia: estado ${respuesta.estado}`);
+    }
+    await esperarMails(avisos.email, rutaUsuario(id), 1);
+    await dormir(3000);
+    exigir(mailsA(admin.email, rutaAdmin(id)).length === 1, `mails a la agencia: ${mailsA(admin.email, rutaAdmin(id)).length} (esperaba 1)`);
+    exigir(mailsA(avisos.email, rutaUsuario(id)).length === 1, `mails al usuario: ${mailsA(avisos.email, rutaUsuario(id)).length} (esperaba 1)`);
+
+    const cerrada = await post(`/admin/conversaciones/${id}/cerrar`, undefined, admin.token);
+    exigir(cerrada.estado === 200, `cerrar: estado ${cerrada.estado}`);
+    const reabierta = await post(`/admin/conversaciones/${id}/reabrir`, undefined, admin.token);
+    exigir(reabierta.estado === 200, `reabrir: estado ${reabierta.estado}`);
+    await dormir(3000);
+    exigir(mailsA(admin.email, rutaAdmin(id)).length === 1, "cerrar y reabrir mandaron un mail a la agencia");
+    exigir(mailsA(avisos.email, rutaUsuario(id)).length === 1, "cerrar y reabrir mandaron un mail al usuario");
+  });
+
+  await revisar("ningún mail de aviso ni el log completo del back contienen el texto de los mensajes", async () => {
+    exigirLog();
+    const log = leerLog();
+    exigir(!log.includes(marcador), "el log del back contiene el texto de un mensaje");
+    const avisosDeMensaje = log.split(/\r?\n/).filter((l) => l.includes("[MAIL SOLO LOG") && /\/(admin\/)?mensajes\/[0-9]/.test(l));
+    exigir(avisosDeMensaje.length >= 3, `se esperaban al menos 3 mails de aviso en el log y hay ${avisosDeMensaje.length}`);
+    for (const linea of avisosDeMensaje) {
+      for (const texto of ["Hola, pasá cuando quieras", "Perfecto, voy mañana", "Ya estoy de vuelta", "Te esperamos"]) {
+        exigir(!linea.includes(texto), `un mail de aviso lleva el texto de un mensaje: ${texto}`);
+      }
+    }
   });
 
   // ---- Limpieza de los autos de prueba (la base es descartable, pero el humo no deja basura si se reusa) ----
