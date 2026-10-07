@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Las migraciones contra un PostgreSQL real, sin Spring. Cada test trabaja sobre sus propias bases test_* y las borra.
  * Lo que se prueba es lo que no se puede arreglar después en producción: una base creada por Hibernate sin historial
- * de Flyway queda marcada como V1, recibe de V2 a V5 y no pierde ninguna fila.
+ * de Flyway queda marcada como V1, recibe de V2 a V6 y no pierde ninguna fila.
  */
 class MigracionesPostgresTest {
 
@@ -154,24 +154,24 @@ class MigracionesPostgresTest {
     // ---- Tests ----
 
     @Test
-    void baseVaciaAplicaLasCincoMigraciones() throws SQLException {
+    void baseVaciaAplicaLasSeisMigraciones() throws SQLException {
         String base = baseNueva();
 
         MigrateResult resultado = flyway(base, true).migrate();
 
-        assertThat(resultado.migrationsExecuted).isEqualTo(5);
-        assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true");
+        assertThat(resultado.migrationsExecuted).isEqualTo(6);
+        assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true");
     }
 
     @Test
-    void produccionSimuladaQuedaEnBaselineV1RecibeDeV2AV5SinPerderFilas() throws SQLException {
+    void produccionSimuladaQuedaEnBaselineV1RecibeDeV2AV6SinPerderFilas() throws SQLException {
         String base = produccionSimulada();
         Map<String, Long> antes = conteos(base);
 
         MigrateResult resultado = flyway(base, true).migrate();
 
-        assertThat(resultado.migrationsExecuted).isEqualTo(4);
-        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true");
+        assertThat(resultado.migrationsExecuted).isEqualTo(5);
+        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true");
         assertThat(conteos(base)).isEqualTo(antes);
         assertThat(valor(base, "SELECT count(*) FROM publicaciones WHERE destacado = false")).isEqualTo("2");
         assertThat(valor(base, "SELECT fecha_vendido IS NOT NULL FROM publicaciones WHERE estado = 'VENDIDO'")).isEqualTo("t");
@@ -185,8 +185,8 @@ class MigracionesPostgresTest {
 
         MigrateResult resultado = flyway(base, true).migrate();
 
-        assertThat(resultado.migrationsExecuted).isEqualTo(4);
-        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true");
+        assertThat(resultado.migrationsExecuted).isEqualTo(5);
+        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true");
         assertThat(conteos(base)).isEqualTo(antes);
     }
 
@@ -224,6 +224,71 @@ class MigracionesPostgresTest {
         assertThat(valor(base, "SELECT count(*) FROM usuarios WHERE password_hash IS NULL")).isEqualTo("1");
         assertThat(valor(base, "SELECT to_regclass('public.tokens_cuenta') IS NOT NULL")).isEqualTo("t");
         assertThat(valor(base, "SELECT count(*) FROM pg_indexes WHERE indexname = 'idx_tokens_cuenta_usuario_tipo'")).isEqualTo("1");
+    }
+
+    @Test
+    void v6CreaConversacionesYMensajesConSusRestricciones() throws SQLException {
+        String base = produccionSimulada();
+        Map<String, Long> antes = conteos(base);
+
+        flyway(base, true).migrate();
+
+        // Aditiva: ninguna fila existente cambia y las tablas nuevas nacen vacias.
+        assertThat(conteos(base)).isEqualTo(antes);
+        assertThat(valor(base, "SELECT count(*) FROM conversaciones")).isEqualTo("0");
+        assertThat(valor(base, "SELECT count(*) FROM mensajes")).isEqualTo("0");
+
+        String ahora = "'2026-10-07 12:00:00'";
+        String compra = "INSERT INTO conversaciones (tipo, estado, usuario_id, publicacion_id, creada_en, ultimo_mensaje_en) "
+                + "VALUES ('COMPRA', '%s', 2, %s, " + ahora + ", " + ahora + ")";
+
+        try (Connection c = conexion(base); Statement st = c.createStatement()) {
+            // D-02: una conversacion de COMPRA siempre tiene auto.
+            assertThatThrownBy(() -> st.execute(compra.formatted("ABIERTA", "NULL")))
+                    .isInstanceOf(SQLException.class).hasMessageContaining("conversaciones_compra_publicacion_check");
+            // Una de COTIZACION puede no tener auto.
+            st.execute("INSERT INTO conversaciones (tipo, estado, usuario_id, creada_en, ultimo_mensaje_en) "
+                    + "VALUES ('COTIZACION', 'ABIERTA', 2, " + ahora + ", " + ahora + ")");
+            // Tipo y estado validos.
+            assertThatThrownBy(() -> st.execute("INSERT INTO conversaciones (tipo, estado, usuario_id, publicacion_id, creada_en, ultimo_mensaje_en) "
+                    + "VALUES ('OTRO', 'ABIERTA', 2, 2, " + ahora + ", " + ahora + ")"))
+                    .isInstanceOf(SQLException.class).hasMessageContaining("conversaciones_tipo_check");
+            assertThatThrownBy(() -> st.execute(compra.formatted("PAUSADA", "2")))
+                    .isInstanceOf(SQLException.class).hasMessageContaining("conversaciones_estado_check");
+
+            // D-03: una sola ABIERTA de compra por usuario y auto; una ABIERTA y una CERRADA conviven.
+            st.execute(compra.formatted("ABIERTA", "2"));
+            assertThatThrownBy(() -> st.execute(compra.formatted("ABIERTA", "2")))
+                    .isInstanceOf(SQLException.class).hasMessageContaining("uk_conversaciones_compra_abierta");
+            st.execute(compra.formatted("CERRADA", "2"));
+            st.execute(compra.formatted("CERRADA", "2"));
+            assertThat(valor(base, "SELECT count(*) FROM conversaciones WHERE tipo = 'COMPRA' AND publicacion_id = 2")).isEqualTo("3");
+
+            // D-14: el texto de un mensaje tiene de 1 a 2000 caracteres.
+            String idConversacion = valor(base, "SELECT min(id) FROM conversaciones WHERE tipo = 'COMPRA' AND estado = 'ABIERTA'");
+            String mensaje = "INSERT INTO mensajes (conversacion_id, autor_id, autor_tipo, texto, creado_en) VALUES ("
+                    + idConversacion + ", 2, 'USUARIO', %s, " + ahora + ")";
+            assertThatThrownBy(() -> st.execute(mensaje.formatted("''")))
+                    .isInstanceOf(SQLException.class).hasMessageContaining("mensajes_texto_largo_check");
+            assertThatThrownBy(() -> st.execute(mensaje.formatted("repeat('a', 2001)")))
+                    .isInstanceOf(SQLException.class).hasMessageContaining("mensajes_texto_largo_check");
+            st.execute(mensaje.formatted("repeat('a', 2000)"));
+            assertThatThrownBy(() -> st.execute("INSERT INTO mensajes (conversacion_id, autor_id, autor_tipo, texto, creado_en) VALUES ("
+                    + idConversacion + ", 2, 'ROBOT', 'hola', " + ahora + ")"))
+                    .isInstanceOf(SQLException.class).hasMessageContaining("mensajes_autor_tipo_check");
+        }
+        assertThat(valor(base, "SELECT count(*) FROM mensajes")).isEqualTo("1");
+
+        // D-16: borrar el auto borra en cascada sus conversaciones y mensajes (la cotizacion sin auto queda).
+        // Las consultas y los favoritos del auto no tienen cascada en V1: se sacan primero.
+        try (Connection c = conexion(base); Statement st = c.createStatement()) {
+            st.execute("DELETE FROM consultas WHERE publicacion_id = 2");
+            st.execute("DELETE FROM favoritos WHERE publicacion_id = 2");
+            st.execute("DELETE FROM publicaciones WHERE id = 2");
+        }
+        assertThat(valor(base, "SELECT count(*) FROM conversaciones WHERE publicacion_id = 2")).isEqualTo("0");
+        assertThat(valor(base, "SELECT count(*) FROM mensajes")).isEqualTo("0");
+        assertThat(valor(base, "SELECT count(*) FROM conversaciones")).isEqualTo("1");
     }
 
     @Test
@@ -265,8 +330,8 @@ class MigracionesPostgresTest {
                 total += futuro.get(60, TimeUnit.SECONDS); // si un migrate lanzara, get() propaga la excepcion
             }
 
-            assertThat(total).isEqualTo(5);
-            assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true");
+            assertThat(total).isEqualTo(6);
+            assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true");
         } finally {
             hilos.shutdownNow();
         }

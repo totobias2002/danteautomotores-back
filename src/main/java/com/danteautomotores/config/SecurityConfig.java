@@ -51,6 +51,9 @@ public class SecurityConfig {
                         // cada service con el estado actual de la base (VerificacionCuenta.exigir).
                         .requestMatchers(HttpMethod.POST, "/api/consultas/**").hasRole("COMPRADOR")
                         .requestMatchers(HttpMethod.POST, "/api/solicitudes-venta/**").hasRole("COMPRADOR")
+                        // Las conversaciones del lado del comprador: sin token 401 y el admin 403. La bandeja del admin
+                        // vive en /api/admin/** (D-17).
+                        .requestMatchers("/api/conversaciones/**").hasRole("COMPRADOR")
                         .requestMatchers(HttpMethod.GET, "/api/publicaciones/**", "/api/agencias/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/agencias/**", "/api/publicaciones/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/agencias/**", "/api/publicaciones/**").hasRole("ADMIN")
