@@ -1,7 +1,10 @@
 package com.danteautomotores.service;
 
+import com.danteautomotores.dto.conversacion.ConversacionDetalleResponse;
 import com.danteautomotores.dto.conversacion.ConversacionRequest;
 import com.danteautomotores.dto.conversacion.ConversacionResumenResponse;
+import com.danteautomotores.dto.conversacion.MensajeRequest;
+import com.danteautomotores.dto.conversacion.MensajeResponse;
 import com.danteautomotores.entity.Conversacion;
 import com.danteautomotores.entity.Mensaje;
 import com.danteautomotores.entity.Publicacion;
@@ -10,6 +13,7 @@ import com.danteautomotores.enums.AutorMensaje;
 import com.danteautomotores.enums.EstadoConversacion;
 import com.danteautomotores.enums.EstadoPublicacion;
 import com.danteautomotores.enums.TipoConversacion;
+import com.danteautomotores.exception.LimiteDeIntentosException;
 import com.danteautomotores.exception.ReglaDeNegocioException;
 import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.mapper.ConversacionMapper;
@@ -22,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -34,12 +39,17 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ConversacionService {
 
+    // D-10: tope de mensajes por cuenta (contando los "Lo quiero") dentro de la ventana.
+    static final int MAXIMO_DE_ENVIOS = 20;
+    static final Duration VENTANA_DE_ENVIOS = Duration.ofMinutes(10);
+
     private final ConversacionRepository conversacionRepository;
     private final MensajeRepository mensajeRepository;
     private final PublicacionRepository publicacionRepository;
     private final UsuarioRepository usuarioRepository;
     private final VerificacionCuenta verificacionCuenta;
     private final RegistroDeMensajes registroDeMensajes;
+    private final LimitadorDeIntentos limitador;
     private final Clock clock;
 
     /** "Lo quiero": abre (o reutiliza) la conversación de compra del usuario por ese auto (D-03, D-04). */
@@ -49,6 +59,7 @@ public class ConversacionService {
         Usuario usuario = usuarioRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe la cuenta"));
         verificacionCuenta.exigir(usuario);
+        limitarEnvios(usuario);
 
         Publicacion publicacion = publicacionRepository.findById(request.getPublicacionId())
                 .orElseThrow(() -> new ResourceNotFoundException("No existe una publicación con id: " + request.getPublicacionId()));
@@ -106,6 +117,43 @@ public class ConversacionService {
         return conversaciones.stream()
                 .map(c -> ConversacionMapper.toResumen(c, ultimos.get(c.getId())))
                 .toList();
+    }
+
+    /** El hilo de una conversación propia, con los mensajes en orden. Ajena e inexistente dan el mismo 404 (D-12). */
+    @Transactional(readOnly = true)
+    public ConversacionDetalleResponse obtenerMia(Long id, String email) {
+        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new ResourceNotFoundException("No existe la cuenta"));
+        Conversacion conversacion = buscarPropia(id, usuario);
+        return ConversacionMapper.toDetalle(conversacion, mensajeRepository.findByConversacionIdOrderByIdAsc(conversacion.getId()));
+    }
+
+    /** El comprador escribe en su conversación. Exige cuenta completa, respeta el límite y rechaza las cerradas. */
+    public MensajeResponse enviarMensaje(Long id, MensajeRequest request, String email) {
+        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new ResourceNotFoundException("No existe la cuenta"));
+        verificacionCuenta.exigir(usuario);
+        limitarEnvios(usuario);
+
+        Conversacion conversacion = buscarPropia(id, usuario);
+        if (conversacion.getEstado() == EstadoConversacion.CERRADA) {
+            throw new ReglaDeNegocioException("Esta conversación está cerrada.");
+        }
+        Mensaje mensaje = registroDeMensajes.agregar(conversacion, usuario, AutorMensaje.USUARIO, request.getTexto().strip());
+        return ConversacionMapper.toMensaje(mensaje);
+    }
+
+    private Conversacion buscarPropia(Long id, Usuario usuario) {
+        return conversacionRepository.findByIdAndUsuarioId(id, usuario.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("No existe la conversación"));
+    }
+
+    // D-10: 20 mensajes cada 10 minutos por cuenta; el "Lo quiero" también cuenta (T-04-04).
+    private void limitarEnvios(Usuario usuario) {
+        if (!limitador.intentar("msg:" + usuario.getId(), MAXIMO_DE_ENVIOS, VENTANA_DE_ENVIOS)) {
+            throw new LimiteDeIntentosException(
+                    "Enviaste muchos mensajes seguidos. Esperá unos minutos y volvé a intentar.", VENTANA_DE_ENVIOS.toSeconds());
+        }
     }
 
     private static String textoAutomatico(Publicacion publicacion) {

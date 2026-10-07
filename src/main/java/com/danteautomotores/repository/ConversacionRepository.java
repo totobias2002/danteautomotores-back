@@ -17,4 +17,8 @@ public interface ConversacionRepository extends JpaRepository<Conversacion, Long
     // El auto y su agencia vienen en la misma consulta: la lista de Mis mensajes arma el resumen de cada auto.
     @EntityGraph(attributePaths = {"publicacion", "publicacion.agencia"})
     List<Conversacion> findByUsuarioIdOrderByUltimoMensajeEnDescIdDesc(Long usuarioId);
+
+    // Toda búsqueda del lado del comprador va por id y dueño: una conversación ajena es igual a una inexistente (D-12).
+    @EntityGraph(attributePaths = {"publicacion", "publicacion.agencia"})
+    Optional<Conversacion> findByIdAndUsuarioId(Long id, Long usuarioId);
 }

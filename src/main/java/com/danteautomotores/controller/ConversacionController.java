@@ -1,7 +1,10 @@
 package com.danteautomotores.controller;
 
+import com.danteautomotores.dto.conversacion.ConversacionDetalleResponse;
 import com.danteautomotores.dto.conversacion.ConversacionRequest;
 import com.danteautomotores.dto.conversacion.ConversacionResumenResponse;
+import com.danteautomotores.dto.conversacion.MensajeRequest;
+import com.danteautomotores.dto.conversacion.MensajeResponse;
 import com.danteautomotores.security.SecurityUtils;
 import com.danteautomotores.service.ConversacionService;
 import jakarta.validation.Valid;
@@ -27,5 +30,15 @@ public class ConversacionController {
     @GetMapping
     public ResponseEntity<List<ConversacionResumenResponse>> listarMias() {
         return ResponseEntity.ok(conversacionService.listarMias(SecurityUtils.obtenerEmailAutenticado()));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ConversacionDetalleResponse> obtenerMia(@PathVariable Long id) {
+        return ResponseEntity.ok(conversacionService.obtenerMia(id, SecurityUtils.obtenerEmailAutenticado()));
+    }
+
+    @PostMapping("/{id}/mensajes")
+    public ResponseEntity<MensajeResponse> enviarMensaje(@PathVariable Long id, @Valid @RequestBody MensajeRequest request) {
+        return ResponseEntity.ok(conversacionService.enviarMensaje(id, request, SecurityUtils.obtenerEmailAutenticado()));
     }
 }

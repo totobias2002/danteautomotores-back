@@ -10,6 +10,9 @@ import java.util.List;
 
 public interface MensajeRepository extends JpaRepository<Mensaje, Long> {
 
+    // El hilo completo, del más viejo al más nuevo (el id crece con cada inserción).
+    List<Mensaje> findByConversacionIdOrderByIdAsc(Long conversacionId);
+
     // El último mensaje (el de mayor id) de cada conversación, en una sola consulta para toda la lista.
     @Query("""
             select m from Mensaje m

@@ -1,12 +1,15 @@
 package com.danteautomotores.mapper;
 
+import com.danteautomotores.dto.conversacion.ConversacionDetalleResponse;
 import com.danteautomotores.dto.conversacion.ConversacionResumenResponse;
+import com.danteautomotores.dto.conversacion.MensajeResponse;
 import com.danteautomotores.entity.Conversacion;
 import com.danteautomotores.entity.Mensaje;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 
 public class ConversacionMapper {
 
@@ -28,6 +31,25 @@ public class ConversacionMapper {
                 .ultimoMensajeEn(aInstante(conversacion.getUltimoMensajeEn()))
                 .ultimoMensaje(ultimoMensaje == null ? null : extracto(ultimoMensaje.getTexto()))
                 .ultimoMensajeAutor(ultimoMensaje == null ? null : ultimoMensaje.getAutorTipo())
+                .build();
+    }
+
+    public static MensajeResponse toMensaje(Mensaje mensaje) {
+        return MensajeResponse.builder()
+                .id(mensaje.getId())
+                .autor(mensaje.getAutorTipo())
+                .texto(mensaje.getTexto())
+                .creadoEn(aInstante(mensaje.getCreadoEn()))
+                .leido(mensaje.getLeidoEn() != null)
+                .build();
+    }
+
+    // Los mensajes llegan ya ordenados; el resumen usa el último como extracto.
+    public static ConversacionDetalleResponse toDetalle(Conversacion conversacion, List<Mensaje> mensajes) {
+        Mensaje ultimo = mensajes.isEmpty() ? null : mensajes.get(mensajes.size() - 1);
+        return ConversacionDetalleResponse.builder()
+                .conversacion(toResumen(conversacion, ultimo))
+                .mensajes(mensajes.stream().map(ConversacionMapper::toMensaje).toList())
                 .build();
     }
 

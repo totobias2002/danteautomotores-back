@@ -1,7 +1,10 @@
 package com.danteautomotores.service;
 
+import com.danteautomotores.dto.conversacion.ConversacionDetalleResponse;
 import com.danteautomotores.dto.conversacion.ConversacionRequest;
 import com.danteautomotores.dto.conversacion.ConversacionResumenResponse;
+import com.danteautomotores.dto.conversacion.MensajeRequest;
+import com.danteautomotores.dto.conversacion.MensajeResponse;
 import com.danteautomotores.entity.Agencia;
 import com.danteautomotores.entity.Conversacion;
 import com.danteautomotores.entity.Mensaje;
@@ -11,6 +14,8 @@ import com.danteautomotores.enums.AutorMensaje;
 import com.danteautomotores.enums.EstadoConversacion;
 import com.danteautomotores.enums.Rol;
 import com.danteautomotores.enums.TipoConversacion;
+import com.danteautomotores.exception.ReglaDeNegocioException;
+import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.repository.AgenciaRepository;
 import com.danteautomotores.repository.ConversacionRepository;
 import com.danteautomotores.repository.MensajeRepository;
@@ -41,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Las conversaciones contra un PostgreSQL real, con el esquema de Flyway (V6) validado por Hibernate: si las entidades
  * no calzaran con la migración, el contexto ni siquiera arranca (ddl-auto=validate).
  */
-@Import({ConversacionService.class, RegistroDeMensajes.class, VerificacionCuenta.class,
+@Import({ConversacionService.class, RegistroDeMensajes.class, VerificacionCuenta.class, LimitadorDeIntentos.class,
         ConversacionPostgresTest.RelojFijo.class})
 class ConversacionPostgresTest extends PostgresLocalTestBase {
 
@@ -215,5 +220,82 @@ class ConversacionPostgresTest extends PostgresLocalTestBase {
                 .extracting(ConversacionResumenResponse::getId).containsExactly(deAna.getId());
         assertThat(conversacionService.listarMias("beto@dante.test"))
                 .extracting(ConversacionResumenResponse::getId).containsExactly(deBeto.getId());
+    }
+
+    private MensajeRequest texto(String texto) {
+        MensajeRequest request = new MensajeRequest();
+        request.setTexto(texto);
+        return request;
+    }
+
+    @Test
+    void findByIdAndUsuarioIdNoDevuelveLaConversacionDeOtroUsuario() {
+        Conversacion deAna = conversacion(ana, corolla, EstadoConversacion.ABIERTA);
+
+        assertThat(conversacionRepository.findByIdAndUsuarioId(deAna.getId(), ana.getId())).isPresent();
+        assertThat(conversacionRepository.findByIdAndUsuarioId(deAna.getId(), beto.getId())).isEmpty();
+        assertThat(conversacionRepository.findByIdAndUsuarioId(deAna.getId() + 1000, ana.getId())).isEmpty();
+    }
+
+    @Test
+    void findByConversacionIdOrderByIdAscRespetaElOrdenDeInsercionYNoMezclaConversaciones() {
+        Conversacion deAna = conversacion(ana, corolla, EstadoConversacion.ABIERTA);
+        Conversacion deBeto = conversacion(beto, corolla, EstadoConversacion.ABIERTA);
+        // Todos con el mismo instante del reloj fijo: el orden lo da el id, no la fecha.
+        registroDeMensajes.agregar(deAna, ana, AutorMensaje.USUARIO, "uno");
+        registroDeMensajes.agregar(deBeto, beto, AutorMensaje.USUARIO, "ajeno");
+        registroDeMensajes.agregar(deAna, admin, AutorMensaje.AGENCIA, "dos");
+        registroDeMensajes.agregar(deAna, ana, AutorMensaje.USUARIO, "tres");
+        em.flush();
+        em.clear();
+
+        assertThat(mensajeRepository.findByConversacionIdOrderByIdAsc(deAna.getId()))
+                .extracting(Mensaje::getTexto).containsExactly("uno", "dos", "tres");
+        assertThat(mensajeRepository.findByConversacionIdOrderByIdAsc(deBeto.getId()))
+                .extracting(Mensaje::getTexto).containsExactly("ajeno");
+    }
+
+    @Test
+    void unMensajeEnviadoConElServicioRealSeGuardaEnElHiloYMueveElUltimoMensajeEn() {
+        ConversacionResumenResponse creada = conversacionService.iniciarCompra(pedido(corolla, null), "ana@dante.test");
+        // La conversación quedó vieja: el envío tiene que moverla al instante del reloj.
+        jdbc.update("UPDATE conversaciones SET ultimo_mensaje_en = '2026-10-01 10:00:00' WHERE id = ?", creada.getId());
+        em.flush();
+        em.clear();
+
+        MensajeResponse enviado = conversacionService.enviarMensaje(creada.getId(), texto("  ¿Aceptan permuta?  "), "ana@dante.test");
+        em.flush();
+        em.clear();
+
+        assertThat(enviado.getAutor()).isEqualTo(AutorMensaje.USUARIO);
+        assertThat(enviado.getTexto()).isEqualTo("¿Aceptan permuta?");
+        String ultimo = jdbc.queryForObject(
+                "SELECT to_char(ultimo_mensaje_en, 'YYYY-MM-DD\"T\"HH24:MI:SS') FROM conversaciones WHERE id = ?",
+                String.class, creada.getId());
+        assertThat(ultimo).isEqualTo("2026-10-07T15:30:00");
+
+        ConversacionDetalleResponse hilo = conversacionService.obtenerMia(creada.getId(), "ana@dante.test");
+        assertThat(hilo.getMensajes()).extracting(MensajeResponse::getTexto)
+                .containsExactly("Hola, me interesa este auto: Toyota Corolla 2020.", "¿Aceptan permuta?");
+        assertThat(hilo.getConversacion().getUltimoMensajeEn()).isEqualTo(INSTANTE);
+    }
+
+    @Test
+    void unaConversacionAjenaDa404AlLeerYAlEscribirYUnaCerradaRechazaElMensaje() {
+        ConversacionResumenResponse deAna = conversacionService.iniciarCompra(pedido(corolla, null), "ana@dante.test");
+        em.flush();
+        em.clear();
+
+        assertThatThrownBy(() -> conversacionService.obtenerMia(deAna.getId(), "beto@dante.test"))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> conversacionService.enviarMensaje(deAna.getId(), texto("intruso"), "beto@dante.test"))
+                .isInstanceOf(ResourceNotFoundException.class);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensajes", Integer.class)).isEqualTo(1);
+
+        jdbc.update("UPDATE conversaciones SET estado = 'CERRADA' WHERE id = ?", deAna.getId());
+        em.clear();
+        assertThatThrownBy(() -> conversacionService.enviarMensaje(deAna.getId(), texto("tarde"), "ana@dante.test"))
+                .isInstanceOf(ReglaDeNegocioException.class);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensajes", Integer.class)).isEqualTo(1);
     }
 }

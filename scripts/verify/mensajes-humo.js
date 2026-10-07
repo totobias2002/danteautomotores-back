@@ -2,7 +2,8 @@
 // Uso (ADMIN_EMAIL y ADMIN_PASSWORD son las del admin que siembra el back local):
 //   ADMIN_EMAIL=admin.humo@dante.test ADMIN_PASSWORD=... ADMIN_NOMBRE=AdminHumo \
 //     bash scripts/verify/con-back-local.sh --vacia dante_humo_mensajes node scripts/verify/mensajes-humo.js
-// Cubre "Lo quiero", la lista de Mis mensajes y sus casos negativos; los planes siguientes agregan el resto de la fase.
+// Cubre "Lo quiero", la lista de Mis mensajes, el hilo del comprador (leer, escribir, aislamiento y límite de envío) y
+// sus casos negativos; los planes siguientes agregan el resto de la fase.
 const {
   exigir,
   revisar,
@@ -231,6 +232,114 @@ function clavesPresentes(valor, prohibidas, encontradas = new Set()) {
     exigir(estado === 200 && Array.isArray(cuerpo), `estado ${estado}`);
     exigir(cuerpo.length === 0, `la segunda cuenta ve ${cuerpo.length} conversaciones ajenas`);
     exigir(!cuerpo.some((c) => c.id === conversacionId), "la conversación de la primera cuenta aparece en la lista de la segunda");
+  });
+
+  // ---- El hilo del comprador (MSG-03, MSG-04, D-05, D-12, D-14) ----
+  // Presupuesto del límite de envío (D-10, 20 por cuenta cada 10 minutos, contando los "Lo quiero"): la cuenta principal
+  // hace 10 POST /conversaciones antes de este bloque y 1 envío acá (11 de 20). Los planes siguientes suman a la misma
+  // cuenta y tienen que quedar por debajo de 15 por corrida; solo la cuenta descartable de más abajo llega al límite.
+  await revisar("GET /conversaciones/{id} devuelve la conversación y el primer mensaje, con fechas en UTC y sin datos personales", async () => {
+    const { estado, cuerpo } = await pedir("GET", `/conversaciones/${conversacionId}`, undefined, comprador.token);
+    exigir(estado === 200, `estado ${estado}: ${JSON.stringify(cuerpo)}`);
+    exigir(cuerpo.conversacion && cuerpo.conversacion.id === conversacionId, "no trae la conversación");
+    exigir(cuerpo.conversacion.publicacion && cuerpo.conversacion.publicacion.marca === marca, "no trae el auto");
+    exigir(Array.isArray(cuerpo.mensajes) && cuerpo.mensajes.length === 1, `mensajes: ${JSON.stringify(cuerpo.mensajes)}`);
+    const primero = cuerpo.mensajes[0];
+    exigir(primero.autor === "USUARIO" && primero.texto.includes(marca), `primer mensaje: ${JSON.stringify(primero)}`);
+    exigir(typeof primero.creadoEn === "string" && primero.creadoEn.endsWith("Z"), `creadoEn ${primero.creadoEn}`);
+    exigir(primero.leido === false, `leido ${primero.leido}`);
+    const prohibidas = clavesPresentes(cuerpo, ["dni", "telefono", "passwordHash", "password", "email", "autorId", "usuarioId"]);
+    exigir(prohibidas.length === 0, `la respuesta expone: ${prohibidas.join(", ")}`);
+  });
+
+  await revisar("POST /conversaciones/{id}/mensajes guarda el mensaje (recortado, HTML literal) y el hilo queda con dos en orden", async () => {
+    const texto = "<b>Hola</b> <script>alert(1)</script> ¿sigue disponible?";
+    const enviado = await post(`/conversaciones/${conversacionId}/mensajes`, { texto: `   ${texto}  ` }, comprador.token);
+    exigir(enviado.estado === 200, `estado ${enviado.estado}: ${enviado.texto}`);
+    exigir(enviado.cuerpo.autor === "USUARIO", `autor ${enviado.cuerpo.autor}`);
+    exigir(enviado.cuerpo.texto === texto, `texto guardado: ${JSON.stringify(enviado.cuerpo.texto)}`);
+    exigir(typeof enviado.cuerpo.creadoEn === "string" && enviado.cuerpo.creadoEn.endsWith("Z"), `creadoEn ${enviado.cuerpo.creadoEn}`);
+    const hilo = await pedir("GET", `/conversaciones/${conversacionId}`, undefined, comprador.token);
+    exigir(hilo.cuerpo.mensajes.length === 2, `el hilo tiene ${hilo.cuerpo.mensajes.length} mensajes (esperaba 2)`);
+    exigir(hilo.cuerpo.mensajes[0].id < hilo.cuerpo.mensajes[1].id, "los mensajes no vienen en orden ascendente");
+    exigir(hilo.cuerpo.mensajes[1].id === enviado.cuerpo.id && hilo.cuerpo.mensajes[1].texto === texto, "el segundo mensaje no es el enviado");
+    exigir(hilo.cuerpo.conversacion.ultimoMensaje === texto, `ultimoMensaje: ${JSON.stringify(hilo.cuerpo.conversacion.ultimoMensaje)}`);
+  });
+
+  await revisar("un texto vacío, en blanco o de 2001 caracteres da 400 con campos.texto y no se guarda", async () => {
+    for (const texto of ["", "     ", "a".repeat(2001)]) {
+      const { estado, cuerpo } = await post(`/conversaciones/${conversacionId}/mensajes`, { texto }, comprador.token);
+      exigir(estado === 400, `texto de ${texto.length} caracteres: estado ${estado}`);
+      exigir(cuerpo && cuerpo.campos && cuerpo.campos.texto, `sin campos.texto: ${JSON.stringify(cuerpo)}`);
+    }
+    const sinTexto = await post(`/conversaciones/${conversacionId}/mensajes`, {}, comprador.token);
+    exigir(sinTexto.estado === 400 && sinTexto.cuerpo && sinTexto.cuerpo.campos && sinTexto.cuerpo.campos.texto,
+      `cuerpo sin texto: estado ${sinTexto.estado}`);
+    const hilo = await pedir("GET", `/conversaciones/${conversacionId}`, undefined, comprador.token);
+    exigir(hilo.cuerpo.mensajes.length === 2, `el hilo tiene ${hilo.cuerpo.mensajes.length} mensajes (esperaba 2)`);
+  });
+
+  await revisar("sin token el hilo y el envío dan 401, y con la cuenta admin dan 403", async () => {
+    for (const [metodo, ruta, cuerpo] of [
+      ["GET", `/conversaciones/${conversacionId}`, undefined],
+      ["POST", `/conversaciones/${conversacionId}/mensajes`, { texto: "hola" }],
+    ]) {
+      const sin = await pedir(metodo, ruta, cuerpo);
+      exigir(sin.estado === 401, `${metodo} sin token: estado ${sin.estado}`);
+      const delAdmin = await pedir(metodo, ruta, cuerpo, admin.token);
+      exigir(delAdmin.estado === 403, `${metodo} del admin: estado ${delAdmin.estado}`);
+    }
+  });
+
+  await revisar("una segunda cuenta verificada recibe 404 al pedir y al escribir en la conversación de la primera (T-04-10)", async () => {
+    const ajena = await registrarCuentaVerificada("ajena");
+    const leer = await pedir("GET", `/conversaciones/${conversacionId}`, undefined, ajena.token);
+    exigir(leer.estado === 404, `GET de otra cuenta: estado ${leer.estado}`);
+    const escribir = await post(`/conversaciones/${conversacionId}/mensajes`, { texto: "intruso" }, ajena.token);
+    exigir(escribir.estado === 404, `POST de otra cuenta: estado ${escribir.estado}`);
+    // Una inexistente da exactamente la misma respuesta que una ajena (D-12).
+    const inexistente = await pedir("GET", "/conversaciones/2000000000", undefined, ajena.token);
+    exigir(inexistente.estado === 404, `GET inexistente: estado ${inexistente.estado}`);
+    exigir(inexistente.texto === leer.texto, `la ajena y la inexistente responden distinto: ${leer.texto} / ${inexistente.texto}`);
+    const dueno = await pedir("GET", `/conversaciones/${conversacionId}`, undefined, comprador.token);
+    exigir(dueno.cuerpo.mensajes.length === 2, `el hilo del dueño tiene ${dueno.cuerpo.mensajes.length} mensajes (esperaba 2)`);
+    exigir(!dueno.cuerpo.mensajes.some((m) => m.texto === "intruso"), "el mensaje de la cuenta ajena quedó en el hilo");
+  });
+
+  await revisar("una cuenta descartable recibe 429 con Retry-After en el envío 21 y ese mensaje no queda en el hilo (D-10)", async () => {
+    const descartable = await registrarCuentaVerificada("limite");
+    const autoLimiteId = await crearAuto("Limite", "Auto del humo para el límite de envío");
+    const abierta = await post("/conversaciones", { publicacionId: autoLimiteId }, descartable.token);
+    exigir(abierta.estado === 200, `Lo quiero de la cuenta descartable: estado ${abierta.estado}`);
+    const idLimite = abierta.cuerpo.id;
+
+    // El "Lo quiero" fue el envío 1: del 2 al 20 se aceptan y el 21 tiene que dar 429.
+    let aceptados = 1;
+    let rechazo = null;
+    let textoRechazado = null;
+    for (let n = 2; n <= 25; n++) {
+      const texto = `mensaje-limite-${n}`;
+      const r = await post(`/conversaciones/${idLimite}/mensajes`, { texto }, descartable.token);
+      if (r.estado === 429) {
+        rechazo = r;
+        textoRechazado = texto;
+        break;
+      }
+      exigir(r.estado === 200, `mensaje ${n}: estado ${r.estado}: ${r.texto}`);
+      aceptados++;
+    }
+    exigir(rechazo, "no apareció ningún 429 en 25 envíos");
+    exigir(aceptados === 20, `el 429 llegó tras ${aceptados} envíos aceptados (esperaba 20, antes del 22)`);
+    exigir(Number(rechazo.reintentarEn) > 0, `Retry-After: ${rechazo.reintentarEn}`);
+    exigir(rechazo.cuerpo && typeof rechazo.cuerpo.error === "string" && rechazo.cuerpo.error.length > 0, "el 429 no trae mensaje");
+
+    const hilo = await pedir("GET", `/conversaciones/${idLimite}`, undefined, descartable.token);
+    exigir(hilo.estado === 200, `leer el hilo después del límite: estado ${hilo.estado}`);
+    exigir(hilo.cuerpo.mensajes.length === aceptados, `el hilo tiene ${hilo.cuerpo.mensajes.length} mensajes (esperaba ${aceptados})`);
+    exigir(!hilo.cuerpo.mensajes.some((m) => m.texto === textoRechazado), "el mensaje rechazado por el límite quedó guardado");
+    // También frena otro "Lo quiero": el límite es de la cuenta, no de la conversación.
+    const otroLoQuiero = await post("/conversaciones", { publicacionId: autoLimiteId }, descartable.token);
+    exigir(otroLoQuiero.estado === 429, `Lo quiero con el límite agotado: estado ${otroLoQuiero.estado}`);
   });
 
   // ---- Limpieza de los autos de prueba (la base es descartable, pero el humo no deja basura si se reusa) ----

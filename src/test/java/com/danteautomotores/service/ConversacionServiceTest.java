@@ -1,7 +1,10 @@
 package com.danteautomotores.service;
 
+import com.danteautomotores.dto.conversacion.ConversacionDetalleResponse;
 import com.danteautomotores.dto.conversacion.ConversacionRequest;
 import com.danteautomotores.dto.conversacion.ConversacionResumenResponse;
+import com.danteautomotores.dto.conversacion.MensajeRequest;
+import com.danteautomotores.dto.conversacion.MensajeResponse;
 import com.danteautomotores.entity.Agencia;
 import com.danteautomotores.entity.Conversacion;
 import com.danteautomotores.entity.Mensaje;
@@ -14,6 +17,7 @@ import com.danteautomotores.enums.EstadoPublicacion;
 import com.danteautomotores.enums.Rol;
 import com.danteautomotores.enums.TipoConversacion;
 import com.danteautomotores.exception.CuentaNoVerificadaException;
+import com.danteautomotores.exception.LimiteDeIntentosException;
 import com.danteautomotores.exception.ReglaDeNegocioException;
 import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.repository.ConversacionRepository;
@@ -29,6 +33,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -41,6 +46,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -64,14 +70,17 @@ class ConversacionServiceTest {
     @Spy
     private VerificacionCuenta verificacionCuenta = new VerificacionCuenta();
 
+    private LimitadorDeIntentos limitador;
     private ConversacionService servicio;
 
     @BeforeEach
     void armarElServicio() {
         // El reloj del servidor está en otra zona a propósito: las fechas guardadas tienen que salir igual, en UTC.
         Clock reloj = Clock.fixed(INSTANTE, ZoneId.of("America/Argentina/Buenos_Aires"));
+        // El limitador real: el test del mensaje 21 prueba el límite de verdad, no un mock.
+        limitador = new LimitadorDeIntentos();
         servicio = new ConversacionService(conversacionRepository, mensajeRepository, publicacionRepository,
-                usuarioRepository, verificacionCuenta, new RegistroDeMensajes(mensajeRepository, reloj), reloj);
+                usuarioRepository, verificacionCuenta, new RegistroDeMensajes(mensajeRepository, reloj), limitador, reloj);
     }
 
     private ConversacionRequest pedido(Long publicacionId, String mensaje) {
@@ -335,5 +344,177 @@ class ConversacionServiceTest {
         assertThat(servicio.listarMias(EMAIL)).isEmpty();
 
         verify(mensajeRepository, never()).findUltimosPorConversaciones(anyCollection());
+    }
+
+    private MensajeRequest texto(String texto) {
+        MensajeRequest request = new MensajeRequest();
+        request.setTexto(texto);
+        return request;
+    }
+
+    @Test
+    void obtenerMiaDevuelveElHiloEnOrdenAscendenteParaElDueno() {
+        Conversacion conversacion = abiertaExistente();
+        Mensaje primero = Mensaje.builder().id(900L).conversacion(conversacion).autorTipo(AutorMensaje.USUARIO)
+                .texto("Hola").creadoEn(AHORA_UTC.minusHours(2)).build();
+        Mensaje segundo = Mensaje.builder().id(901L).conversacion(conversacion).autorTipo(AutorMensaje.AGENCIA)
+                .texto("Buenas, ¿en qué te ayudamos?").creadoEn(AHORA_UTC.minusHours(1)).leidoEn(AHORA_UTC).build();
+        existeLaCuenta(cuentaVerificada());
+        when(conversacionRepository.findByIdAndUsuarioId(50L, 3L)).thenReturn(Optional.of(conversacion));
+        when(mensajeRepository.findByConversacionIdOrderByIdAsc(50L)).thenReturn(List.of(primero, segundo));
+
+        ConversacionDetalleResponse detalle = servicio.obtenerMia(50L, EMAIL);
+
+        assertThat(detalle.getConversacion().getId()).isEqualTo(50L);
+        assertThat(detalle.getConversacion().getPublicacion().getMarca()).isEqualTo("Toyota");
+        assertThat(detalle.getMensajes()).extracting(MensajeResponse::getId).containsExactly(900L, 901L);
+        assertThat(detalle.getMensajes()).extracting(MensajeResponse::getAutor)
+                .containsExactly(AutorMensaje.USUARIO, AutorMensaje.AGENCIA);
+        assertThat(detalle.getMensajes()).extracting(MensajeResponse::isLeido).containsExactly(false, true);
+        assertThat(detalle.getMensajes().get(0).getCreadoEn())
+                .isEqualTo(AHORA_UTC.minusHours(2).toInstant(ZoneOffset.UTC));
+        assertThat(detalle.getConversacion().getUltimoMensaje()).isEqualTo("Buenas, ¿en qué te ayudamos?");
+    }
+
+    @Test
+    void obtenerMiaDa404ParaUnaConversacionAjenaYParaUnIdInexistente() {
+        existeLaCuenta(cuentaVerificada());
+        // El repositorio busca por id Y dueño: la ajena y la inexistente son lo mismo (D-12).
+        when(conversacionRepository.findByIdAndUsuarioId(any(), any())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> servicio.obtenerMia(77L, EMAIL))
+                .isInstanceOf(ResourceNotFoundException.class).hasMessage("No existe la conversación");
+        assertThatThrownBy(() -> servicio.obtenerMia(9999L, EMAIL))
+                .isInstanceOf(ResourceNotFoundException.class).hasMessage("No existe la conversación");
+
+        verify(conversacionRepository).findByIdAndUsuarioId(77L, 3L);
+        verify(mensajeRepository, never()).findByConversacionIdOrderByIdAsc(any());
+    }
+
+    @Test
+    void enviarMensajeGuardaConAutorUsuarioRecortadoYMueveLaConversacion() {
+        Conversacion conversacion = abiertaExistente();
+        existeLaCuenta(cuentaVerificada());
+        when(conversacionRepository.findByIdAndUsuarioId(50L, 3L)).thenReturn(Optional.of(conversacion));
+        when(mensajeRepository.save(any(Mensaje.class))).thenAnswer(i -> {
+            Mensaje m = i.getArgument(0);
+            m.setId(910L);
+            return m;
+        });
+
+        MensajeResponse respuesta = servicio.enviarMensaje(50L, texto("   ¿Puedo verlo hoy?  \n"), EMAIL);
+
+        ArgumentCaptor<Mensaje> mensaje = ArgumentCaptor.forClass(Mensaje.class);
+        verify(mensajeRepository).save(mensaje.capture());
+        assertThat(mensaje.getValue().getAutorTipo()).isEqualTo(AutorMensaje.USUARIO);
+        assertThat(mensaje.getValue().getAutor().getId()).isEqualTo(3L);
+        assertThat(mensaje.getValue().getConversacion()).isSameAs(conversacion);
+        assertThat(mensaje.getValue().getTexto()).isEqualTo("¿Puedo verlo hoy?");
+        assertThat(mensaje.getValue().getCreadoEn()).isEqualTo(AHORA_UTC);
+        assertThat(conversacion.getUltimoMensajeEn()).isEqualTo(AHORA_UTC);
+        assertThat(respuesta.getId()).isEqualTo(910L);
+        assertThat(respuesta.getAutor()).isEqualTo(AutorMensaje.USUARIO);
+        assertThat(respuesta.getTexto()).isEqualTo("¿Puedo verlo hoy?");
+        assertThat(respuesta.getCreadoEn()).isEqualTo(INSTANTE);
+        assertThat(respuesta.isLeido()).isFalse();
+    }
+
+    @Test
+    void enviarMensajeEnUnaConversacionCerradaDa400SinGuardar() {
+        Conversacion cerrada = abiertaExistente();
+        cerrada.setEstado(EstadoConversacion.CERRADA);
+        existeLaCuenta(cuentaVerificada());
+        when(conversacionRepository.findByIdAndUsuarioId(50L, 3L)).thenReturn(Optional.of(cerrada));
+
+        assertThatThrownBy(() -> servicio.enviarMensaje(50L, texto("Hola"), EMAIL))
+                .isInstanceOf(ReglaDeNegocioException.class)
+                .hasMessage("Esta conversación está cerrada.");
+
+        verify(mensajeRepository, never()).save(any());
+        assertThat(cerrada.getUltimoMensajeEn()).isEqualTo(AHORA_UTC.minusDays(2));
+    }
+
+    @Test
+    void enviarMensajeConUnaCuentaIncompletaLanzaConLosFaltantesSinBuscarLaConversacion() {
+        Usuario incompleta = cuentaVerificada();
+        incompleta.setTelefono(null);
+        existeLaCuenta(incompleta);
+
+        assertThatThrownBy(() -> servicio.enviarMensaje(50L, texto("Hola"), EMAIL))
+                .isInstanceOfSatisfying(CuentaNoVerificadaException.class,
+                        e -> assertThat(e.getFaltantes()).containsExactly(DatoFaltante.TELEFONO));
+
+        verifyNoInteractions(conversacionRepository);
+        verify(mensajeRepository, never()).save(any());
+    }
+
+    @Test
+    void enviarMensajeSobreUnaConversacionAjenaDa404SinGuardar() {
+        existeLaCuenta(cuentaVerificada());
+        when(conversacionRepository.findByIdAndUsuarioId(77L, 3L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> servicio.enviarMensaje(77L, texto("Hola"), EMAIL))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(mensajeRepository, never()).save(any());
+    }
+
+    @Test
+    void elMensaje21DeLaMismaCuentaDentroDeLaVentanaLanzaElLimiteConDiezMinutosYNoSeGuarda() {
+        Conversacion conversacion = abiertaExistente();
+        existeLaCuenta(cuentaVerificada());
+        when(conversacionRepository.findByIdAndUsuarioId(50L, 3L)).thenReturn(Optional.of(conversacion));
+        when(mensajeRepository.save(any(Mensaje.class))).thenAnswer(i -> i.getArgument(0));
+
+        for (int i = 1; i <= 20; i++) {
+            servicio.enviarMensaje(50L, texto("mensaje " + i), EMAIL);
+        }
+        verify(mensajeRepository, times(20)).save(any(Mensaje.class));
+
+        assertThatThrownBy(() -> servicio.enviarMensaje(50L, texto("mensaje 21"), EMAIL))
+                .isInstanceOfSatisfying(LimiteDeIntentosException.class, e -> {
+                    assertThat(e.getReintentarEnSegundos()).isEqualTo(600);
+                    assertThat(e.getMessage())
+                            .isEqualTo("Enviaste muchos mensajes seguidos. Esperá unos minutos y volvé a intentar.");
+                });
+
+        verify(mensajeRepository, times(20)).save(any(Mensaje.class));
+    }
+
+    @Test
+    void elLoQuieroCuentaParaElMismoLimiteQueLosMensajes() {
+        existeLaCuenta(cuentaVerificada());
+        existeElAuto(EstadoPublicacion.DISPONIBLE);
+        Conversacion existente = abiertaExistente();
+        when(conversacionRepository.findFirstByUsuarioIdAndPublicacionIdAndTipoAndEstado(
+                3L, 7L, TipoConversacion.COMPRA, EstadoConversacion.ABIERTA)).thenReturn(Optional.of(existente));
+        when(mensajeRepository.save(any(Mensaje.class))).thenAnswer(i -> i.getArgument(0));
+
+        for (int i = 1; i <= 20; i++) {
+            servicio.iniciarCompra(pedido(7L, "consulta " + i), EMAIL);
+        }
+
+        assertThatThrownBy(() -> servicio.iniciarCompra(pedido(7L, "otra"), EMAIL))
+                .isInstanceOf(LimiteDeIntentosException.class);
+        assertThatThrownBy(() -> servicio.enviarMensaje(50L, texto("y otra"), EMAIL))
+                .isInstanceOf(LimiteDeIntentosException.class);
+        verify(mensajeRepository, times(20)).save(any(Mensaje.class));
+    }
+
+    @Test
+    void elLimiteEsPorCuentaYNoAfectaAOtroUsuario() {
+        Usuario otra = cuentaVerificada();
+        otra.setId(4L);
+        otra.setEmail("otra@cuenta.com");
+        Conversacion deOtra = abiertaExistente();
+        deOtra.setUsuario(otra);
+        when(usuarioRepository.findByEmailIgnoreCase("otra@cuenta.com")).thenReturn(Optional.of(otra));
+        when(conversacionRepository.findByIdAndUsuarioId(50L, 4L)).thenReturn(Optional.of(deOtra));
+        when(mensajeRepository.save(any(Mensaje.class))).thenAnswer(i -> i.getArgument(0));
+        for (int i = 0; i < 20; i++) {
+            limitador.intentar("msg:3", 20, Duration.ofMinutes(10));
+        }
+
+        assertThat(servicio.enviarMensaje(50L, texto("Hola"), "otra@cuenta.com")).isNotNull();
     }
 }
