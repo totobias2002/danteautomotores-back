@@ -13,6 +13,9 @@ public final class PlantillasEmail {
     static final String ASUNTO_CONFIRMAR_EMAIL = "Confirmá tu mail en Dante Automotores";
     static final String ASUNTO_RESTABLECER_CONTRASENA = "Cambiá tu contraseña";
     static final String ASUNTO_CONTRASENA_CAMBIADA = "Tu contraseña fue cambiada";
+    // Asuntos fijos: ningún dato escrito por el usuario entra al asunto (D-11).
+    static final String ASUNTO_MENSAJE_NUEVO_USUARIO = "Tenés un mensaje nuevo en Dante Automotores";
+    static final String ASUNTO_MENSAJE_NUEVO_AGENCIA = "Mensaje nuevo en la bandeja de Dante Automotores";
 
     private static final String FIRMA = "Dante Automotores";
 
@@ -39,6 +42,22 @@ public final class PlantillasEmail {
                 + "entrá a la página de ingreso, elegí \"Olvidé mi contraseña\" para recuperar tu cuenta "
                 + "y escribinos para avisarnos.";
         return armar(nombre, email, ASUNTO_CONTRASENA_CAMBIADA, parrafo, null, null);
+    }
+
+    /** Aviso al usuario de que la agencia le escribió. No lleva el texto del mensaje (D-11). */
+    public static MensajeEmail mensajeNuevoParaUsuario(String nombre, String email, String descripcionDelAuto,
+                                                       String link) {
+        String parrafo = "La agencia te escribió sobre " + descripcionDelAuto + ". Entrá a Mis mensajes "
+                + "para leer la respuesta y contestar.";
+        return armar(nombre, email, ASUNTO_MENSAJE_NUEVO_USUARIO, parrafo, "Ver mi conversación", link);
+    }
+
+    /** Aviso a la agencia de que un usuario escribió. No lleva el texto del mensaje (D-11). */
+    public static MensajeEmail mensajeNuevoParaLaAgencia(String nombreDelAdmin, String email, String nombreDelUsuario,
+                                                         String descripcionDelAuto, String link) {
+        String parrafo = nombreDelUsuario + " escribió sobre " + descripcionDelAuto + ". Abrí la bandeja "
+                + "para leer el mensaje y responder.";
+        return armar(nombreDelAdmin, email, ASUNTO_MENSAJE_NUEVO_AGENCIA, parrafo, "Abrir la conversación", link);
     }
 
     private static MensajeEmail armar(String nombre, String email, String asunto, String parrafo,
