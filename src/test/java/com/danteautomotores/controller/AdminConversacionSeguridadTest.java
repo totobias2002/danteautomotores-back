@@ -84,7 +84,7 @@ class AdminConversacionSeguridadTest extends SeguridadWebMvcTestBase {
 
     @Test
     void elAdminRecibe200ConLaEstructuraDePagina() throws Exception {
-        when(conversacionAdminService.listar(any(), any(), anyBoolean(), anyInt())).thenReturn(pagina());
+        when(conversacionAdminService.listar(any(), any(), anyBoolean(), any(), anyInt())).thenReturn(pagina());
 
         mvc.perform(get(URL).header("Authorization", admin()))
                 .andExpect(status().isOk())
@@ -100,16 +100,16 @@ class AdminConversacionSeguridadTest extends SeguridadWebMvcTestBase {
 
     @Test
     void sinParametrosPideTodasLasConversacionesDeLaPrimeraPagina() throws Exception {
-        when(conversacionAdminService.listar(any(), any(), anyBoolean(), anyInt())).thenReturn(pagina());
+        when(conversacionAdminService.listar(any(), any(), anyBoolean(), any(), anyInt())).thenReturn(pagina());
 
         mvc.perform(get(URL).header("Authorization", admin())).andExpect(status().isOk());
 
-        verify(conversacionAdminService).listar(null, null, false, 1);
+        verify(conversacionAdminService).listar(null, null, false, null, 1);
     }
 
     @Test
     void losFiltrosDeLaUrlLlegananAlService() throws Exception {
-        when(conversacionAdminService.listar(any(), any(), anyBoolean(), anyInt())).thenReturn(pagina());
+        when(conversacionAdminService.listar(any(), any(), anyBoolean(), any(), anyInt())).thenReturn(pagina());
 
         mvc.perform(get(URL)
                         .param("tipo", "COTIZACION").param("estado", "CERRADA")
@@ -117,7 +117,7 @@ class AdminConversacionSeguridadTest extends SeguridadWebMvcTestBase {
                         .header("Authorization", admin()))
                 .andExpect(status().isOk());
 
-        verify(conversacionAdminService).listar(TipoConversacion.COTIZACION, EstadoConversacion.CERRADA, true, 3);
+        verify(conversacionAdminService).listar(TipoConversacion.COTIZACION, EstadoConversacion.CERRADA, true, null, 3);
     }
 
     @Test
@@ -133,7 +133,7 @@ class AdminConversacionSeguridadTest extends SeguridadWebMvcTestBase {
 
     @Test
     void elJsonDeUnaFilaNoTraeDniNiTelefono() throws Exception {
-        when(conversacionAdminService.listar(any(), any(), anyBoolean(), anyInt())).thenReturn(pagina());
+        when(conversacionAdminService.listar(any(), any(), anyBoolean(), any(), anyInt())).thenReturn(pagina());
 
         MvcResult resultado = mvc.perform(get(URL).header("Authorization", admin()))
                 .andExpect(status().isOk())

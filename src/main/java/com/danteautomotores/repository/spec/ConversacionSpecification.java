@@ -28,8 +28,17 @@ public class ConversacionSpecification {
      * la consulta de conteo de la página da el mismo total.
      */
     public static Specification<Conversacion> bandeja(TipoConversacion tipo, EstadoConversacion estado, boolean soloNoLeidas) {
+        return bandeja(tipo, estado, soloNoLeidas, null);
+    }
+
+    /** Igual que la anterior; con {@code publicacionId} deja solo las conversaciones de ese auto. */
+    public static Specification<Conversacion> bandeja(TipoConversacion tipo, EstadoConversacion estado, boolean soloNoLeidas,
+                                                      Long publicacionId) {
         return (root, query, cb) -> {
             List<Predicate> predicados = new ArrayList<>();
+            if (publicacionId != null) {
+                predicados.add(cb.equal(root.get("publicacion").get("id"), publicacionId));
+            }
             if (tipo != null) {
                 predicados.add(cb.equal(root.get("tipo"), tipo));
             }

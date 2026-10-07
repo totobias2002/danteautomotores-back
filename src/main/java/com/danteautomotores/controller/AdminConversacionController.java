@@ -34,8 +34,9 @@ public class AdminConversacionController {
             @RequestParam(required = false) TipoConversacion tipo,
             @RequestParam(required = false) EstadoConversacion estado,
             @RequestParam(defaultValue = "false") boolean soloNoLeidas,
+            @RequestParam(required = false) Long publicacionId,
             @RequestParam(defaultValue = "1") int pagina) {
-        return ResponseEntity.ok(conversacionAdminService.listar(tipo, estado, soloNoLeidas, pagina));
+        return ResponseEntity.ok(conversacionAdminService.listar(tipo, estado, soloNoLeidas, publicacionId, pagina));
     }
 
     @GetMapping("/{id}")

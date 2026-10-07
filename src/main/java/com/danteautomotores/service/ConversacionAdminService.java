@@ -57,11 +57,18 @@ public class ConversacionAdminService {
     @Transactional(readOnly = true)
     public PaginaResponse<ConversacionResumenResponse> listar(TipoConversacion tipo, EstadoConversacion estado,
                                                               boolean soloNoLeidas, int pagina) {
+        return listar(tipo, estado, soloNoLeidas, null, pagina);
+    }
+
+    /** Con {@code publicacionId} la bandeja se limita a las conversaciones de ese auto. */
+    @Transactional(readOnly = true)
+    public PaginaResponse<ConversacionResumenResponse> listar(TipoConversacion tipo, EstadoConversacion estado,
+                                                              boolean soloNoLeidas, Long publicacionId, int pagina) {
         // Desempate por id: sin un orden total dos páginas consecutivas pueden repetir o saltear conversaciones.
         Pageable pageable = PageRequest.of(Math.max(pagina, 1) - 1, TAMANIO_DE_PAGINA,
                 Sort.by(Sort.Order.desc("ultimoMensajeEn"), Sort.Order.desc("id")));
         Page<Conversacion> conversaciones =
-                conversacionRepository.findAll(ConversacionSpecification.bandeja(tipo, estado, soloNoLeidas), pageable);
+                conversacionRepository.findAll(ConversacionSpecification.bandeja(tipo, estado, soloNoLeidas, publicacionId), pageable);
 
         List<ConversacionResumenResponse> filas = resumir(conversaciones.getContent());
         return PaginaResponse.de(new PageImpl<>(filas, conversaciones.getPageable(), conversaciones.getTotalElements()));
