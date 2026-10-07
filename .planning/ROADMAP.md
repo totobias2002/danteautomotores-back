@@ -169,11 +169,11 @@ Plans:
   4. El admin ve en el panel una bandeja con todas las conversaciones, la filtra por tipo, estado y no leídas, y puede cerrar o reabrir cada conversación
   5. Desde una conversación, el admin abre la ficha del usuario (nombre, teléfono, DNI, mail) con su historial de conversaciones
 
-**Plans**: 0/11 plans complete
+**Plans**: 1/11 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 04-01-PLAN.md — Tracer: "Lo quiero" abre una conversación de compra (V6, modelo, gate) y aparece en Mis mensajes; incluye las decisiones tomadas de la fase (ola 1)
+- [x] 04-01-PLAN.md — Tracer: "Lo quiero" abre una conversación de compra (V6, modelo, gate) y aparece en Mis mensajes; incluye las decisiones tomadas de la fase (ola 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 04-02-PLAN.md — Contrato del tracer (servicio, seguridad, Postgres real) y "Consultar por este auto" abre la conversación con el texto escrito (ola 2)
@@ -252,6 +252,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Gestión del inventario por el admin | 7/7 | Complete    | 2026-10-03 |
 | 2. Catálogo público real en producción | 8/8 | Complete    | 2026-10-05 |
 | 3. Cuentas verificadas | 15/15 | Complete    | 2026-10-06 |
-| 4. Compra por conversación con la agencia | 0/11 | Not started | - |
+| 4. Compra por conversación con la agencia | 1/11 | In Progress|  |
 | 5. Cotizador de usados | 0/TBD | Not started | - |
 | 6. Experiencia visual pulida | 0/TBD | Not started | - |
