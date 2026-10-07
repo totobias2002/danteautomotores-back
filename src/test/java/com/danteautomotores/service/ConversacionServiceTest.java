@@ -357,6 +357,52 @@ class ConversacionServiceTest {
     }
 
     @Test
+    void borrarMiaOcultaUnaConversacionCerradaDelLadoDelComprador() {
+        Conversacion cerrada = abiertaExistente();
+        cerrada.setEstado(EstadoConversacion.CERRADA);
+        existeLaCuenta(cuentaVerificada());
+        when(conversacionRepository.findByIdAndUsuarioId(50L, 3L)).thenReturn(Optional.of(cerrada));
+
+        servicio.borrarMia(50L, EMAIL);
+
+        assertThat(cerrada.isOcultaParaUsuario()).isTrue();
+        verify(conversacionRepository).save(cerrada);
+    }
+
+    @Test
+    void borrarMiaRechazaUnaConversacionAbierta() {
+        Conversacion abierta = abiertaExistente();
+        existeLaCuenta(cuentaVerificada());
+        when(conversacionRepository.findByIdAndUsuarioId(50L, 3L)).thenReturn(Optional.of(abierta));
+
+        assertThatThrownBy(() -> servicio.borrarMia(50L, EMAIL)).isInstanceOf(ReglaDeNegocioException.class);
+
+        assertThat(abierta.isOcultaParaUsuario()).isFalse();
+        verify(conversacionRepository, never()).save(any());
+    }
+
+    @Test
+    void unaConversacionBorradaPorElCompradorDaLoMismoQueUnaInexistente() {
+        Conversacion oculta = abiertaExistente();
+        oculta.setOcultaParaUsuario(true);
+        existeLaCuenta(cuentaVerificada());
+        when(conversacionRepository.findByIdAndUsuarioId(50L, 3L)).thenReturn(Optional.of(oculta));
+
+        assertThatThrownBy(() -> servicio.obtenerMia(50L, EMAIL)).isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void listarMiasNoIncluyeLasQueElCompradorBorro() {
+        Conversacion oculta = abiertaExistente();
+        oculta.setOcultaParaUsuario(true);
+        existeLaCuenta(cuentaVerificada());
+        when(conversacionRepository.findByUsuarioIdOrderByUltimoMensajeEnDescIdDesc(3L)).thenReturn(List.of(oculta));
+
+        assertThat(servicio.listarMias(EMAIL)).isEmpty();
+        verifyNoInteractions(mensajeRepository);
+    }
+
+    @Test
     void obtenerMiaDevuelveElHiloEnOrdenAscendenteParaElDueno() {
         Conversacion conversacion = abiertaExistente();
         Mensaje primero = Mensaje.builder().id(900L).conversacion(conversacion).autorTipo(AutorMensaje.USUARIO)

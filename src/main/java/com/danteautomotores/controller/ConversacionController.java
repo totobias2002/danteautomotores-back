@@ -53,4 +53,11 @@ public class ConversacionController {
     public ResponseEntity<MensajeResponse> enviarMensaje(@PathVariable Long id, @Valid @RequestBody MensajeRequest request) {
         return ResponseEntity.ok(conversacionService.enviarMensaje(id, request, SecurityUtils.obtenerEmailAutenticado()));
     }
+
+    // Solo oculta la conversación cerrada de la lista del comprador; la agencia la conserva completa.
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> borrarMia(@PathVariable Long id) {
+        conversacionService.borrarMia(id, SecurityUtils.obtenerEmailAutenticado());
+        return ResponseEntity.noContent().build();
+    }
 }

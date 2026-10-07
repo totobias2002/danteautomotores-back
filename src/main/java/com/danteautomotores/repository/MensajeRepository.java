@@ -60,6 +60,7 @@ public interface MensajeRepository extends JpaRepository<Mensaje, Long> {
     @Query("""
             select count(m) from Mensaje m
             where m.conversacion.usuario.id = :usuarioId
+              and m.conversacion.ocultaParaUsuario = false
               and m.autorTipo = :autorTipo
               and m.leidoEn is null
             """)
@@ -68,6 +69,7 @@ public interface MensajeRepository extends JpaRepository<Mensaje, Long> {
     @Query("""
             select count(distinct m.conversacion.id) from Mensaje m
             where m.conversacion.usuario.id = :usuarioId
+              and m.conversacion.ocultaParaUsuario = false
               and m.autorTipo = :autorTipo
               and m.leidoEn is null
             """)

@@ -49,4 +49,9 @@ public class Conversacion {
 
     @Column(name = "cerrada_en")
     private LocalDateTime cerradaEn;
+
+    // El comprador la borró de su lista. Solo oculta: la agencia sigue viendo la conversación completa.
+    @Column(name = "oculta_para_usuario", nullable = false)
+    @Builder.Default
+    private boolean ocultaParaUsuario = false;
 }

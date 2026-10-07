@@ -106,8 +106,11 @@ public class ConversacionService {
     public List<ConversacionResumenResponse> listarMias(String email) {
         Usuario usuario = usuarioRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe la cuenta"));
+        // Las que el comprador borró de su lista no vuelven a aparecer (la agencia las sigue viendo).
         List<Conversacion> conversaciones =
-                conversacionRepository.findByUsuarioIdOrderByUltimoMensajeEnDescIdDesc(usuario.getId());
+                conversacionRepository.findByUsuarioIdOrderByUltimoMensajeEnDescIdDesc(usuario.getId()).stream()
+                        .filter(c -> !c.isOcultaParaUsuario())
+                        .toList();
         if (conversaciones.isEmpty()) {
             return List.of();
         }
@@ -185,8 +188,24 @@ public class ConversacionService {
         return ConversacionMapper.toMensaje(mensaje);
     }
 
+    /**
+     * El comprador borra de su lista una conversación cerrada. Solo la oculta de su lado: la conversación y los mensajes
+     * siguen en la base y la agencia los ve siempre. Borrarla dos veces da 404, igual que una ajena.
+     */
+    public void borrarMia(Long id, String email) {
+        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new ResourceNotFoundException("No existe la cuenta"));
+        Conversacion conversacion = buscarPropia(id, usuario);
+        if (conversacion.getEstado() != EstadoConversacion.CERRADA) {
+            throw new ReglaDeNegocioException("Solo podés borrar una conversación cerrada.");
+        }
+        conversacion.setOcultaParaUsuario(true);
+        conversacionRepository.save(conversacion);
+    }
+
     private Conversacion buscarPropia(Long id, Usuario usuario) {
         return conversacionRepository.findByIdAndUsuarioId(id, usuario.getId())
+                .filter(c -> !c.isOcultaParaUsuario())
                 .orElseThrow(() -> new ResourceNotFoundException("No existe la conversación"));
     }
 

@@ -153,6 +153,8 @@ public class ConversacionAdminService {
             }
             conversacion.setEstado(EstadoConversacion.ABIERTA);
             conversacion.setCerradaEn(null);
+            // Si el comprador la había borrado de su lista, al reabrirla vuelve a verla.
+            conversacion.setOcultaParaUsuario(false);
         }
         return resumenParaAdmin(conversacion);
     }
