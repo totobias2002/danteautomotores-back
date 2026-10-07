@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: 4
 current_phase_name: Compra por conversación con la agencia
-current_plan: 7
+current_plan: 8
 status: executing
-stopped_at: Completed 04-06-PLAN.md
-last_updated: "2026-10-07T18:21:37.333Z"
+stopped_at: Completed 04-07-PLAN.md
+last_updated: "2026-10-07T18:30:41.041Z"
 last_activity: 2026-10-07
 last_activity_desc: Phase 03 complete, transitioned to Phase 4
-state_head: 6cb21441dc13807d0e16014a946202bd30520f3e
+state_head: 82421096678c433ca04ac8dafd7f5ba2a1e9990f
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 41
-  completed_plans: 36
+  completed_plans: 37
   percent: 50
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-03)
 ## Current Position
 
 Phase: 4 — Compra por conversación con la agencia
-Current Plan: 7
+Current Plan: 8
 Total Plans in Phase: 11
 Status: Ready to execute
 Last activity: 2026-10-07 — Completed 04-06 (el admin atiende una conversación)
@@ -96,6 +96,7 @@ Progress: [█████░░░░░] 50%
 | Phase 04 P04 | 40min | 1 tasks | 19 files |
 | Phase 04 P05 | 45min | 1 tasks | 19 files |
 | Phase 04 P06 | 40min | 1 tasks | 11 files |
+| Phase 4 P07 | 35min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -160,6 +161,7 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-05: sin estado el back devuelve todas las conversaciones; el front manda estado=ABIERTA por defecto y omite estado con el filtro TODAS
 - [Phase 04]: 04-05: usuario del resumen es NON_NULL y solo lo completa toResumenParaAdmin; el comprador nunca lo recibe
 - [Phase 04]: 04-06: cerrar y reabrir son idempotentes; reabrir una compra con auto se rechaza con 400 si el usuario ya tiene otra abierta por el mismo auto (el indice unico parcial de V6 es la ultima defensa)
+- [Phase 4]: 04-07: el aviso de mensaje nuevo se engancha solo en RegistroDeMensajes.agregar, despues del commit, con ventana de 10 minutos antes del tope diario
 
 ### Pending Todos
 
@@ -192,8 +194,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T18:21:15.909Z
-Stopped at: Completed 04-06-PLAN.md
+Last session: 2026-10-07T18:30:40.935Z
+Stopped at: Completed 04-07-PLAN.md
 Seguridad: el 2026-10-05 se rotaron la clave de Postgres, APP_JWT_SECRET y las credenciales de Cloudinary (key dante-prod-3 con rol Master admin; el resto de las keys se borraron). Produccion verificada despues de rotar (health UP, 11 autos).
 Pendientes menores de produccion: bajarle a la key de Cloudinary el rol Master admin a uno acotado si Cloudinary lo permite; revisar 3 cuentas COMPRADOR de prueba en usuarios; confirmar el Healthcheck Path /actuator/health en Railway; apagar SPRING_FLYWAY_BASELINE_ON_MIGRATE.
 Fase 3: 03-CONTEXT y 03-RESEARCH listos; falta que el usuario responda 5 preguntas del research (union con Google que descarta la contrasena de cuentas sin mail confirmado, boton "Lo quiero", remitente Brevo/dominio, cierre de sesiones al cambiar clave, texto legal /privacidad) y planificar.
