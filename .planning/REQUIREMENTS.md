@@ -36,7 +36,7 @@
 - [ ] **MSG-02**: Al iniciar la compra, el usuario puede indicar opcionalmente que entrega su auto (una cotización suya) como parte de pago
 - [x] **MSG-03**: El usuario ve "Mis mensajes", con sus conversaciones y el auto o cotización asociado
 - [x] **MSG-04**: El usuario y el admin pueden intercambiar mensajes de texto dentro de una conversación
-- [ ] **MSG-05**: Ambos ven un contador de mensajes no leídos en la web
+- [x] **MSG-05**: Ambos ven un contador de mensajes no leídos en la web
 - [ ] **MSG-06**: Ambos reciben un mail cuando les llega un mensaje nuevo
 - [ ] **MSG-07**: El admin tiene una bandeja con todas las conversaciones, filtrable por tipo (compra/cotización), estado (abierta/cerrada) y no leídas
 - [ ] **MSG-08**: El admin puede cerrar o reabrir una conversación
@@ -122,7 +122,7 @@
 | MSG-02 | Phase 5 | Pending |
 | MSG-03 | Phase 4 | Complete |
 | MSG-04 | Phase 4 | Complete |
-| MSG-05 | Phase 4 | Pending |
+| MSG-05 | Phase 4 | Complete |
 | MSG-06 | Phase 4 | Pending |
 | MSG-07 | Phase 4 | Pending |
 | MSG-08 | Phase 4 | Pending |

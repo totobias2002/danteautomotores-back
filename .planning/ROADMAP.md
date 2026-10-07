@@ -169,7 +169,7 @@ Plans:
   4. El admin ve en el panel una bandeja con todas las conversaciones, la filtra por tipo, estado y no leídas, y puede cerrar o reabrir cada conversación
   5. Desde una conversación, el admin abre la ficha del usuario (nombre, teléfono, DNI, mail) con su historial de conversaciones
 
-**Plans**: 3/11 plans executed
+**Plans**: 4/11 plans executed
 
 Plans:
 **Wave 1**
@@ -182,7 +182,7 @@ Plans:
 - [x] 04-03-PLAN.md — El comprador abre su hilo y escribe mensajes, con límite de envío y consulta periódica (ola 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 04-04-PLAN.md — Contador de mensajes no leídos del comprador en el Navbar y en la lista, y marcado de leídos al abrir el hilo (ola 4)
+- [x] 04-04-PLAN.md — Contador de mensajes no leídos del comprador en el Navbar y en la lista, y marcado de leídos al abrir el hilo (ola 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 04-05-PLAN.md — Bandeja del admin filtrable por tipo, estado y no leídas, con contador en el Navbar y en el panel (ola 5)
@@ -252,6 +252,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Gestión del inventario por el admin | 7/7 | Complete    | 2026-10-03 |
 | 2. Catálogo público real en producción | 8/8 | Complete    | 2026-10-05 |
 | 3. Cuentas verificadas | 15/15 | Complete    | 2026-10-06 |
-| 4. Compra por conversación con la agencia | 3/11 | In Progress|  |
+| 4. Compra por conversación con la agencia | 4/11 | In Progress|  |
 | 5. Cotizador de usados | 0/TBD | Not started | - |
 | 6. Experiencia visual pulida | 0/TBD | Not started | - |
