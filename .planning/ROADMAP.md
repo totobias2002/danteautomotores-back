@@ -169,7 +169,42 @@ Plans:
   4. El admin ve en el panel una bandeja con todas las conversaciones, la filtra por tipo, estado y no leídas, y puede cerrar o reabrir cada conversación
   5. Desde una conversación, el admin abre la ficha del usuario (nombre, teléfono, DNI, mail) con su historial de conversaciones
 
-**Plans**: TBD
+**Plans**: 0/11 plans complete
+
+Plans:
+**Wave 1**
+- [ ] 04-01-PLAN.md — Tracer: "Lo quiero" abre una conversación de compra (V6, modelo, gate) y aparece en Mis mensajes; incluye las decisiones tomadas de la fase (ola 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 04-02-PLAN.md — Contrato del tracer (servicio, seguridad, Postgres real) y "Consultar por este auto" abre la conversación con el texto escrito (ola 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 04-03-PLAN.md — El comprador abre su hilo y escribe mensajes, con límite de envío y consulta periódica (ola 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 04-04-PLAN.md — Contador de mensajes no leídos del comprador en el Navbar y en la lista, y marcado de leídos al abrir el hilo (ola 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 04-05-PLAN.md — Bandeja del admin filtrable por tipo, estado y no leídas, con contador en el Navbar y en el panel (ola 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 04-06-PLAN.md — Hilo del admin: ver, responder, cerrar y reabrir, con el recorrido completo comprador y agencia en el humo (ola 6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 04-07-PLAN.md — Avisos por mail de mensaje nuevo a los dos lados, sin el texto y con una ventana de 10 minutos (ola 7)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 04-08-PLAN.md — Ficha del usuario para el admin con su historial de conversaciones y pasada de privacidad (ola 8)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 04-09-PLAN.md — V7: las consultas viejas pasan a la bandeja, borrar un auto cuenta y borra conversaciones, y se retira el modelo de consultas (ola 9)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [ ] 04-10-PLAN.md — README de los dos repos y verificación final de punta a punta (suites, humos y recorrido en navegador) (ola 10)
+
+**Wave 11** *(blocked on Wave 10 completion; checkpoints humanos)*
+- [ ] 04-11-PLAN.md — Producción: backup, ensayo de V6 y V7 con copia, deploy y prueba real con mails (ola 11, no autónomo)
+
 **UI hint**: yes
 **Notes**: La entidad `Consulta` existente evoluciona hacia el modelo de conversaciones o se reemplaza por él. Ese modelo contempla desde el inicio el tipo "cotización" (lo usa la Fase 5). Los avisos por mail reutilizan el servicio de PROD-03. Mensajería tipo bandeja, sin tiempo real.
 
@@ -217,6 +252,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Gestión del inventario por el admin | 7/7 | Complete    | 2026-10-03 |
 | 2. Catálogo público real en producción | 8/8 | Complete    | 2026-10-05 |
 | 3. Cuentas verificadas | 15/15 | Complete    | 2026-10-06 |
-| 4. Compra por conversación con la agencia | 0/TBD | Not started | - |
+| 4. Compra por conversación con la agencia | 0/11 | Not started | - |
 | 5. Cotizador de usados | 0/TBD | Not started | - |
 | 6. Experiencia visual pulida | 0/TBD | Not started | - |
