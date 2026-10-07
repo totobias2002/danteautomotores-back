@@ -2,13 +2,14 @@
 // Uso (ADMIN_EMAIL y ADMIN_PASSWORD son las del admin que siembra el back local):
 //   ADMIN_EMAIL=admin.humo@dante.test ADMIN_PASSWORD=... ADMIN_NOMBRE=AdminHumo \
 //     bash scripts/verify/con-back-local.sh --vacia dante_humo_mensajes node scripts/verify/mensajes-humo.js
-// Este plan cubre "Lo quiero" y la lista de Mis mensajes; los planes siguientes agregan el resto de la fase.
+// Cubre "Lo quiero", la lista de Mis mensajes y sus casos negativos; los planes siguientes agregan el resto de la fase.
 const {
   exigir,
   revisar,
   pedir,
   post,
   sufijoUnico,
+  dniAleatorio,
   registrarCuentaVerificada,
   iniciarSesionAdmin,
   cerrar,
@@ -38,18 +39,23 @@ function clavesPresentes(valor, prohibidas, encontradas = new Set()) {
   exigir(agencias.estado === 200 && Array.isArray(agencias.cuerpo) && agencias.cuerpo.length > 0, "no hay agencias");
   const agenciaId = agencias.cuerpo[0].id;
 
-  const auto = await post("/publicaciones", {
-    agenciaId,
-    marca,
-    modelo,
-    anio: 2020,
-    precio: 12345678,
-    moneda: "ARS",
-    kilometraje: 40000,
-    descripcion: "Auto de prueba del humo de mensajes",
-  }, admin.token);
-  exigir(auto.estado === 201 || auto.estado === 200, `crear el auto: estado ${auto.estado}: ${auto.texto}`);
-  const publicacionId = auto.cuerpo.id;
+  const autosCreados = [];
+  const crearAuto = async (modeloAuto, descripcion) => {
+    const creado = await post("/publicaciones", {
+      agenciaId,
+      marca,
+      modelo: modeloAuto,
+      anio: 2020,
+      precio: 12345678,
+      moneda: "ARS",
+      kilometraje: 40000,
+      descripcion,
+    }, admin.token);
+    exigir(creado.estado === 201 || creado.estado === 200, `crear el auto: estado ${creado.estado}: ${creado.texto}`);
+    autosCreados.push(creado.cuerpo.id);
+    return creado.cuerpo.id;
+  };
+  const publicacionId = await crearAuto(modelo, "Auto de prueba del humo de mensajes");
 
   const comprador = await registrarCuentaVerificada("comprador");
 
@@ -96,10 +102,106 @@ function clavesPresentes(valor, prohibidas, encontradas = new Set()) {
     exigir(delAuto.length === 1, `la lista tiene ${delAuto.length} conversaciones del auto (esperaba 1)`);
   });
 
-  // ---- Limpieza del auto de prueba (la base es descartable, pero el humo no deja basura si se reusa) ----
-  await revisar("el admin borra el auto de prueba y se lleva sus conversaciones", async () => {
-    const borrado = await pedir("DELETE", `/publicaciones/${publicacionId}`, undefined, admin.token);
-    exigir(borrado.estado === 204 || borrado.estado === 200, `estado ${borrado.estado}: ${borrado.texto}`);
+  // ---- Casos negativos y de borde (MSG-01, D-04, D-12, T-04-01, T-04-08) ----
+  await revisar("sin token POST /conversaciones da 401 y GET también", async () => {
+    const creacion = await post("/conversaciones", { publicacionId });
+    exigir(creacion.estado === 401, `POST sin token: estado ${creacion.estado}`);
+    const lista = await pedir("GET", "/conversaciones");
+    exigir(lista.estado === 401, `GET sin token: estado ${lista.estado}`);
+  });
+
+  await revisar("con la cuenta admin POST y GET /conversaciones dan 403", async () => {
+    const creacion = await post("/conversaciones", { publicacionId }, admin.token);
+    exigir(creacion.estado === 403, `POST del admin: estado ${creacion.estado}`);
+    const lista = await pedir("GET", "/conversaciones", undefined, admin.token);
+    exigir(lista.estado === 403, `GET del admin: estado ${lista.estado}`);
+  });
+
+  await revisar("una cuenta con el mail sin confirmar recibe 403 CUENTA_NO_VERIFICADA y no se crea nada", async () => {
+    const sinConfirmar = `sinconfirmar.${sufijo}@dante.test`;
+    const clave = `Humo-${sufijo}-y`;
+    const registro = await post("/auth/registro", {
+      nombre: "Humo",
+      apellido: "SinConfirmar",
+      telefono: "011 15 1234-5678",
+      dni: dniAleatorio(),
+      email: sinConfirmar,
+      password: clave,
+    });
+    exigir(registro.estado === 200, `registro: estado ${registro.estado}: ${registro.texto}`);
+    const login = await post("/auth/login", { email: sinConfirmar, password: clave });
+    exigir(login.estado === 200 && login.cuerpo && login.cuerpo.token, `login: estado ${login.estado}`);
+    const { estado, cuerpo } = await post("/conversaciones", { publicacionId }, login.cuerpo.token);
+    exigir(estado === 403, `estado ${estado}`);
+    exigir(cuerpo && cuerpo.codigo === "CUENTA_NO_VERIFICADA", `codigo ${cuerpo && cuerpo.codigo}`);
+    exigir(Array.isArray(cuerpo.faltantes) && cuerpo.faltantes.includes("EMAIL_SIN_CONFIRMAR"),
+      `faltantes ${JSON.stringify(cuerpo.faltantes)}`);
+    const lista = await pedir("GET", "/conversaciones", undefined, login.cuerpo.token);
+    exigir(lista.estado === 200 && Array.isArray(lista.cuerpo) && lista.cuerpo.length === 0,
+      `la cuenta sin confirmar no debería tener conversaciones: ${lista.texto}`);
+  });
+
+  await revisar("un auto VENDIDO da 400 'Este auto ya se vendió' y un RESERVADO se acepta", async () => {
+    const vendidoId = await crearAuto("Vendido", "Auto vendido del humo");
+    const reservadoId = await crearAuto("Reservado", "Auto reservado del humo");
+    const vendido = await pedir("PATCH", `/publicaciones/${vendidoId}/estado`, { estado: "VENDIDO" }, admin.token);
+    exigir(vendido.estado === 200, `pasar a VENDIDO: estado ${vendido.estado}: ${vendido.texto}`);
+    const reservado = await pedir("PATCH", `/publicaciones/${reservadoId}/estado`, { estado: "RESERVADO" }, admin.token);
+    exigir(reservado.estado === 200, `pasar a RESERVADO: estado ${reservado.estado}: ${reservado.texto}`);
+
+    const rechazado = await post("/conversaciones", { publicacionId: vendidoId }, comprador.token);
+    exigir(rechazado.estado === 400, `auto vendido: estado ${rechazado.estado}`);
+    exigir(rechazado.cuerpo && rechazado.cuerpo.error === "Este auto ya se vendió", `mensaje: ${rechazado.texto}`);
+
+    const aceptado = await post("/conversaciones", { publicacionId: reservadoId }, comprador.token);
+    exigir(aceptado.estado === 200, `auto reservado: estado ${aceptado.estado}: ${aceptado.texto}`);
+    exigir(aceptado.cuerpo.publicacion.estado === "RESERVADO", `estado del auto ${aceptado.cuerpo.publicacion.estado}`);
+
+    const lista = await pedir("GET", "/conversaciones", undefined, comprador.token);
+    exigir(!lista.cuerpo.some((c) => c.publicacion && c.publicacion.id === vendidoId), "se creó una conversación del auto vendido");
+  });
+
+  await revisar("un auto inexistente da 404", async () => {
+    const { estado } = await post("/conversaciones", { publicacionId: 2000000000 }, comprador.token);
+    exigir(estado === 404, `estado ${estado}`);
+  });
+
+  await revisar("un cuerpo con tipo, estado y usuarioId de más igual crea una conversación COMPRA ABIERTA propia", async () => {
+    const autoDeMasId = await crearAuto("CamposDeMas", "Auto del humo para campos de más");
+    const { estado, cuerpo } = await post("/conversaciones", {
+      publicacionId: autoDeMasId,
+      tipo: "COTIZACION",
+      estado: "CERRADA",
+      usuarioId: 1,
+    }, comprador.token);
+    exigir(estado === 200, `estado ${estado}`);
+    exigir(cuerpo.tipo === "COMPRA" && cuerpo.estado === "ABIERTA", `salió ${cuerpo.tipo} ${cuerpo.estado}`);
+    const lista = await pedir("GET", "/conversaciones", undefined, comprador.token);
+    exigir(lista.cuerpo.some((c) => c.id === cuerpo.id), "la conversación no es de la cuenta del token");
+  });
+
+  await revisar("un mensaje de 2001 caracteres da 400 con campos.mensaje", async () => {
+    const { estado, cuerpo } = await post("/conversaciones", { publicacionId, mensaje: "a".repeat(2001) }, comprador.token);
+    exigir(estado === 400, `estado ${estado}`);
+    exigir(cuerpo && cuerpo.campos && cuerpo.campos.mensaje, `sin campos.mensaje: ${JSON.stringify(cuerpo)}`);
+  });
+
+  await revisar("la lista de una segunda cuenta verificada no incluye la conversación de la primera (T-04-01)", async () => {
+    const otra = await registrarCuentaVerificada("otra");
+    const { estado, cuerpo } = await pedir("GET", "/conversaciones", undefined, otra.token);
+    exigir(estado === 200 && Array.isArray(cuerpo), `estado ${estado}`);
+    exigir(cuerpo.length === 0, `la segunda cuenta ve ${cuerpo.length} conversaciones ajenas`);
+    exigir(!cuerpo.some((c) => c.id === conversacionId), "la conversación de la primera cuenta aparece en la lista de la segunda");
+  });
+
+  // ---- Limpieza de los autos de prueba (la base es descartable, pero el humo no deja basura si se reusa) ----
+  await revisar("el admin borra los autos de prueba y se lleva sus conversaciones", async () => {
+    for (const id of autosCreados) {
+      const borrado = await pedir("DELETE", `/publicaciones/${id}`, undefined, admin.token);
+      exigir(borrado.estado === 204 || borrado.estado === 200, `borrar ${id}: estado ${borrado.estado}: ${borrado.texto}`);
+    }
+    const despues = await pedir("GET", "/conversaciones", undefined, comprador.token);
+    exigir(despues.cuerpo.length === 0, `quedaron ${despues.cuerpo.length} conversaciones`);
   });
 
   cerrar();
