@@ -9,6 +9,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -35,4 +38,11 @@ public interface ConversacionRepository extends JpaRepository<Conversacion, Long
     // conversación abierta distinta de la que se reabre.
     boolean existsByUsuarioIdAndPublicacionIdAndTipoAndEstadoAndIdNot(
             Long usuarioId, Long publicacionId, TipoConversacion tipo, EstadoConversacion estado, Long id);
+
+    // Borrado del auto (D-16): el aviso previo cuenta y el borrado quita las conversaciones de la publicación.
+    long countByPublicacionId(Long publicacionId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from Conversacion c where c.publicacion.id = :publicacionId")
+    int deleteByPublicacionId(@Param("publicacionId") Long publicacionId);
 }

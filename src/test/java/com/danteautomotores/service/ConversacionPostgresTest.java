@@ -395,4 +395,45 @@ class ConversacionPostgresTest extends PostgresLocalTestBase {
         assertThat(conversacionService.obtenerMia(hilos[0].getId(), "ana@dante.test").getConversacion().getNoLeidos())
                 .isEqualTo(2);
     }
+
+    // ---- Borrar un auto (D-16) ----
+
+    private void hilosDeDosAutos() {
+        Conversacion deAnaCorolla = conversacion(ana, corolla, EstadoConversacion.ABIERTA);
+        Conversacion deBetoCorolla = conversacion(beto, corolla, EstadoConversacion.ABIERTA);
+        Conversacion deAnaYaris = conversacion(ana, yaris, EstadoConversacion.ABIERTA);
+        registroDeMensajes.agregar(deAnaCorolla, ana, AutorMensaje.USUARIO, "Ana por el Corolla");
+        registroDeMensajes.agregar(deAnaCorolla, admin, AutorMensaje.AGENCIA, "agencia a Ana por el Corolla");
+        registroDeMensajes.agregar(deBetoCorolla, beto, AutorMensaje.USUARIO, "Beto por el Corolla");
+        registroDeMensajes.agregar(deAnaYaris, ana, AutorMensaje.USUARIO, "Ana por el Yaris");
+        em.flush();
+        em.clear();
+    }
+
+    @Test
+    void losBorradosMasivosPorAutoDejanSinFilasAEseAutoYNoTocanElOtro() {
+        hilosDeDosAutos();
+        assertThat(conversacionRepository.countByPublicacionId(corolla.getId())).isEqualTo(2);
+
+        assertThat(mensajeRepository.deleteByPublicacionId(corolla.getId())).isEqualTo(3);
+        assertThat(conversacionRepository.deleteByPublicacionId(corolla.getId())).isEqualTo(2);
+
+        assertThat(conversacionRepository.countByPublicacionId(corolla.getId())).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensajes m JOIN conversaciones c ON c.id = m.conversacion_id "
+                + "WHERE c.publicacion_id = ?", Integer.class, corolla.getId())).isZero();
+        // El otro auto conserva su conversación y su mensaje.
+        assertThat(conversacionRepository.countByPublicacionId(yaris.getId())).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensajes", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void borrarLaPublicacionPorSqlEliminaEnCascadaSusConversacionesYMensajes() {
+        hilosDeDosAutos();
+
+        jdbc.update("DELETE FROM publicaciones WHERE id = ?", corolla.getId());
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM conversaciones WHERE publicacion_id = ?", Integer.class, corolla.getId())).isZero();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM conversaciones", Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM mensajes", Integer.class)).isEqualTo(1);
+    }
 }

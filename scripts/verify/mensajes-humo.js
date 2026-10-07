@@ -796,6 +796,32 @@ const conPuntos = (dni) => dni.replace(/\B(?=(\d{3})+$)/g, ".");
     exigir(noNumerico.estado === 400, `id no numérico: estado ${noNumerico.estado}`);
   });
 
+  // ---- Borrar un auto avisa y borra sus conversaciones (D-16) ----
+  await revisar("el impacto de eliminar un auto cuenta sus conversaciones y borrarlo se las lleva", async () => {
+    const autoId = await crearAuto("Borrable", "Auto que se borra con su conversación");
+    const lo_quiero = await post("/conversaciones", { publicacionId: autoId }, comprador.token);
+    exigir(lo_quiero.estado === 200, `Lo quiero: estado ${lo_quiero.estado}: ${lo_quiero.texto}`);
+    const idConversacion = lo_quiero.cuerpo.id;
+
+    const impacto = await pedir("GET", `/admin/publicaciones/${autoId}/impacto-eliminacion`, undefined, admin.token);
+    exigir(impacto.estado === 200, `impacto: estado ${impacto.estado}: ${impacto.texto}`);
+    exigir(impacto.cuerpo.cantidadConversaciones === 1, `cantidadConversaciones ${impacto.cuerpo.cantidadConversaciones} (esperaba 1)`);
+    exigir(!("cantidadConsultas" in impacto.cuerpo), "el impacto todavía trae la clave vieja cantidadConsultas");
+
+    const borrado = await pedir("DELETE", `/publicaciones/${autoId}`, undefined, admin.token);
+    exigir(borrado.estado === 204 || borrado.estado === 200, `borrar el auto: estado ${borrado.estado}: ${borrado.texto}`);
+    autosCreados.splice(autosCreados.indexOf(autoId), 1);
+
+    const lista = await pedir("GET", "/conversaciones", undefined, comprador.token);
+    exigir(!lista.cuerpo.some((c) => c.id === idConversacion), "la lista del comprador todavía trae la conversación del auto borrado");
+    const hilo = await pedir("GET", `/conversaciones/${idConversacion}`, undefined, comprador.token);
+    exigir(hilo.estado === 404, `el hilo del comprador: estado ${hilo.estado} (esperaba 404)`);
+    const hiloAdminBorrado = await pedir("GET", `/admin/conversaciones/${idConversacion}`, undefined, admin.token);
+    exigir(hiloAdminBorrado.estado === 404, `el hilo del admin: estado ${hiloAdminBorrado.estado} (esperaba 404)`);
+    const bandeja = await pedir("GET", "/admin/conversaciones", undefined, admin.token);
+    exigir(!bandeja.cuerpo.contenido.some((c) => c.id === idConversacion), "la bandeja del admin todavía trae la conversación del auto borrado");
+  });
+
   // ---- Limpieza de los autos de prueba (la base es descartable, pero el humo no deja basura si se reusa) ----
   await revisar("el admin borra los autos de prueba y se lleva sus conversaciones", async () => {
     for (const id of autosCreados) {

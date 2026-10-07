@@ -17,9 +17,10 @@ import com.danteautomotores.enums.TipoCarroceria;
 import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.exception.ServicioExternoException;
 import com.danteautomotores.repository.AgenciaRepository;
-import com.danteautomotores.repository.ConsultaRepository;
+import com.danteautomotores.repository.ConversacionRepository;
 import com.danteautomotores.repository.FavoritoRepository;
 import com.danteautomotores.repository.FotoPublicacionRepository;
+import com.danteautomotores.repository.MensajeRepository;
 import com.danteautomotores.repository.PublicacionRepository;
 import com.danteautomotores.repository.UsuarioRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -80,7 +81,10 @@ class PublicacionServiceTest {
     private FotoPublicacionRepository fotoPublicacionRepository;
 
     @Mock
-    private ConsultaRepository consultaRepository;
+    private ConversacionRepository conversacionRepository;
+
+    @Mock
+    private MensajeRepository mensajeRepository;
 
     @Mock
     private FavoritoRepository favoritoRepository;
@@ -722,15 +726,16 @@ class PublicacionServiceTest {
     }
 
     @Test
-    void eliminarBorraFavoritosYConsultasAntesQueLaPublicacion() {
+    void eliminarBorraFavoritosMensajesYConversacionesAntesQueLaPublicacion() {
         Publicacion publicacion = publicacionConFotos();
         when(publicacionRepository.findById(10L)).thenReturn(Optional.of(publicacion));
 
         publicacionService.eliminar(10L);
 
-        InOrder orden = inOrder(favoritoRepository, consultaRepository, publicacionRepository);
+        InOrder orden = inOrder(favoritoRepository, mensajeRepository, conversacionRepository, publicacionRepository);
         orden.verify(favoritoRepository).deleteByPublicacionId(10L);
-        orden.verify(consultaRepository).deleteByPublicacionId(10L);
+        orden.verify(mensajeRepository).deleteByPublicacionId(10L);
+        orden.verify(conversacionRepository).deleteByPublicacionId(10L);
         orden.verify(publicacionRepository).delete(publicacion);
     }
 
@@ -742,7 +747,8 @@ class PublicacionServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
 
         verify(favoritoRepository, never()).deleteByPublicacionId(any());
-        verify(consultaRepository, never()).deleteByPublicacionId(any());
+        verify(mensajeRepository, never()).deleteByPublicacionId(any());
+        verify(conversacionRepository, never()).deleteByPublicacionId(any());
         verify(publicacionRepository, never()).delete(any(Publicacion.class));
         verify(cloudinaryService, never()).eliminar(any());
     }
@@ -798,12 +804,12 @@ class PublicacionServiceTest {
     @Test
     void obtenerImpactoEliminacionDevuelveLosConteos() {
         when(publicacionRepository.existsById(10L)).thenReturn(true);
-        when(consultaRepository.countByPublicacionId(10L)).thenReturn(3L);
+        when(conversacionRepository.countByPublicacionId(10L)).thenReturn(3L);
         when(favoritoRepository.countByPublicacionId(10L)).thenReturn(5L);
 
         ImpactoEliminacionResponse impacto = publicacionService.obtenerImpactoEliminacion(10L);
 
-        assertThat(impacto.getCantidadConsultas()).isEqualTo(3L);
+        assertThat(impacto.getCantidadConversaciones()).isEqualTo(3L);
         assertThat(impacto.getCantidadFavoritos()).isEqualTo(5L);
     }
 
@@ -897,6 +903,6 @@ class PublicacionServiceTest {
     void elImpactoDeEliminacionSoloTieneDosConteosSinDatosPersonales() {
         assertThat(ImpactoEliminacionResponse.class.getDeclaredFields())
                 .extracting(Field::getName)
-                .containsExactlyInAnyOrder("cantidadConsultas", "cantidadFavoritos");
+                .containsExactlyInAnyOrder("cantidadConversaciones", "cantidadFavoritos");
     }
 }

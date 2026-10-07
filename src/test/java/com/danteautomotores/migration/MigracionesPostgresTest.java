@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Las migraciones contra un PostgreSQL real, sin Spring. Cada test trabaja sobre sus propias bases test_* y las borra.
  * Lo que se prueba es lo que no se puede arreglar después en producción: una base creada por Hibernate sin historial
- * de Flyway queda marcada como V1, recibe de V2 a V6 y no pierde ninguna fila.
+ * de Flyway queda marcada como V1, recibe de V2 a V7 y no pierde ninguna fila.
  */
 class MigracionesPostgresTest {
 
@@ -154,24 +154,24 @@ class MigracionesPostgresTest {
     // ---- Tests ----
 
     @Test
-    void baseVaciaAplicaLasSeisMigraciones() throws SQLException {
+    void baseVaciaAplicaLasSieteMigraciones() throws SQLException {
         String base = baseNueva();
 
         MigrateResult resultado = flyway(base, true).migrate();
 
-        assertThat(resultado.migrationsExecuted).isEqualTo(6);
-        assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true");
+        assertThat(resultado.migrationsExecuted).isEqualTo(7);
+        assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true", "7:SQL:true");
     }
 
     @Test
-    void produccionSimuladaQuedaEnBaselineV1RecibeDeV2AV6SinPerderFilas() throws SQLException {
+    void produccionSimuladaQuedaEnBaselineV1RecibeDeV2AV7SinPerderFilas() throws SQLException {
         String base = produccionSimulada();
         Map<String, Long> antes = conteos(base);
 
         MigrateResult resultado = flyway(base, true).migrate();
 
-        assertThat(resultado.migrationsExecuted).isEqualTo(5);
-        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true");
+        assertThat(resultado.migrationsExecuted).isEqualTo(6);
+        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true", "7:SQL:true");
         assertThat(conteos(base)).isEqualTo(antes);
         assertThat(valor(base, "SELECT count(*) FROM publicaciones WHERE destacado = false")).isEqualTo("2");
         assertThat(valor(base, "SELECT fecha_vendido IS NOT NULL FROM publicaciones WHERE estado = 'VENDIDO'")).isEqualTo("t");
@@ -185,8 +185,8 @@ class MigracionesPostgresTest {
 
         MigrateResult resultado = flyway(base, true).migrate();
 
-        assertThat(resultado.migrationsExecuted).isEqualTo(5);
-        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true");
+        assertThat(resultado.migrationsExecuted).isEqualTo(6);
+        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true", "7:SQL:true");
         assertThat(conteos(base)).isEqualTo(antes);
     }
 
@@ -291,6 +291,76 @@ class MigracionesPostgresTest {
         assertThat(valor(base, "SELECT count(*) FROM conversaciones")).isEqualTo("1");
     }
 
+    private static final String RESUMEN_DE_CONSULTAS = "SELECT string_agg(id || '|' || email_comprador || '|' || nombre_comprador || '|' "
+            + "|| publicacion_id || '|' || coalesce(fecha::text, '') || '|' || coalesce(mensaje, ''), ';' ORDER BY id) FROM consultas";
+
+    @Test
+    void v7MigraNLasConsultasConCuentaALaBandejaSinPerderNada() throws SQLException {
+        String base = produccionSimulada();
+        String largo = "x".repeat(2500);
+        try (Connection c = conexion(base); Statement st = c.createStatement()) {
+            // Auto 3: solo consultas viejas, sin fotos ni favoritos (la unica clave foranea en juego es la de consultas).
+            st.execute("INSERT INTO publicaciones (anio, marca, modelo, precio, estado, admin_id, agencia_id) "
+                    + "VALUES (2018, 'Fiat', 'Cronos', 900000, 'DISPONIBLE', 1, 1)");
+            st.execute("INSERT INTO consultas (email_comprador, nombre_comprador, publicacion_id, fecha, mensaje) VALUES "
+                    // El comprador (en mayusculas) sobre el auto 2, dos consultas: dos mensajes de una sola conversacion.
+                    + "('COMPRADOR@DANTE.TEST', 'Comprador', 2, '2026-01-01 10:00:00', 'Hola 1'), "
+                    + "('Comprador@dante.test', 'Comprador', 2, '2026-01-02 11:00:00', '  Hola 2 \n'), "
+                    // Sobre el auto 1: un mensaje solo de espacios y uno de 2500 caracteres.
+                    + "('comprador@dante.test', 'Comprador', 1, '2026-01-03 12:00:00', '   \n  '), "
+                    + "('comprador@dante.test', 'Comprador', 1, '2026-01-04 13:00:00', '" + largo + "'), "
+                    // Sin cuenta y de la cuenta admin: no se migran.
+                    + "('nadie@dante.test', 'Nadie', 2, '2026-01-05 14:00:00', 'Sin cuenta'), "
+                    + "('admin@dante.test', 'Admin', 2, '2026-01-06 15:00:00', 'Del admin'), "
+                    // Auto 3.
+                    + "('nadie@dante.test', 'Nadie', 3, '2026-01-07 16:00:00', 'Vieja 1'), "
+                    + "('nadie@dante.test', 'Otro', 3, '2026-01-08 17:00:00', 'Vieja 2')");
+        }
+        Map<String, Long> antes = conteos(base);
+        String consultasAntes = valor(base, RESUMEN_DE_CONSULTAS);
+
+        flyway(base, true).migrate();
+
+        // Aditiva: ninguna fila de consultas ni de las demas tablas cambia.
+        assertThat(conteos(base)).isEqualTo(antes);
+        assertThat(valor(base, RESUMEN_DE_CONSULTAS)).isEqualTo(consultasAntes);
+
+        // Una conversacion COMPRA ABIERTA por cada par usuario y auto con consultas del comprador (id 2): autos 2 y 1.
+        assertThat(valor(base, "SELECT count(*) FROM conversaciones")).isEqualTo("2");
+        assertThat(valor(base, "SELECT count(*) FROM conversaciones WHERE tipo = 'COMPRA' AND estado = 'ABIERTA' "
+                + "AND usuario_id = 2 AND cerrada_en IS NULL")).isEqualTo("2");
+        assertThat(valor(base, "SELECT string_agg(publicacion_id::text, ',' ORDER BY publicacion_id) FROM conversaciones")).isEqualTo("1,2");
+        // Fechas: creada con la primera consulta y ultimo mensaje con la ultima.
+        assertThat(valor(base, "SELECT creada_en::text || '/' || ultimo_mensaje_en::text FROM conversaciones WHERE publicacion_id = 2"))
+                .isEqualTo("2026-01-01 10:00:00/2026-01-02 11:00:00");
+        assertThat(valor(base, "SELECT creada_en::text || '/' || ultimo_mensaje_en::text FROM conversaciones WHERE publicacion_id = 1"))
+                .isEqualTo("2026-01-03 12:00:00/2026-01-04 13:00:00");
+
+        // Los mensajes salen en el orden de las consultas, con su fecha, del usuario y sin leer por la agencia.
+        assertThat(valor(base, "SELECT count(*) FROM mensajes")).isEqualTo("4");
+        assertThat(valor(base, "SELECT count(*) FROM mensajes WHERE autor_tipo = 'USUARIO' AND autor_id = 2 AND leido_en IS NULL")).isEqualTo("4");
+        assertThat(valor(base, "SELECT string_agg(m.texto, '|' ORDER BY m.id) FROM mensajes m JOIN conversaciones c ON c.id = m.conversacion_id "
+                + "WHERE c.publicacion_id = 2")).isEqualTo("Hola 1|Hola 2");
+        assertThat(valor(base, "SELECT string_agg(m.creado_en::text, '|' ORDER BY m.id) FROM mensajes m JOIN conversaciones c ON c.id = m.conversacion_id "
+                + "WHERE c.publicacion_id = 2")).isEqualTo("2026-01-01 10:00:00|2026-01-02 11:00:00");
+        // El de espacios usa el texto fijo y el largo se recorta a 2000 (el CHECK de V6 no se viola).
+        assertThat(valor(base, "SELECT m.texto FROM mensajes m JOIN conversaciones c ON c.id = m.conversacion_id "
+                + "WHERE c.publicacion_id = 1 ORDER BY m.id LIMIT 1")).isEqualTo("Consulta sin mensaje");
+        assertThat(valor(base, "SELECT max(char_length(texto)) FROM mensajes")).isEqualTo("2000");
+        // No se migraron la del mail sin cuenta ni la del admin ni las del auto 3.
+        assertThat(valor(base, "SELECT count(*) FROM mensajes WHERE texto IN ('Sin cuenta', 'Del admin', 'Vieja 1', 'Vieja 2')")).isEqualTo("0");
+        assertThat(valor(base, "SELECT count(*) FROM conversaciones WHERE usuario_id = 1 OR publicacion_id = 3")).isEqualTo("0");
+
+        // Borrar un auto con consultas viejas ya no falla: la clave foranea de consultas es ON DELETE CASCADE.
+        try (Connection c = conexion(base); Statement st = c.createStatement()) {
+            st.execute("DELETE FROM publicaciones WHERE id = 3");
+        }
+        assertThat(valor(base, "SELECT count(*) FROM consultas WHERE publicacion_id = 3")).isEqualTo("0");
+        assertThat(valor(base, "SELECT count(*) FROM consultas")).isEqualTo(String.valueOf(antes.get("consultas") - 2));
+        assertThat(valor(base, "SELECT count(*) FROM pg_constraint WHERE conrelid = 'public.consultas'::regclass "
+                + "AND contype = 'f' AND confdeltype = 'c'")).isEqualTo("1");
+    }
+
     @Test
     void volverAMigrarEjecutaCeroMigracionesYNoCambiaFilas() throws SQLException {
         String vacia = baseNueva();
@@ -330,8 +400,8 @@ class MigracionesPostgresTest {
                 total += futuro.get(60, TimeUnit.SECONDS); // si un migrate lanzara, get() propaga la excepcion
             }
 
-            assertThat(total).isEqualTo(6);
-            assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true");
+            assertThat(total).isEqualTo(7);
+            assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true", "7:SQL:true");
         } finally {
             hilos.shutdownNow();
         }

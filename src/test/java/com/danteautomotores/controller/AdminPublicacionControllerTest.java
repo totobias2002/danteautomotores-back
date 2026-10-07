@@ -51,12 +51,12 @@ class AdminPublicacionControllerTest extends SeguridadWebMvcTestBase {
     @Test
     void adminConsultaElImpactoDeEliminarUnAuto() throws Exception {
         when(publicacionService.obtenerImpactoEliminacion(5L))
-                .thenReturn(ImpactoEliminacionResponse.builder().cantidadConsultas(3).cantidadFavoritos(2).build());
+                .thenReturn(ImpactoEliminacionResponse.builder().cantidadConversaciones(3).cantidadFavoritos(2).build());
 
         mvc.perform(get("/api/admin/publicaciones/5/impacto-eliminacion")
                         .header("Authorization", bearerPara("admin@dante.com", "ADMIN")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.cantidadConsultas").value(3))
+                .andExpect(jsonPath("$.cantidadConversaciones").value(3))
                 .andExpect(jsonPath("$.cantidadFavoritos").value(2));
     }
 

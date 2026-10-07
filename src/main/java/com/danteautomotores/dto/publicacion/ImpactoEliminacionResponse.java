@@ -11,6 +11,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ImpactoEliminacionResponse {
-    private long cantidadConsultas;
+    private long cantidadConversaciones;
     private long cantidadFavoritos;
 }

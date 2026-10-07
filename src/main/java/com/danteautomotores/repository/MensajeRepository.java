@@ -80,4 +80,9 @@ public interface MensajeRepository extends JpaRepository<Mensaje, Long> {
 
     @Query("select count(distinct m.conversacion.id) from Mensaje m where m.autorTipo = :autorTipo and m.leidoEn is null")
     long contarConversacionesConNoLeidos(@Param("autorTipo") AutorMensaje autorTipo);
+
+    // Borrado del auto (D-16): los mensajes de todas las conversaciones de la publicación, antes de borrar éstas.
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from Mensaje m where m.conversacion.id in (select c.id from Conversacion c where c.publicacion.id = :publicacionId)")
+    int deleteByPublicacionId(@Param("publicacionId") Long publicacionId);
 }

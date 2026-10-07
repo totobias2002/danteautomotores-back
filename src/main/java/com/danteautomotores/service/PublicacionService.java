@@ -15,9 +15,10 @@ import com.danteautomotores.exception.ReglaDeNegocioException;
 import com.danteautomotores.exception.ResourceNotFoundException;
 import com.danteautomotores.mapper.PublicacionMapper;
 import com.danteautomotores.repository.AgenciaRepository;
-import com.danteautomotores.repository.ConsultaRepository;
+import com.danteautomotores.repository.ConversacionRepository;
 import com.danteautomotores.repository.FavoritoRepository;
 import com.danteautomotores.repository.FotoPublicacionRepository;
+import com.danteautomotores.repository.MensajeRepository;
 import com.danteautomotores.repository.PublicacionRepository;
 import com.danteautomotores.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -50,7 +51,8 @@ public class PublicacionService {
     private final AgenciaRepository agenciaRepository;
     private final UsuarioRepository usuarioRepository;
     private final FotoPublicacionRepository fotoPublicacionRepository;
-    private final ConsultaRepository consultaRepository;
+    private final ConversacionRepository conversacionRepository;
+    private final MensajeRepository mensajeRepository;
     private final FavoritoRepository favoritoRepository;
     private final CloudinaryService cloudinaryService;
     private final ImagenValidator imagenValidator;
@@ -155,7 +157,7 @@ public class PublicacionService {
         return PublicacionMapper.toResponse(publicacion);
     }
 
-    // Decisión del usuario (cascada + aviso): los favoritos y las consultas de la publicación se borran en la
+    // Decisión del usuario (cascada + aviso): los favoritos, los mensajes y las conversaciones de la publicación se borran en la
     // misma transacción, y el panel avisa antes cuántos son (obtenerImpactoEliminacion). Las fotos caen por
     // cascade/orphanRemoval. Si algo falla no queda nada borrado a medias.
     @Transactional
@@ -167,7 +169,8 @@ public class PublicacionService {
                 .toList();
 
         favoritoRepository.deleteByPublicacionId(id);
-        consultaRepository.deleteByPublicacionId(id);
+        mensajeRepository.deleteByPublicacionId(id);
+        conversacionRepository.deleteByPublicacionId(id);
         publicacionRepository.delete(publicacion);
 
         eliminarImagenesDespuesDelCommit(publicIds);
@@ -179,7 +182,7 @@ public class PublicacionService {
             throw new ResourceNotFoundException("No existe una publicación con id: " + id);
         }
         return ImpactoEliminacionResponse.builder()
-                .cantidadConsultas(consultaRepository.countByPublicacionId(id))
+                .cantidadConversaciones(conversacionRepository.countByPublicacionId(id))
                 .cantidadFavoritos(favoritoRepository.countByPublicacionId(id))
                 .build();
     }
