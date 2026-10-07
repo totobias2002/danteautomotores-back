@@ -39,7 +39,7 @@
 - [x] **MSG-05**: Ambos ven un contador de mensajes no leídos en la web
 - [ ] **MSG-06**: Ambos reciben un mail cuando les llega un mensaje nuevo
 - [x] **MSG-07**: El admin tiene una bandeja con todas las conversaciones, filtrable por tipo (compra/cotización), estado (abierta/cerrada) y no leídas
-- [ ] **MSG-08**: El admin puede cerrar o reabrir una conversación
+- [x] **MSG-08**: El admin puede cerrar o reabrir una conversación
 - [ ] **MSG-09**: El admin ve la ficha del usuario (nombre, teléfono, DNI, mail) con su historial de conversaciones y cotizaciones
 
 ### Cotizador
@@ -125,7 +125,7 @@
 | MSG-05 | Phase 4 | Complete |
 | MSG-06 | Phase 4 | Pending |
 | MSG-07 | Phase 4 | Complete |
-| MSG-08 | Phase 4 | Pending |
+| MSG-08 | Phase 4 | Complete |
 | MSG-09 | Phase 4 | Pending |
 | COT-01 | Phase 5 | Pending |
 | COT-02 | Phase 5 | Pending |

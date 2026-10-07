@@ -2,17 +2,18 @@
 gsd_state_version: "1.0"
 current_phase: 4
 current_phase_name: Compra por conversación con la agencia
-status: planning
-stopped_at: Completed 04-05-PLAN.md
-last_updated: "2026-10-07T18:11:43.105Z"
-last_activity: 2026-10-06
+current_plan: 7
+status: executing
+stopped_at: Completed 04-06-PLAN.md
+last_updated: "2026-10-07T18:21:37.333Z"
+last_activity: 2026-10-07
 last_activity_desc: Phase 03 complete, transitioned to Phase 4
-state_head: 1d5439e25caecd28e16fb227e7b2ad0da4963751
+state_head: 6cb21441dc13807d0e16014a946202bd30520f3e
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 41
-  completed_plans: 35
+  completed_plans: 36
   percent: 50
 ---
 
@@ -28,9 +29,10 @@ See: .planning/PROJECT.md (updated 2026-10-03)
 ## Current Position
 
 Phase: 4 — Compra por conversación con la agencia
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-10-06 — Phase 03 complete, transitioned to Phase 4
+Current Plan: 7
+Total Plans in Phase: 11
+Status: Ready to execute
+Last activity: 2026-10-07 — Completed 04-06 (el admin atiende una conversación)
 
 Progress: [█████░░░░░] 50%
 
@@ -93,6 +95,7 @@ Progress: [█████░░░░░] 50%
 | Phase 04 P03 | 45min | 1 tasks | 23 files |
 | Phase 04 P04 | 40min | 1 tasks | 19 files |
 | Phase 04 P05 | 45min | 1 tasks | 19 files |
+| Phase 04 P06 | 40min | 1 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -156,6 +159,7 @@ Recent decisions affecting current work:
 - [Phase 04]: [04-04] El marcado como leidos corre al abrir el hilo con la pestana visible y solo toca los mensajes del autor contrario; textoContador muestra 1 a 9 y 9+ desde 10
 - [Phase 04]: 04-05: sin estado el back devuelve todas las conversaciones; el front manda estado=ABIERTA por defecto y omite estado con el filtro TODAS
 - [Phase 04]: 04-05: usuario del resumen es NON_NULL y solo lo completa toResumenParaAdmin; el comprador nunca lo recibe
+- [Phase 04]: 04-06: cerrar y reabrir son idempotentes; reabrir una compra con auto se rechaza con 400 si el usuario ya tiene otra abierta por el mismo auto (el indice unico parcial de V6 es la ultima defensa)
 
 ### Pending Todos
 
@@ -188,8 +192,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-07T18:11:43.002Z
-Stopped at: Completed 04-05-PLAN.md
+Last session: 2026-10-07T18:21:15.909Z
+Stopped at: Completed 04-06-PLAN.md
 Seguridad: el 2026-10-05 se rotaron la clave de Postgres, APP_JWT_SECRET y las credenciales de Cloudinary (key dante-prod-3 con rol Master admin; el resto de las keys se borraron). Produccion verificada despues de rotar (health UP, 11 autos).
 Pendientes menores de produccion: bajarle a la key de Cloudinary el rol Master admin a uno acotado si Cloudinary lo permite; revisar 3 cuentas COMPRADOR de prueba en usuarios; confirmar el Healthcheck Path /actuator/health en Railway; apagar SPRING_FLYWAY_BASELINE_ON_MIGRATE.
 Fase 3: 03-CONTEXT y 03-RESEARCH listos; falta que el usuario responda 5 preguntas del research (union con Google que descarta la contrasena de cuentas sin mail confirmado, boton "Lo quiero", remitente Brevo/dominio, cierre de sesiones al cambiar clave, texto legal /privacidad) y planificar.
