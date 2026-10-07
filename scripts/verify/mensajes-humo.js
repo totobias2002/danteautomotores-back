@@ -102,6 +102,8 @@ function clavesPresentes(valor, prohibidas, encontradas = new Set()) {
     exigir(delAuto.length === 1, `la lista tiene ${delAuto.length} conversaciones del auto (esperaba 1)`);
   });
 
+  let consulta = null;
+
   // ---- Casos negativos y de borde (MSG-01, D-04, D-12, T-04-01, T-04-08) ----
   await revisar("sin token POST /conversaciones da 401 y GET también", async () => {
     const creacion = await post("/conversaciones", { publicacionId });
@@ -184,6 +186,43 @@ function clavesPresentes(valor, prohibidas, encontradas = new Set()) {
     const { estado, cuerpo } = await post("/conversaciones", { publicacionId, mensaje: "a".repeat(2001) }, comprador.token);
     exigir(estado === 400, `estado ${estado}`);
     exigir(cuerpo && cuerpo.campos && cuerpo.campos.mensaje, `sin campos.mensaje: ${JSON.stringify(cuerpo)}`);
+  });
+
+  // ---- "Consultar por este auto": el mismo POST con un texto propio (D-01, D-04) ----
+  await revisar("un mensaje propio sobre un auto nuevo crea la conversación y es el último mensaje, recortado", async () => {
+    const consultaId = await crearAuto("Consulta", "Auto del humo para consultar con texto propio");
+    const { estado, cuerpo } = await post("/conversaciones", {
+      publicacionId: consultaId,
+      mensaje: "   ¿Aceptan permuta?   ",
+    }, comprador.token);
+    exigir(estado === 200, `estado ${estado}: ${JSON.stringify(cuerpo)}`);
+    exigir(cuerpo.tipo === "COMPRA" && cuerpo.estado === "ABIERTA", `salió ${cuerpo.tipo} ${cuerpo.estado}`);
+    exigir(cuerpo.ultimoMensaje === "¿Aceptan permuta?", `ultimoMensaje: ${JSON.stringify(cuerpo.ultimoMensaje)}`);
+    exigir(cuerpo.ultimoMensajeAutor === "USUARIO", `autor ${cuerpo.ultimoMensajeAutor}`);
+    consulta = { autoId: consultaId, conversacionId: cuerpo.id };
+  });
+
+  await revisar("un segundo mensaje propio sobre el mismo auto reutiliza la conversación y pasa a ser el último", async () => {
+    exigir(consulta, "falta la conversación del caso anterior");
+    const { estado, cuerpo } = await post("/conversaciones", {
+      publicacionId: consulta.autoId,
+      mensaje: "¿Y financian?",
+    }, comprador.token);
+    exigir(estado === 200, `estado ${estado}`);
+    exigir(cuerpo.id === consulta.conversacionId, `otra conversación: ${cuerpo.id} (esperaba ${consulta.conversacionId})`);
+    exigir(cuerpo.ultimoMensaje === "¿Y financian?", `ultimoMensaje: ${JSON.stringify(cuerpo.ultimoMensaje)}`);
+    const lista = await pedir("GET", "/conversaciones", undefined, comprador.token);
+    const delAuto = lista.cuerpo.filter((c) => c.publicacion && c.publicacion.id === consulta.autoId);
+    exigir(delAuto.length === 1, `la lista tiene ${delAuto.length} conversaciones del auto (esperaba 1)`);
+    exigir(delAuto[0].ultimoMensaje === "¿Y financian?", `la lista muestra: ${JSON.stringify(delAuto[0].ultimoMensaje)}`);
+  });
+
+  await revisar("un mensaje de solo espacios usa el texto automático que nombra el auto", async () => {
+    const enBlancoId = await crearAuto("EnBlanco", "Auto del humo para mensaje en blanco");
+    const { estado, cuerpo } = await post("/conversaciones", { publicacionId: enBlancoId, mensaje: "     " }, comprador.token);
+    exigir(estado === 200, `estado ${estado}`);
+    exigir(typeof cuerpo.ultimoMensaje === "string" && cuerpo.ultimoMensaje.includes(marca) && cuerpo.ultimoMensaje.includes("EnBlanco"),
+      `el texto automático no nombra el auto: ${JSON.stringify(cuerpo.ultimoMensaje)}`);
   });
 
   await revisar("la lista de una segunda cuenta verificada no incluye la conversación de la primera (T-04-01)", async () => {
