@@ -4,6 +4,7 @@ import com.danteautomotores.dto.publicacion.PublicacionResumenResponse;
 import com.danteautomotores.enums.AutorMensaje;
 import com.danteautomotores.enums.EstadoConversacion;
 import com.danteautomotores.enums.TipoConversacion;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -30,4 +31,7 @@ public class ConversacionResumenResponse {
     private AutorMensaje ultimoMensajeAutor;
     // Mensajes de la agencia que el comprador todavía no abrió (D-06).
     private long noLeidos;
+    // Quién es el usuario: solo lo llenan las respuestas de la bandeja del admin (D-05); al comprador no le viaja.
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private UsuarioDeConversacionResponse usuario;
 }

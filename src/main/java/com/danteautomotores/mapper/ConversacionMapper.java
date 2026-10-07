@@ -3,8 +3,10 @@ package com.danteautomotores.mapper;
 import com.danteautomotores.dto.conversacion.ConversacionDetalleResponse;
 import com.danteautomotores.dto.conversacion.ConversacionResumenResponse;
 import com.danteautomotores.dto.conversacion.MensajeResponse;
+import com.danteautomotores.dto.conversacion.UsuarioDeConversacionResponse;
 import com.danteautomotores.entity.Conversacion;
 import com.danteautomotores.entity.Mensaje;
+import com.danteautomotores.entity.Usuario;
 import com.danteautomotores.enums.AutorMensaje;
 
 import java.time.Instant;
@@ -38,6 +40,22 @@ public class ConversacionMapper {
                 .ultimoMensaje(ultimoMensaje == null ? null : extracto(ultimoMensaje.getTexto()))
                 .ultimoMensajeAutor(ultimoMensaje == null ? null : ultimoMensaje.getAutorTipo())
                 .build();
+    }
+
+    /**
+     * Fila de la bandeja del admin: el resumen más quién es el usuario (sin DNI ni teléfono, D-11). {@code noLeidos}
+     * son los mensajes del usuario que la agencia todavía no leyó.
+     */
+    public static ConversacionResumenResponse toResumenParaAdmin(Conversacion conversacion, Mensaje ultimoMensaje, long noLeidos) {
+        ConversacionResumenResponse resumen = toResumen(conversacion, ultimoMensaje, noLeidos);
+        Usuario usuario = conversacion.getUsuario();
+        resumen.setUsuario(UsuarioDeConversacionResponse.builder()
+                .id(usuario.getId())
+                .nombre(usuario.getNombre())
+                .apellido(usuario.getApellido())
+                .email(usuario.getEmail())
+                .build());
+        return resumen;
     }
 
     public static MensajeResponse toMensaje(Mensaje mensaje) {

@@ -3,13 +3,22 @@ package com.danteautomotores.repository;
 import com.danteautomotores.entity.Conversacion;
 import com.danteautomotores.enums.EstadoConversacion;
 import com.danteautomotores.enums.TipoConversacion;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface ConversacionRepository extends JpaRepository<Conversacion, Long> {
+public interface ConversacionRepository extends JpaRepository<Conversacion, Long>, JpaSpecificationExecutor<Conversacion> {
+
+    // La bandeja del admin: usuario, auto y agencia vienen en la misma consulta de la página (el resumen los recorre).
+    @Override
+    @EntityGraph(attributePaths = {"usuario", "publicacion", "publicacion.agencia"})
+    Page<Conversacion> findAll(Specification<Conversacion> spec, Pageable pageable);
 
     Optional<Conversacion> findFirstByUsuarioIdAndPublicacionIdAndTipoAndEstado(
             Long usuarioId, Long publicacionId, TipoConversacion tipo, EstadoConversacion estado);

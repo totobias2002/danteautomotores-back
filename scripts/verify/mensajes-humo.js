@@ -3,7 +3,7 @@
 //   ADMIN_EMAIL=admin.humo@dante.test ADMIN_PASSWORD=... ADMIN_NOMBRE=AdminHumo \
 //     bash scripts/verify/con-back-local.sh --vacia dante_humo_mensajes node scripts/verify/mensajes-humo.js
 // Cubre "Lo quiero", la lista de Mis mensajes, el hilo del comprador (leer, escribir, aislamiento y límite de envío), los
-// mensajes sin leer y sus casos negativos; los planes siguientes agregan el resto de la fase.
+// mensajes sin leer, la bandeja del admin con sus filtros y los casos negativos; los planes siguientes agregan el resto.
 const {
   exigir,
   revisar,
@@ -354,6 +354,72 @@ function clavesPresentes(valor, prohibidas, encontradas = new Set()) {
     // La del admin sigue viendo el mensaje del comprador: la cuenta ajena no pudo tocarlo.
     const delAdminDespues = await pedir("GET", "/conversaciones/no-leidas", undefined, admin.token);
     exigir(delAdminDespues.cuerpo.noLeidos >= 1, `el admin dejó de ver mensajes sin leer: ${delAdminDespues.texto}`);
+  });
+
+  // ---- La bandeja del admin (MSG-05, MSG-07, D-11, D-15, T-04-18, T-04-19, T-04-20) ----
+  await revisar("GET /admin/conversaciones da 401 sin token y 403 al comprador", async () => {
+    const sin = await pedir("GET", "/admin/conversaciones");
+    exigir(sin.estado === 401, `sin token: estado ${sin.estado}`);
+    const delComprador = await pedir("GET", "/admin/conversaciones", undefined, comprador.token);
+    exigir(delComprador.estado === 403, `del comprador: estado ${delComprador.estado}`);
+  });
+
+  await revisar("el admin lista la conversación con el nombre del usuario, noLeidos mayor a cero y sin dni ni telefono", async () => {
+    const { estado, cuerpo } = await pedir("GET", "/admin/conversaciones", undefined, admin.token);
+    exigir(estado === 200, `estado ${estado}: ${JSON.stringify(cuerpo)}`);
+    exigir(Array.isArray(cuerpo.contenido), "la respuesta no trae contenido");
+    exigir(cuerpo.pagina === 1 && cuerpo.tamanio === 20 && cuerpo.totalElementos >= 1 && cuerpo.totalPaginas >= 1,
+      `estructura de página: ${JSON.stringify({ ...cuerpo, contenido: undefined })}`);
+    const fila = cuerpo.contenido.find((c) => c.id === conversacionId);
+    exigir(fila, "la conversación no aparece en la bandeja del admin");
+    exigir(fila.usuario && fila.usuario.nombre === "Humo" && fila.usuario.apellido === "Prueba" && fila.usuario.email,
+      `usuario de la fila: ${JSON.stringify(fila.usuario)}`);
+    exigir(fila.noLeidos > 0, `noLeidos ${fila.noLeidos}`);
+    exigir(fila.tipo === "COMPRA" && fila.estado === "ABIERTA", `salió ${fila.tipo} ${fila.estado}`);
+    exigir(fila.publicacion && fila.publicacion.marca === marca, "la fila no trae el auto");
+    const prohibidas = clavesPresentes(cuerpo, ["dni", "telefono", "passwordHash", "password", "password_hash"]);
+    exigir(prohibidas.length === 0, `la bandeja expone: ${prohibidas.join(", ")}`);
+    // La bandeja ordena por el último mensaje, el más reciente primero.
+    const fechas = cuerpo.contenido.map((c) => c.ultimoMensajeEn);
+    exigir(fechas.every((f, i) => i === 0 || Date.parse(f) <= Date.parse(fechas[i - 1])), `orden de las filas: ${JSON.stringify(fechas)}`);
+  });
+
+  await revisar("los filtros de la bandeja: estado, solo no leídas y tipo, y un valor inválido da 400", async () => {
+    const cerradas = await pedir("GET", "/admin/conversaciones?estado=CERRADA", undefined, admin.token);
+    exigir(cerradas.estado === 200, `CERRADA: estado ${cerradas.estado}`);
+    exigir(!cerradas.cuerpo.contenido.some((c) => c.id === conversacionId), "la abierta aparece entre las cerradas");
+    exigir(cerradas.cuerpo.contenido.every((c) => c.estado === "CERRADA"), "hay filas que no están cerradas");
+
+    const abiertas = await pedir("GET", "/admin/conversaciones?estado=ABIERTA", undefined, admin.token);
+    exigir(abiertas.cuerpo.contenido.some((c) => c.id === conversacionId), "la abierta no aparece entre las abiertas");
+
+    const sinLeer = await pedir("GET", "/admin/conversaciones?soloNoLeidas=true", undefined, admin.token);
+    exigir(sinLeer.estado === 200, `soloNoLeidas: estado ${sinLeer.estado}`);
+    exigir(sinLeer.cuerpo.contenido.some((c) => c.id === conversacionId), "la conversación sin leer no aparece con soloNoLeidas");
+    exigir(sinLeer.cuerpo.contenido.every((c) => c.noLeidos > 0), "hay filas leídas con soloNoLeidas");
+
+    const compras = await pedir("GET", "/admin/conversaciones?tipo=COMPRA", undefined, admin.token);
+    exigir(compras.cuerpo.contenido.some((c) => c.id === conversacionId), "la compra no aparece con tipo=COMPRA");
+
+    const cotizaciones = await pedir("GET", "/admin/conversaciones?tipo=COTIZACION", undefined, admin.token);
+    exigir(cotizaciones.estado === 200, `COTIZACION: estado ${cotizaciones.estado}`);
+    exigir(cotizaciones.cuerpo.contenido.length === 0 && cotizaciones.cuerpo.totalElementos === 0,
+      `se esperaba una página vacía: ${JSON.stringify(cotizaciones.cuerpo)}`);
+
+    const invalido = await pedir("GET", "/admin/conversaciones?tipo=NAVE", undefined, admin.token);
+    exigir(invalido.estado === 400, `tipo=NAVE: estado ${invalido.estado}`);
+    exigir(invalido.cuerpo && typeof invalido.cuerpo.error === "string", `sin error uniforme: ${invalido.texto}`);
+
+    const combinado = await pedir("GET", "/admin/conversaciones?tipo=COMPRA&estado=ABIERTA&soloNoLeidas=true&pagina=1", undefined, admin.token);
+    exigir(combinado.estado === 200 && combinado.cuerpo.contenido.some((c) => c.id === conversacionId),
+      `filtros combinados: estado ${combinado.estado}`);
+    const lejos = await pedir("GET", "/admin/conversaciones?pagina=999", undefined, admin.token);
+    exigir(lejos.estado === 200 && lejos.cuerpo.contenido.length === 0, `página 999: estado ${lejos.estado}`);
+  });
+
+  await revisar("una cuenta comprador no puede usar los filtros de la bandeja (403 con cualquier parámetro)", async () => {
+    const r = await pedir("GET", "/admin/conversaciones?soloNoLeidas=true&tipo=COMPRA", undefined, comprador.token);
+    exigir(r.estado === 403, `estado ${r.estado}`);
   });
 
   await revisar("una cuenta descartable recibe 429 con Retry-After en el envío 21 y ese mensaje no queda en el hilo (D-10)", async () => {
