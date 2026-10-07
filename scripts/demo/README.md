@@ -40,7 +40,7 @@ Variables:
 
 **Correrlo dos veces ya no duplica:** antes de crear nada, el script busca en el backend autos de la demo (misma marca, modelo y año) y, si hay alguno, aborta y los lista. Las agencias que ya existen con el mismo nombre no se duplican ni se tocan: sus datos (dirección, teléfono, email, descripción, logo) quedan como están. Solo si la agencia existente no tiene zona se la completa con un `PUT` que reenvía sus propios datos más la zona de la demo; si ese `PUT` falla se avisa por consola y se sigue con la agencia tal como está. Las agencias existentes no se registran (no las creó el script).
 
-**Contra producción:** antes de cargar la demo, la página `/creditos` del front tiene que estar publicada (licencias CC BY y CC BY-SA, ver arriba). Y nunca se usa `LIMPIAR=1`: borraría autos, fotos, consultas y favoritos reales. El registro de la carga (ver abajo) queda en la máquina de quien la corrió: conviene no perderlo hasta decidir si la demo se queda.
+**Contra producción:** antes de cargar la demo, la página `/creditos` del front tiene que estar publicada (licencias CC BY y CC BY-SA, ver arriba). Y nunca se usa `LIMPIAR=1`: borraría autos, fotos, conversaciones y favoritos reales. El registro de la carga (ver abajo) queda en la máquina de quien la corrió: conviene no perderlo hasta decidir si la demo se queda.
 
 ### Registro de la corrida y cómo deshacerla
 
@@ -58,7 +58,7 @@ Antes de borrar verifica, sin hacer ningún request, que el registro exista y se
 
 ### Empezar de cero
 
-Con `LIMPIAR=1`, antes de cargar **borra todos los autos y todas las agencias** del backend (salvo la agencia `dante-automotores`), junto con sus fotos en Cloudinary, favoritos y consultas. Usalo solo contra una base de prueba, nunca contra producción con datos reales. El script se niega a usar `LIMPIAR=1` contra un backend que no sea `localhost` o `127.0.0.1` (lo chequea antes de hacer cualquier request) salvo que se defina `CONFIRMAR_BORRADO_EN_PRODUCCION=SI`.
+Con `LIMPIAR=1`, antes de cargar **borra todos los autos y todas las agencias** del backend (salvo la agencia `dante-automotores`), junto con sus fotos en Cloudinary, favoritos y conversaciones. Usalo solo contra una base de prueba, nunca contra producción con datos reales. El script se niega a usar `LIMPIAR=1` contra un backend que no sea `localhost` o `127.0.0.1` (lo chequea antes de hacer cualquier request) salvo que se defina `CONFIRMAR_BORRADO_EN_PRODUCCION=SI`.
 
 ```bash
 LIMPIAR=1 API=http://localhost:8080/api ADMIN_EMAIL=<email> ADMIN_PASSWORD=<clave> node scripts/demo/sembrar-demo.js

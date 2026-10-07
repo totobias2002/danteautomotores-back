@@ -10,10 +10,11 @@ Repo hermano: [danteautomotores-front](https://github.com/totobias2002/danteauto
 - **Agencia**: perfil de la agencia (página estandarizada dentro del marketplace), gestionado por el admin.
 - **Publicacion**: auto en venta, vinculado a una agencia y al admin que lo cargó.
 - **FotoPublicacion**: fotos de cada publicación (se suben a Cloudinary, se guarda la URL).
-- **Consulta**: mensaje de contacto de un usuario sobre una publicación.
+- **Conversacion**: hilo entre un usuario y la agencia atado a una publicación. Es de tipo COMPRA o COTIZACION y está ABIERTA o CERRADA. Las fechas se guardan en UTC.
+- **Mensaje**: texto de 1 a 2000 caracteres dentro de una conversación, de autor USUARIO o AGENCIA, con `leido_en` (nulo mientras el otro lado no lo leyó).
 - **Favorito**: publicaciones que un usuario guardó.
 
-No hay flujo de compra/pago dentro de la plataforma: el circuito es consulta → gestión de la venta fuera del sistema → el admin actualiza el estado de la publicación (DISPONIBLE / RESERVADO / VENDIDO). Solo el ADMIN puede crear/editar/eliminar agencias y publicaciones; el COMPRADOR navega, consulta y guarda favoritos.
+No hay flujo de pago dentro de la plataforma: "Lo quiero" abre una conversación con la agencia, la venta se cierra fuera del sistema y el admin actualiza el estado de la publicación (DISPONIBLE / RESERVADO / VENDIDO). Solo el ADMIN puede crear/editar/eliminar agencias y publicaciones; el COMPRADOR navega, conversa con la agencia, consulta y guarda favoritos.
 
 ## Cómo levantar el entorno de desarrollo
 
@@ -60,7 +61,8 @@ El esquema lo crea y versiona Flyway desde `src/main/resources/db/migration`:
 
 - `V1` es el esquema previo a la Fase 1; `V2` y `V3` suman los cambios de las fases 1 y 2, y `V4` es la de las solicitudes de venta. Una base que ya existía sin historial de Flyway (por ejemplo la de producción, creada antes por Hibernate) se marca como V1 (baseline) y recibe solo las migraciones siguientes.
 - `V5` es la migración de identidad de la Fase 3 (apellido, DNI único, mail confirmado, Google, tokens de cuenta y cierre de sesiones). Es aditiva: no borra ni reescribe datos de las cuentas existentes (solo da por confirmado el mail de los admins), que conviven con DNI y apellido vacíos hasta que completan sus datos. Como toda migración aplicada, no se edita. No tiene vuelta atrás de datos: no hay un script que deshaga el esquema, y una base ya migrada no se "des-migra". La vuelta atrás de un deploy es redeployar la versión anterior del back, que sigue funcionando contra el esquema nuevo porque ignora las columnas y tablas agregadas.
-- **Nunca se edita una migración ya aplicada.** Todo cambio de entidad va en una migración nueva (`V6__...`, `V7__...`).
+- `V6` (Fase 4) crea las tablas `conversaciones` y `mensajes`, con un índice único parcial que impide más de una conversación abierta de compra por usuario y auto, y las fechas en UTC. `V7` copia las consultas viejas con cuenta de comprador a conversaciones y mensajes (sin leer) y cambia la clave foránea de `consultas` hacia `publicaciones` a cascada; no borra nada. Ambas son aditivas: la tabla `consultas` queda sin uso y sin entidad (su eliminación definitiva, junto con la revisión de la agencia por la Ley 25.326, es una limpieza posterior), y la vuelta atrás de un deploy sigue siendo redeployar el back anterior, que funciona contra el esquema nuevo porque ignora lo agregado.
+- **Nunca se edita una migración ya aplicada.** Todo cambio de entidad va en una migración nueva (`V8__...` en adelante).
 - Hibernate está en `ddl-auto: validate`: si una entidad y el esquema no coinciden, el arranque se frena con el error. No crea ni modifica tablas.
 - El SQL se puede loguear en local con `SPRING_JPA_SHOW_SQL=true` (por defecto está apagado).
 - Las migraciones y las consultas del catálogo se prueban contra un Postgres real. La sección "Tests" explica cuándo esos tests se saltean y cuándo son obligatorios.
@@ -115,9 +117,52 @@ Con una casilla de Gmail como remitente, Brevo no puede autenticar el dominio y 
 
 ### Datos personales (Ley 25.326)
 
-- El DNI y el teléfono de una cuenta solo los devuelve `/api/usuarios/me` a su dueño y, en la Fase 4, se los mostrará al admin para atender las consultas. Las respuestas de login y registro nunca los incluyen.
+- El DNI y el teléfono de una cuenta solo los devuelve `/api/usuarios/me` a su dueño y, desde la Fase 4, `GET /api/admin/usuarios/{id}` al admin: la ficha del usuario (`/admin/usuarios/{id}` en el front) es el único lugar donde salen hacia otra persona. Las respuestas de login y registro nunca los incluyen.
 - No se loguean: ni el DNI, ni el teléfono, ni las contraseñas, ni los links de un solo uso en producción (en desarrollo el mail se escribe en el log a propósito, y `SecretosGuard` impide ese modo fuera de él). El humo de cuentas verifica que el log de una corrida completa no contenga esos datos.
 - La página `/privacidad` del front es un borrador. La revisión legal y la inscripción de la base de datos ante la AAIP (Agencia de Acceso a la Información Pública) son pendientes de la agencia, fuera del código (D-20).
+
+## Mensajería: conversaciones con la agencia (Fase 4)
+
+**Flujo.** "Lo quiero" y "Consultar por este auto" (`POST /api/conversaciones`) crean la conversación de compra del usuario sobre ese auto, o reutilizan la que ya tiene abierta. Un auto vendido se rechaza y la cuenta tiene que estar verificada (si no, 403 `CUENTA_NO_VERIFICADA`). El comprador sigue la charla en Mis mensajes; el admin atiende todas desde su bandeja.
+
+| Endpoint | Rol | Qué hace |
+|---|---|---|
+| `POST /api/conversaciones` | comprador | Lo quiero / Consultar: crea o reutiliza la conversación abierta de compra del auto |
+| `GET /api/conversaciones` | comprador | Lista sus conversaciones |
+| `GET /api/conversaciones/{id}` | comprador | Hilo de una conversación propia |
+| `POST /api/conversaciones/{id}/mensajes` | comprador | Envía un mensaje |
+| `POST /api/conversaciones/{id}/leida` | comprador | Marca como leídos los mensajes de la agencia |
+| `GET /api/conversaciones/no-leidas` | comprador y admin | Contador de mensajes sin leer (el del admin cuenta la bandeja) |
+| `GET /api/admin/conversaciones` | admin | Bandeja con filtros (tipo, estado, solo no leídas) y paginación |
+| `GET /api/admin/conversaciones/{id}` | admin | Hilo de cualquier conversación |
+| `POST /api/admin/conversaciones/{id}/mensajes` | admin | Responde como agencia |
+| `POST /api/admin/conversaciones/{id}/leida` | admin | Marca como leídos los mensajes del usuario |
+| `POST /api/admin/conversaciones/{id}/cerrar` | admin | Cierra la conversación |
+| `POST /api/admin/conversaciones/{id}/reabrir` | admin | La reabre |
+| `GET /api/admin/usuarios/{id}` | admin | Ficha del usuario con su historial de conversaciones |
+
+- **No leídos.** Cada mensaje tiene `leido_en`; los no leídos de un lado son los que escribió el otro. El contador sale de `GET /api/conversaciones/no-leidas`, que responde según el rol: al comprador le cuenta lo suyo y al admin le cuenta la bandeja.
+- **Sin tiempo real.** El front consulta el contador cada 30 segundos y el hilo abierto cada 10, solo con la pestaña visible. No hay websockets.
+- **Cerrar y reabrir.** Una conversación cerrada no recibe mensajes. Reabrir se rechaza si el usuario ya tiene otra conversación abierta por el mismo auto.
+- **Avisos por mail.** Cada mensaje nuevo avisa al otro lado (a los admins si escribe el usuario, al dueño si responde la agencia) con asunto fijo y sin el texto del mensaje. Sale como máximo un mail cada 10 minutos por conversación y destinatario, y cuenta contra el tope diario compartido de 250 mails. Usan Brevo sin variables de entorno nuevas; en desarrollo se escriben en el log.
+- **Límite de envío.** 20 mensajes cada 10 minutos por usuario; al pasarse, 429.
+- **Privacidad.** El DNI y el teléfono salen solo en `GET /api/admin/usuarios/{id}`, para el admin. Una conversación ajena o inexistente responde el mismo 404. El texto de los mensajes no se escribe en el log.
+- **Borrar un auto** borra sus conversaciones y mensajes (el panel avisa cuántas conversaciones se pierden antes de confirmar).
+
+**Limitaciones conocidas.**
+
+- El estado de los límites de envío y de las ventanas de mail vive en la memoria de una instancia: se reinicia con cada deploy y no escala a varias instancias (mismo caso que los límites de la sección "Deuda de seguridad conocida").
+- El tipo COTIZACION existe en el modelo, pero las conversaciones de cotización las crea la Fase 5, que también suma las cotizaciones a la ficha del usuario.
+- La tabla `consultas` quedó sin uso (ver "Base de datos y migraciones").
+
+**Cómo correr el humo de la fase.** Contra un back local con una base vacía y descartable:
+
+```bash
+ADMIN_EMAIL=admin.humo@dante.test ADMIN_PASSWORD=<una contraseña de prueba> ADMIN_NOMBRE=AdminHumo \
+  bash scripts/verify/con-back-local.sh --vacia <base_descartable> node scripts/verify/mensajes-humo.js
+```
+
+Termina con una línea `humo:` que debe decir `0 fallas`.
 
 ## Producción
 
@@ -145,10 +190,10 @@ Con `prod`, el backend no arranca si falta o es inválido el secreto JWT, la con
 Hay dos grupos de tests:
 
 - La mayoría (unitarios y de controladores) corren sin Docker ni base de datos.
-- `MigracionesPostgresTest` (V1 a V5 contra `ddl-auto: validate`, incluida una base creada por Hibernate sin historial) y `CatalogoPostgresTest` (consultas reales del catálogo) usan el Postgres del `docker-compose.yml` en localhost:5433, en bases descartables `test_xxxxxxxx` que crean y borran solas. Nunca tocan la base `danteautomotores`.
+- `MigracionesPostgresTest` (V1 a V7 contra `ddl-auto: validate`, incluida una base creada por Hibernate sin historial), `CatalogoPostgresTest` (consultas reales del catálogo), `ConversacionPostgresTest` y `ConversacionAdminPostgresTest` (conversaciones y mensajes reales) usan el Postgres del `docker-compose.yml` en localhost:5433, en bases descartables `test_xxxxxxxx` que crean y borran solas. Nunca tocan la base `danteautomotores`.
 - El front (repo `danteautomotores-front`) corre sus tests con `npm test`.
 
-Sin Postgres, esos dos tests se saltean: Maven los informa como "Skipped" y el build queda verde igual, así que un verde sin Postgres no prueba las migraciones.
+Sin Postgres, esos tests se saltean: Maven los informa como "Skipped" y el build queda verde igual, así que un verde sin Postgres no prueba las migraciones.
 
 Con `-Ddante.pg.required=true` no se saltean: sin Postgres fallan con un mensaje que explica cómo levantarlo. Es obligatorio correrlos así (con `docker compose up -d` antes) antes de cada deploy y cada vez que se agrega una migración o se cambia una entidad.
 
