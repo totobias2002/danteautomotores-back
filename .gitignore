@@ -14,3 +14,6 @@ scripts/demo/registros/
 
 # Los volcados de la base de produccion traen hashes de contrasenas y datos personales (Ley 25.326): nunca se commitean.
 *.dump
+
+# graphify (grafo de conocimiento generado)
+graphify-out/

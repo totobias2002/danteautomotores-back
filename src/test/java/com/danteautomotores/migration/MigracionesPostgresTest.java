@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Las migraciones contra un PostgreSQL real, sin Spring. Cada test trabaja sobre sus propias bases test_* y las borra.
  * Lo que se prueba es lo que no se puede arreglar después en producción: una base creada por Hibernate sin historial
- * de Flyway queda marcada como V1, recibe de V2 a V7 y no pierde ninguna fila.
+ * de Flyway queda marcada como V1, recibe de V2 a V8 y no pierde ninguna fila.
  */
 class MigracionesPostgresTest {
 
@@ -154,24 +154,24 @@ class MigracionesPostgresTest {
     // ---- Tests ----
 
     @Test
-    void baseVaciaAplicaLasSieteMigraciones() throws SQLException {
+    void baseVaciaAplicaLasOchoMigraciones() throws SQLException {
         String base = baseNueva();
 
         MigrateResult resultado = flyway(base, true).migrate();
 
-        assertThat(resultado.migrationsExecuted).isEqualTo(7);
-        assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true", "7:SQL:true");
+        assertThat(resultado.migrationsExecuted).isEqualTo(8);
+        assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true", "7:SQL:true", "8:SQL:true");
     }
 
     @Test
-    void produccionSimuladaQuedaEnBaselineV1RecibeDeV2AV7SinPerderFilas() throws SQLException {
+    void produccionSimuladaQuedaEnBaselineV1RecibeDeV2AV8SinPerderFilas() throws SQLException {
         String base = produccionSimulada();
         Map<String, Long> antes = conteos(base);
 
         MigrateResult resultado = flyway(base, true).migrate();
 
-        assertThat(resultado.migrationsExecuted).isEqualTo(6);
-        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true", "7:SQL:true");
+        assertThat(resultado.migrationsExecuted).isEqualTo(7);
+        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true", "7:SQL:true", "8:SQL:true");
         assertThat(conteos(base)).isEqualTo(antes);
         assertThat(valor(base, "SELECT count(*) FROM publicaciones WHERE destacado = false")).isEqualTo("2");
         assertThat(valor(base, "SELECT fecha_vendido IS NOT NULL FROM publicaciones WHERE estado = 'VENDIDO'")).isEqualTo("t");
@@ -185,8 +185,8 @@ class MigracionesPostgresTest {
 
         MigrateResult resultado = flyway(base, true).migrate();
 
-        assertThat(resultado.migrationsExecuted).isEqualTo(6);
-        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true", "7:SQL:true");
+        assertThat(resultado.migrationsExecuted).isEqualTo(7);
+        assertThat(historial(base)).containsExactly("1:BASELINE:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true", "7:SQL:true", "8:SQL:true");
         assertThat(conteos(base)).isEqualTo(antes);
     }
 
@@ -400,8 +400,8 @@ class MigracionesPostgresTest {
                 total += futuro.get(60, TimeUnit.SECONDS); // si un migrate lanzara, get() propaga la excepcion
             }
 
-            assertThat(total).isEqualTo(7);
-            assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true", "7:SQL:true");
+            assertThat(total).isEqualTo(8);
+            assertThat(historial(base)).containsExactly("1:SQL:true", "2:SQL:true", "3:SQL:true", "4:SQL:true", "5:SQL:true", "6:SQL:true", "7:SQL:true", "8:SQL:true");
         } finally {
             hilos.shutdownNow();
         }
