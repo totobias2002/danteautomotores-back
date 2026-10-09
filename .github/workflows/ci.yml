@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  back:
+    runs-on: ubuntu-latest
+    # Los tests de migraciones y de repositorios necesitan un PostgreSQL real: crean y borran bases test_xxxxxxxx.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: dante
+          POSTGRES_PASSWORD: dante_dev_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dante"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      # dante.pg.required=true hace fallar (en vez de saltear) los tests que no encuentran Postgres.
+      - run: mvn -B test -Ddante.pg.required=true -Ddante.pg.port=5432
